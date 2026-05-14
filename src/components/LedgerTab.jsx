@@ -103,14 +103,15 @@ export function LedgerTab({ game, revenue, spending, balance, deficitGDP, balanc
         <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-3">National Debt</div>
         <div className="space-y-1.5 text-[12px]" style={{fontFamily: 'IBM Plex Mono'}}>
           <div className="flex justify-between"><span className="text-stone-400">Outstanding debt</span><span className="text-stone-200">£{(game.debt/1000).toFixed(2)}tn ({debtRatio}% GDP)</span></div>
-          <div className="flex justify-between"><span className="text-stone-400">Gilt yield</span><span className="text-stone-200">{game.bondYield.toFixed(2)}%</span></div>
+          <div className="flex justify-between"><span className="text-stone-400">Gilt yield (market)</span><span className="text-stone-200">{game.bondYield.toFixed(2)}%</span></div>
+          <div className="flex justify-between"><span className="text-stone-400">Effective rate on stock</span><span className="text-stone-200">{game.effectiveServicingRate.toFixed(2)}%</span></div>
           <div className="flex justify-between"><span className="text-stone-400">Annual interest cost</span><span className="text-rose-400">£{spending.debtInterest.toFixed(0)}bn</span></div>
           {game.pendingSurplus > 0 && (
             <div className="flex justify-between border-t border-stone-700 pt-1.5 mt-1.5"><span className="text-emerald-400">Pending surplus (unallocated)</span><span className="text-emerald-400">£{game.pendingSurplus.toFixed(0)}bn</span></div>
           )}
         </div>
         <div className="text-[10px] text-stone-500 mt-2 leading-snug">
-          Every £1bn of debt at {game.bondYield.toFixed(1)}% gilt yield costs £{(game.bondYield*10).toFixed(0)}m in annual interest. Paying down debt reduces this drag on future budgets.
+          Interest cost is driven by the effective rate paid on the existing debt stock ({game.effectiveServicingRate.toFixed(1)}%), not the live gilt yield. Each £1bn of debt costs £{(game.effectiveServicingRate*10).toFixed(0)}m pa at the current effective rate. The effective rate drifts toward the market yield as gilts mature and are re-issued.
         </div>
       </div>
     </div>

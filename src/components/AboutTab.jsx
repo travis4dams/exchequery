@@ -51,7 +51,7 @@ export function AboutTab() {
           <div className="bg-stone-900/40 border border-stone-800 rounded-lg p-4 mb-4">
             <div className="text-[10px] uppercase tracking-wider text-amber-500 mb-2">The premise</div>
             <p className="text-[12px] text-stone-300 leading-relaxed mb-2">
-              You inherit the UK with a £140bn annual deficit and debt at 100% of GDP. Twenty quarters (five years) to the next election. Coalition cohesion is your binding constraint — fall below {COALITION_FLOOR}% and the government collapses. Bond yields above {BOND_YIELD_CEILING}% and the markets take the keys.
+              You inherit the UK with a £132bn annual deficit (4.3% of GDP) and debt at 95% of GDP. Twenty quarters (five years) to the next election. Coalition cohesion is your binding constraint — fall below {COALITION_FLOOR}% and the government collapses. Bond yields above {BOND_YIELD_CEILING}% and the markets take the keys.
             </p>
             <p className="text-[12px] text-stone-300 leading-relaxed">
               Three win conditions: an annual surplus, a deficit below 2% of GDP, or simply hold the coalition through the election. Re-elected Chancellors continue into a new term.

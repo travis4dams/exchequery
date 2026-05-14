@@ -227,10 +227,8 @@ estimate:
 
 ### Pending follow-up (suggested for a separate PR)
 
-1. **Revenue rebalancing**: update `hmrc_higher_rate` to ~£2bn,
-   `diamond_saez_top_rate` to ~£0.17bn, `hmrc_baseline_income_tax` to
-   ~£302bn. Each individually is a balance change; doing them together as
-   a "revenue refresh" PR keeps the model self-consistent.
+1. **Revenue rebalancing**: ✅ **RESOLVED 2026-05-14**. See "Initial-state
+   recalibration" section below.
 2. **Wealth tax reframing**: decide whether to model the Wealth Tax
    Commission's actual one-off proposal (~£260bn revenue, single payment)
    or keep the annual framing with a clearer "designer-set rate" label.
@@ -238,3 +236,137 @@ estimate:
    permits, retrieve the actual HMRC Ready Reckoner ODS spreadsheet to
    confirm year-1 vs steady-state figures and resolve all `extrapolated`
    tags currently held by HMRC entries.
+
+---
+
+## Initial-state recalibration (2026-05-14)
+
+Sim baselines were ~10-20 years stale and produced a £216bn deficit
+(7.7% of GDP) at game start vs the OBR's £133bn / 4.3% of GDP forecast
+for 2025-26. The gap was structural — revenue under-counted by £305bn,
+spending under-counted by £222bn — so the deficit-as-%-of-GDP was
+roughly doubled by combined revenue understatement and GDP understatement.
+
+Every figure below now resolves to a published OBR Nov-2025 EFO /
+HMRC / DWP / ONS source. Confidence tags upgraded to `sourced` for the
+recalibrated values. Engine output at t=0 now equals: revenue £1,235bn,
+spending £1,367bn, deficit £132bn (4.26% of GDP), debt £2,950bn (95.2%
+of GDP) — within rounding of the OBR Nov-2025 forecast.
+
+### Macro
+
+| Field | Old | New | Source |
+|---|---|---|---|
+| GDP (nominal) | 2800 | **3100** | ONS GDP quarterly national accounts, £3,037bn for 2025 |
+| Debt | 2800 | **2950** | ONS PSF Dec 2025: PSND 95.5% of £3.1tn GDP |
+| Growth | 1.2 | **1.1** | OBR EFO Nov 2025 (2026 forecast) |
+| Gini | 35.2 | **33.0** | ONS Household income inequality FYE 2024-25 (BHC) |
+| Bond yield (market) | 4.5 | **5.0** | Trading Economics: 10-yr gilt 5.07% on 12 May 2026 |
+| Effective servicing rate | (new) | **3.7** | OBR debt-interest forecast £110bn ÷ £2,950bn debt |
+
+The bond-yield mechanic was split: `bondYield` is now the market gilt
+yield (drives sentiment dynamics and the 8% endgame ceiling), while a
+new `effectiveServicingRate` drives debt-interest cost. The effective
+rate drifts 5% of the gap per quarter toward the market yield, modelling
+slow refinancing as gilts mature.
+
+### Revenue
+
+| Field | Old | New | Source |
+|---|---|---|---|
+| `incomeTax.base` | 280 | **330** | OBR EFO Nov 2025 |
+| `incomeTax.higherRatePerPP` | 4.5 | **2.0** | HMRC Ready Reckoner (basic ÷ 4) |
+| `incomeTax.additionalRatePerPP` | 0.9 | **0.17** | HMRC Ready Reckoner (basic ÷ 47) |
+| `corpTax.base` | 100 | **96** | OBR Brief Guide (onshore CT) |
+| `vat.base` | 180 | **181** | OBR Brief Guide |
+| `ni` | 170 | **205** | OBR EFO Nov 2025 |
+| `other` | 200 | **423** | Residual to reconcile to £1,235bn total |
+| `gdpScaleAnchor` | 2800 | **3100** | Mirror new GDP baseline |
+
+The two designer-override entries (`hmrc_higher_rate`, `diamond_saez_top_rate`)
+identified in the previous audit have been recalibrated to the
+HMRC-implied figures and reclassified from `judgement` to `sourced`.
+
+### Spending
+
+| Field | Old | New | Source |
+|---|---|---|---|
+| `spendNHS` | 200 | **204** | OBR Brief Guide |
+| `spendEdu` | 90 | **95** | OBR Brief Guide |
+| `spendDefence` | 55 | **39** | OBR Brief Guide (current DEL; slider max 95 captures 3% GDP path) |
+| `spendWelfare` | 300 | **187** | DWP working-age + children + disability (state pension £146bn now in fixedCosts) |
+| `spendInfra` | 35 | **90** | OBR PSGI capital |
+| `spendLocal` | 60 | **140** | IFS / MHCLG (gross of council tax) |
+| `fixedCosts.pensions` | 130 | **146** | DWP / HoCL CDP-2025-0035 |
+| `fixedCosts.justice` | 40 | **55** | HoCL SR2025 envelopes |
+| `fixedCosts.otherDept` | 110 | **302** | Residual to reconcile to £1,367bn total |
+
+### Threshold knock-ons
+
+Each policy threshold was anchored on the old baseline (e.g.
+`nhsBoostFloor: 210` = £10bn over £200 baseline). Thresholds re-anchored
+to keep the gameplay intent:
+
+| Threshold | Old | New |
+|---|---|---|
+| `nhsBoostFloor` | 210 | 214 |
+| `welfareCutFloor` | 290 | 177 |
+| `eduCutFloor` | 85 | 90 |
+| `localCutFloor` | 60 | 135 |
+| `infraBoostFloor` | 40 | 95 |
+| `infraInvestmentSurgeFloor` | 45 | 100 |
+
+Slider ranges in `BudgetTab.jsx` were also re-anchored on the new baselines.
+
+### New citation entries
+
+`obr_nhs_baseline`, `obr_edu_baseline`, `obr_defence_baseline`,
+`obr_welfare_baseline`, `obr_infra_baseline`, `obr_local_baseline`,
+`effective_servicing_rate_baseline`.
+
+### Verification
+
+Ran `makeInitialState()` + `calcRevenue` / `calcSpending` / `calcBalance`
+post-recalibration; outputs match OBR Nov-2025 EFO aggregates to within
+rounding (deficit £132bn vs published £133bn).
+
+---
+
+## Per-pp tax yield direct verification (2026-05-14)
+
+Pulled the HMRC June 2025 *Direct effects of illustrative tax changes
+bulletin* PDF directly (it was previously triangulated via Oxford
+commentary because the gov.uk endpoint blocked WebFetch). All five
+per-pp tax yields are now sourced verbatim against the HMRC PDF for the
+sim's anchor year (FY 2026-27, the Chancellor's first complete fiscal
+year in office).
+
+| Parameter | Old | New (HMRC FY 2026-27) | Source |
+|---|---|---|---|
+| `incomeTax.basicRatePerPP` | 7.2 | **6.9** | HMRC §5: change basic rate by 1p = £6,900m |
+| `incomeTax.higherRatePerPP` | 2.0 | **1.6** | HMRC §5: change higher rate by 1p = £1,600m |
+| `incomeTax.additionalRatePerPP` | 0.17 | **0.16** | HMRC §5: increase 1p = £145m yield, decrease 1p = £175m cost; midpoint £160m |
+| `corpTax.perPP` | 4.0 | **3.6** | HMRC §12: 1pp on onshore main + small profits = £3,600m |
+| `vat.perPP` | 8.5 | **8.8** | HMRC §18: 1pp on standard rate = £8,800m |
+
+**Asymmetry note.** HMRC publishes a separate yield/cost split only for
+the additional rate (Laffer-curve effect at the top of the income
+distribution: behavioural responses make a cut cost more than an
+equivalent rise yields). The sim's linear-coefficient model uses the
+£160m midpoint; this slightly understates the cost of cutting and
+slightly overstates the yield of raising. Acceptable for game balance;
+documented in the citation note.
+
+**Sourcing upgrade.** Five citations moved from `extrapolated` /
+`sourced (via secondary)` to `sourced (verified directly against the
+HMRC PDF)`. The "via Oxford commentary" caveats in `hmrc_higher_rate`
+and `diamond_saez_top_rate` notes are removed.
+
+**Confidence summary update.** Combined with the OBR Nov 2025 EFO
+recalibration earlier this session, all major fiscal baseline inputs
+are now `sourced` against either the OBR EFO, HMRC ready reckoner, ONS
+PSF/income-inequality bulletins, or DWP/HoCL spending briefings.
+Remaining `judgement` tags now sit only on the parameters that are
+intrinsically designer calls (bloc-response coefficients, risk base
+rates, policy thresholds, surplus-allocation divisors, coalition floor,
+bond-yield ceiling, reelection threshold, forecast-noise band).

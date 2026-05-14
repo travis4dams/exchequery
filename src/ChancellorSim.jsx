@@ -179,13 +179,18 @@ export default function ChancellorSim() {
         }
       }
 
-      // 8. Bond yield
+      // 8. Bond yield (market) and effective servicing rate (drifts toward market)
       const BY = PARAMS.bondYield;
       const balYr = calcBalance(n);
       if (balYr < v(BY.bigDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.bigDeficitDelta));
       else if (balYr < v(BY.midDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.midDeficitDelta));
       else if (balYr > 0) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.surplusDelta));
       else if (balYr > v(BY.smallDeficitThreshold)) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.smallDeficitDelta));
+
+      // Effective rate paid on the existing debt stock chases the market rate slowly,
+      // modelling refinancing as gilts mature and are re-issued at the prevailing yield.
+      const drift = v(PARAMS.spending.effectiveRateDriftPerQuarter);
+      n.effectiveServicingRate = n.effectiveServicingRate + drift * (n.bondYield - n.effectiveServicingRate);
 
       // 9. Events
       const newMods = computeRiskMods(n);

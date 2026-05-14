@@ -8,7 +8,7 @@ Built with React + Vite + Tailwind. Deploys as a static site to GitHub Pages.
 
 ## How to play
 
-You inherit the UK in Q1 2026 with a deficit of roughly £140bn and debt at 100% of GDP. Each quarter:
+You inherit the UK in Q1 2026 with a deficit of roughly £132bn (4.3% of GDP) and debt at 95% of GDP. Each quarter:
 
 1. **Adjust budget levers** — income tax bands, corporation tax, VAT, and departmental spending.
 2. **Propose reforms** — multi-quarter projects with upfront costs, prerequisites, and uncertain outcomes (±25% forecast error until you pass OBR Independence).
