@@ -38,9 +38,92 @@ Then open http://localhost:5173
 
 Vite's `base: './'` config means the build works at any subpath without further configuration.
 
-## Adding new reforms
+## Architecture
 
-Open `src/ChancellorSim.jsx` and find the `REFORMS` object. Schema is documented in the comment block at the top of the file. Add an entry and it shows up automatically in the right branch.
+The simulation is split into a pure-function model layer and a thin React
+orchestrator. Every numeric assumption traces back to an entry in a citation
+registry that records the source, the value used, and the confidence level.
+
+```
+src/
+  model/
+    citations.js   single source of truth for every numeric assumption
+    params.js      every tunable constant, wrapped via cited(value, citationId)
+    blocs.js       voter bloc definitions
+    reforms.js     REFORMS map; every numeric field carries a citationId
+    events.js      EVENT_DEFINITIONS + cross-event REFORM_RISK_MODS
+    sources.js     bibliography for the About tab
+    engine.js      pure calculation functions; reads only from PARAMS
+    index.js       convenience re-exports
+  components/
+    primitives/    Slider, BlocBar, ReformCard, CitationLink + ConfidenceBadge
+    modals/        Intro, EventModal, QuarterSummary, SurplusAllocModal,
+                   InspectReform, Reelect, FinalModal
+    OverviewTab.jsx, BudgetTab.jsx, ReformsTab.jsx,
+    RisksTab.jsx, LedgerTab.jsx, AboutTab.jsx
+  ChancellorSim.jsx  state, useEffects, advanceQuarter, header + tab switching
+  main.jsx
+```
+
+### Confidence levels
+
+Every entry in `citations.js` carries a `confidence` tag:
+
+- **sourced** — directly verified against the cited publication
+- **extrapolated** — sourced reasoning applied / consistent-but-not-verbatim,
+  or a derived calculation from a sourced parameter
+- **judgement** — designer judgement with documented reasoning
+
+The About tab's *Confidence summary* shows the live percentage breakdown
+across all parameter-level citations (currently 117 entries: ~10% sourced,
+~37% extrapolated, ~53% judgement). Borderline classification decisions and
+their reasoning are recorded in `CLASSIFICATION_LOG.md` at repo root.
+
+### Adding a new reform
+
+Append one entry to `REFORMS` in `src/model/reforms.js`. Every numeric
+field is wrapped via `cited(value, citationId)`. If the citation doesn't
+exist yet, add a corresponding entry to `src/model/citations.js`. No other
+code changes needed — the UI iterates the map automatically, and the
+inspect-reform modal walks the reform tree to surface every citation.
+
+```js
+myReform: {
+  name: 'My Reform', branch: 'revenue',
+  cost: cited(2, 'my_citation'), quarters: 4, prereq: [],
+  passReq: { coalition: cited(30, 'bloc_methodology') },
+  blurb: 'Short description.',
+  citationId: 'my_citation',  // primary evidence base
+  onComplete: {
+    revBonus: cited(5, 'my_citation'),
+    log: 'My reform delivered.',
+  },
+  blocEffects: {
+    workingClass: cited(3, 'bloc_methodology'),
+  },
+},
+```
+
+### Tuning a parameter
+
+Edit `src/model/params.js`. Every leaf is `{ value, citationId }`. Change
+the first argument to `cited()`; the engine reads the new value
+automatically. Behaviour-affecting threshold constants (corp 22%/28%, NHS
+boost above £210bn, etc.) live in `PARAMS.thresholds`.
+
+### Adding a new citation
+
+Add an entry to `src/model/citations.js`. Required fields: `parameter`,
+`confidence`, `title`, `note`. Optional: `value`, `unit`, `publisher`,
+`authors`, `year`, `url`, `quote`. The validator in `params.js` throws on
+load if any `citationId` referenced by a `cited()` call doesn't resolve to
+a real entry.
+
+### Adding new reforms (legacy note)
+
+The pre-refactor monolith documented its reform schema inline in
+`src/ChancellorSim.jsx`. That file is now ~500 lines of thin orchestration;
+the schema lives in `src/model/reforms.js`. Same idea, just a better home.
 
 ---
 

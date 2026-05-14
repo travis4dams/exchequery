@@ -1,0 +1,770 @@
+// =============================================================================
+// REFORMS — every reform definition.
+//
+// Schema:
+//   id: {
+//     name: string,
+//     branch: string,                // revenue | nhs | housing | green | education | labour | state
+//     cost: { value, citationId },   // upfront £bn (paid on commit)
+//     quarters: number,              // time to complete
+//     prereq: string[],              // reform IDs that must be complete
+//     passReq: { coalition: { value, citationId } },
+//     blurb: string,                 // one-line description
+//     citationId: string,            // primary citation for the reform's evidence base
+//     controversial?: boolean,       // marks as contested
+//     special?: string,              // e.g. 'reduceForecastNoise'
+//     onComplete: {                  // effects when delivered
+//       revBonus?: { value, citationId },
+//       ongoingRev?: { value, citationId },
+//       ongoingCost?: { value, citationId },
+//       growthBonus?: { value, citationId },
+//       gini?: { value, citationId },
+//       healthBoost?: { value, citationId },
+//       populationEffects?: { [blocId]: { value, citationId } },
+//       log: string,
+//     },
+//     blocEffects?: { [blocId]: { value, citationId } },
+//     riskMods?: { [eventId]: { value, citationId } },
+//   }
+//
+// To add a reform: append one entry here AND ensure citationId resolves in
+// citations.js. No other code changes needed — the UI iterates this map.
+// =============================================================================
+
+import { CITATIONS } from './citations.js';
+
+const cited = (value, citationId) => {
+  if (!CITATIONS[citationId]) {
+    throw new Error(`reforms.js references missing citation: ${citationId}`);
+  }
+  return { value, citationId };
+};
+
+export const REFORMS = {
+  // ===========================================================================
+  // REVENUE branch
+  // ===========================================================================
+  hmrcCapacity: {
+    name: 'HMRC Modernisation', branch: 'revenue',
+    cost: cited(2, 'nao_hmrc_compliance'), quarters: 4, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Reverse digitisation cuts; recruit compliance staff.',
+    citationId: 'nao_hmrc_compliance',
+    onComplete: {
+      revBonus: cited(4, 'nao_hmrc_compliance'),
+      log: 'HMRC modernised. Compliance up.',
+    },
+    blocEffects: {
+      business: cited(-1, 'bloc_methodology'),
+      professional: cited(1, 'bloc_methodology'),
+    },
+  },
+  obrIndependence: {
+    name: 'Strengthen OBR Independence', branch: 'revenue',
+    cost: cited(0.5, 'obr_independence_judgement'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Statutory pre-publication review of Treasury costings. Reduces forecast uncertainty.',
+    citationId: 'obr_independence_judgement',
+    onComplete: {
+      log: 'OBR powers strengthened. Forecast bands narrowed materially.',
+    },
+    blocEffects: {
+      professional: cited(4, 'bloc_methodology'),
+      business: cited(3, 'bloc_methodology'),
+      middleClass: cited(2, 'bloc_methodology'),
+    },
+    special: 'reduceForecastNoise',
+  },
+  cgtAlign: {
+    name: 'Align CGT with Income Tax', branch: 'revenue',
+    cost: cited(0.5, 'ifs_cgt_alignment'), quarters: 2, prereq: ['hmrcCapacity'],
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    blurb: 'Close the entrepreneur loophole. Capital gains taxed as ordinary income.',
+    citationId: 'ifs_cgt_alignment',
+    onComplete: {
+      revBonus: cited(13, 'ifs_cgt_alignment'),
+      gini: cited(-0.3, 'cgt_gini_judgement'),
+      log: "CGT aligned. The founders' loophole closed.",
+    },
+    blocEffects: {
+      business: cited(-8, 'bloc_methodology'),
+      professional: cited(-3, 'bloc_methodology'),
+      workingClass: cited(3, 'bloc_methodology'),
+      middleClass: cited(2, 'bloc_methodology'),
+    },
+  },
+  nondomEnd: {
+    name: 'Abolish Non-Dom Regime', branch: 'revenue',
+    cost: cited(0.3, 'centax_nondom'), quarters: 2, prereq: ['hmrcCapacity'],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Full abolition of remittance basis; replace with 4-year FIG regime.',
+    citationId: 'centax_nondom',
+    onComplete: {
+      revBonus: cited(4, 'centax_nondom'),
+      log: 'Non-dom regime abolished. Predicted exodus did not materialise.',
+    },
+    blocEffects: {
+      business: cited(-4, 'bloc_methodology'),
+      workingClass: cited(4, 'bloc_methodology'),
+      northern: cited(3, 'bloc_methodology'),
+    },
+  },
+  wealthTax: {
+    name: 'Wealth Tax (2% above £10m)', branch: 'revenue',
+    cost: cited(1, 'wealth_tax_commission'), quarters: 4, prereq: ['hmrcCapacity', 'nondomEnd'],
+    passReq: { coalition: cited(40, 'bloc_methodology') },
+    blurb: 'Annual 2% on net wealth above £10m. ~22,000 households affected.',
+    citationId: 'wealth_tax_commission',
+    onComplete: {
+      revBonus: cited(24, 'wealth_tax_commission'),
+      gini: cited(-0.6, 'wealth_tax_commission'),
+      log: 'Wealth tax implemented. Migration response <0.1.',
+    },
+    blocEffects: {
+      business: cited(-10, 'bloc_methodology'),
+      professional: cited(-4, 'bloc_methodology'),
+      workingClass: cited(7, 'bloc_methodology'),
+      northern: cited(5, 'bloc_methodology'),
+      youth: cited(4, 'bloc_methodology'),
+    },
+  },
+  charityCredit: {
+    name: 'Charitable Deduction → Credit', branch: 'revenue',
+    cost: cited(0.2, 'hmrc_charity_credit'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(28, 'bloc_methodology') },
+    blurb: 'Replace higher-rate relief with flat 25% credit.',
+    citationId: 'hmrc_charity_credit',
+    onComplete: {
+      revBonus: cited(2, 'hmrc_charity_credit'),
+      gini: cited(-0.1, 'hmrc_charity_credit'),
+      log: 'Charitable deduction converted to capped credit.',
+    },
+    blocEffects: {
+      business: cited(-2, 'bloc_methodology'),
+      professional: cited(-2, 'bloc_methodology'),
+      workingClass: cited(1, 'bloc_methodology'),
+    },
+  },
+  windfallTax: {
+    name: 'Permanent Excess Profits Levy', branch: 'revenue',
+    cost: cited(0.1, 'windfall_levy'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Permanent windfall mechanism in energy, banking, supermarkets.',
+    citationId: 'windfall_levy',
+    onComplete: {
+      revBonus: cited(8, 'windfall_levy'),
+      log: 'Permanent windfall mechanism in law.',
+    },
+    blocEffects: {
+      business: cited(-7, 'bloc_methodology'),
+      workingClass: cited(5, 'bloc_methodology'),
+      northern: cited(4, 'bloc_methodology'),
+    },
+  },
+  niEmployer: {
+    name: 'Employer NI on Investment Income', branch: 'revenue',
+    cost: cited(0.2, 'ifs_employer_ni'), quarters: 2, prereq: ['hmrcCapacity'],
+    passReq: { coalition: cited(33, 'bloc_methodology') },
+    blurb: 'Extend Employer NI to dividends and rental income.',
+    citationId: 'ifs_employer_ni',
+    onComplete: {
+      revBonus: cited(7, 'ifs_employer_ni'),
+      gini: cited(-0.2, 'ifs_employer_ni'),
+      log: 'Employer NI extended.',
+    },
+    blocEffects: {
+      business: cited(-6, 'bloc_methodology'),
+      professional: cited(-3, 'bloc_methodology'),
+      workingClass: cited(3, 'bloc_methodology'),
+    },
+  },
+  benefitFreeze: {
+    name: 'Multi-Year Benefit Freeze', branch: 'revenue',
+    cost: cited(0, 'ifs_benefit_freeze'), quarters: 1, prereq: [],
+    passReq: { coalition: cited(27, 'bloc_methodology') },
+    blurb: 'Freeze working-age benefits for 3 years. Real-terms cut.',
+    citationId: 'ifs_benefit_freeze',
+    controversial: true,
+    onComplete: {
+      revBonus: cited(6, 'ifs_benefit_freeze'),
+      gini: cited(0.4, 'benefit_freeze_health_judgement'),
+      healthBoost: cited(-2, 'benefit_freeze_health_judgement'),
+      log: 'Benefit freeze in effect.',
+    },
+    blocEffects: {
+      business: cited(4, 'bloc_methodology'),
+      middleClass: cited(2, 'bloc_methodology'),
+      workingClass: cited(-8, 'bloc_methodology'),
+      ethnicMinority: cited(-5, 'bloc_methodology'),
+      publicSector: cited(-4, 'bloc_methodology'),
+    },
+  },
+  topRateCut: {
+    name: 'Cut Additional Rate to 40%', branch: 'revenue',
+    cost: cited(0, 'hope_limberg_top_rate'), quarters: 1, prereq: [],
+    passReq: { coalition: cited(25, 'bloc_methodology') },
+    blurb: 'Abolish additional rate. Trickle-down theory in action.',
+    citationId: 'hope_limberg_top_rate',
+    controversial: true,
+    onComplete: {
+      ongoingRev: cited(-5, 'hope_limberg_top_rate'),
+      gini: cited(0.4, 'hope_limberg_top_rate'),
+      log: 'Additional rate abolished. Markets rallied.',
+    },
+    blocEffects: {
+      business: cited(8, 'bloc_methodology'),
+      professional: cited(4, 'bloc_methodology'),
+      workingClass: cited(-6, 'bloc_methodology'),
+      publicSector: cited(-8, 'bloc_methodology'),
+      youth: cited(-5, 'bloc_methodology'),
+    },
+  },
+
+  // ===========================================================================
+  // NHS & CARE branch
+  // ===========================================================================
+  nhsPay: {
+    name: 'NHS Pay Settlement', branch: 'nhs',
+    cost: cited(4, 'nhs_pay_settlement'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    blurb: 'Multi-year pay deal; ends rolling strikes; cuts agency spend.',
+    citationId: 'nhs_pay_settlement',
+    onComplete: {
+      ongoingCost: cited(4, 'nhs_pay_settlement'),
+      healthBoost: cited(2, 'nhs_pay_settlement'),
+      log: 'NHS pay deal signed.',
+    },
+    blocEffects: {
+      publicSector: cited(12, 'bloc_methodology'),
+      workingClass: cited(4, 'bloc_methodology'),
+      middleClass: cited(2, 'bloc_methodology'),
+    },
+    riskMods: {
+      nhsStrike: cited(-50, 'nhs_strike_payDeal_effect'),
+    },
+  },
+  socialCareReform: {
+    name: 'Social Care Funding Settlement', branch: 'nhs',
+    cost: cited(6, 'dilnot_social_care'), quarters: 4, prereq: ['nhsPay'],
+    passReq: { coalition: cited(38, 'bloc_methodology') },
+    blurb: 'Dilnot-style cap on personal contributions; NI surcharge funding.',
+    citationId: 'dilnot_social_care',
+    onComplete: {
+      ongoingCost: cited(5, 'dilnot_social_care'),
+      healthBoost: cited(3, 'dilnot_social_care'),
+      log: 'Social care settled.',
+    },
+    blocEffects: {
+      pensioners: cited(8, 'bloc_methodology'),
+      middleClass: cited(5, 'bloc_methodology'),
+      publicSector: cited(4, 'bloc_methodology'),
+    },
+  },
+  preventativeHealth: {
+    name: 'Preventative Health Programme', branch: 'nhs',
+    cost: cited(3, 'marmot_preventative'), quarters: 6, prereq: ['nhsPay'],
+    passReq: { coalition: cited(35, 'bloc_methodology') },
+    blurb: 'Marmot-style upstream investment. Long-run mortality + productivity.',
+    citationId: 'marmot_preventative',
+    onComplete: {
+      ongoingCost: cited(2, 'marmot_preventative'),
+      healthBoost: cited(4, 'marmot_preventative'),
+      growthBonus: cited(0.2, 'marmot_preventative'),
+      log: 'Preventative health programme bedded in.',
+    },
+    blocEffects: {
+      workingClass: cited(5, 'bloc_methodology'),
+      northern: cited(4, 'bloc_methodology'),
+      publicSector: cited(3, 'bloc_methodology'),
+    },
+  },
+  mentalHealth: {
+    name: 'Mental Health Parity', branch: 'nhs',
+    cost: cited(2, 'nhs_mental_health_parity'), quarters: 4, prereq: [],
+    passReq: { coalition: cited(33, 'bloc_methodology') },
+    blurb: 'Statutory parity between MH and physical health services.',
+    citationId: 'nhs_mental_health_parity',
+    onComplete: {
+      ongoingCost: cited(3, 'nhs_mental_health_parity'),
+      healthBoost: cited(2, 'nhs_mental_health_parity'),
+      log: 'Mental health funding at parity.',
+    },
+    blocEffects: {
+      youth: cited(8, 'bloc_methodology'),
+      professional: cited(5, 'bloc_methodology'),
+      publicSector: cited(4, 'bloc_methodology'),
+      workingClass: cited(3, 'bloc_methodology'),
+    },
+  },
+  privatiseNHS: {
+    name: 'Expand NHS Private Provision', branch: 'nhs',
+    cost: cited(0.5, 'bmj_nhs_private'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(25, 'bloc_methodology') },
+    blurb: 'Outsource elective procedures. Cuts waiting lists short-term.',
+    citationId: 'bmj_nhs_private',
+    controversial: true,
+    onComplete: {
+      ongoingCost: cited(2, 'bmj_nhs_private'),
+      healthBoost: cited(1, 'bmj_nhs_private'),
+      log: 'Private provision expanded.',
+    },
+    blocEffects: {
+      business: cited(8, 'bloc_methodology'),
+      middleClass: cited(3, 'bloc_methodology'),
+      publicSector: cited(-10, 'bloc_methodology'),
+      workingClass: cited(-5, 'bloc_methodology'),
+    },
+  },
+
+  // ===========================================================================
+  // HOUSING branch
+  // ===========================================================================
+  socialHousing: {
+    name: 'Council House Building', branch: 'housing',
+    cost: cited(8, 'shelter_social_housing'), quarters: 8, prereq: [],
+    passReq: { coalition: cited(33, 'bloc_methodology') },
+    blurb: '300,000 council homes over 8Q. Lowers Housing Benefit long-term.',
+    citationId: 'shelter_social_housing',
+    onComplete: {
+      growthBonus: cited(0.3, 'shelter_social_housing'),
+      gini: cited(-0.4, 'shelter_social_housing'),
+      populationEffects: {
+        youth: cited(0.1, 'shelter_social_housing'),
+        workingClass: cited(0.05, 'shelter_social_housing'),
+      },
+      log: 'Council building delivered first homes.',
+    },
+    blocEffects: {
+      workingClass: cited(10, 'bloc_methodology'),
+      youth: cited(8, 'bloc_methodology'),
+      northern: cited(6, 'bloc_methodology'),
+      ethnicMinority: cited(5, 'bloc_methodology'),
+      business: cited(-3, 'bloc_methodology'),
+    },
+  },
+  planningReform: {
+    name: 'Planning System Overhaul', branch: 'housing',
+    cost: cited(1, 'planning_friction'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Presumption in favour of development; restrict NIMBY blocks.',
+    citationId: 'planning_friction',
+    onComplete: {
+      growthBonus: cited(0.2, 'planning_friction'),
+      log: 'Planning reform unblocking 80k homes/year.',
+    },
+    blocEffects: {
+      youth: cited(6, 'bloc_methodology'),
+      professional: cited(4, 'bloc_methodology'),
+      business: cited(5, 'bloc_methodology'),
+      middleClass: cited(-3, 'bloc_methodology'),
+      pensioners: cited(-4, 'bloc_methodology'),
+    },
+  },
+  rentControls: {
+    name: 'Rent Caps (High-Pressure Zones)', branch: 'housing',
+    cost: cited(0.2, 'diamond_mcquade_qian_rent_control'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    blurb: 'Annual rent rises capped at CPI.',
+    citationId: 'diamond_mcquade_qian_rent_control',
+    controversial: true,
+    onComplete: {
+      gini: cited(-0.2, 'diamond_mcquade_qian_rent_control'),
+      growthBonus: cited(-0.05, 'diamond_mcquade_qian_rent_control'),
+      log: 'Rent controls in force.',
+    },
+    blocEffects: {
+      youth: cited(9, 'bloc_methodology'),
+      workingClass: cited(5, 'bloc_methodology'),
+      ethnicMinority: cited(4, 'bloc_methodology'),
+      business: cited(-6, 'bloc_methodology'),
+      middleClass: cited(-2, 'bloc_methodology'),
+    },
+  },
+  rightToBuyEnd: {
+    name: 'End Right-to-Buy', branch: 'housing',
+    cost: cited(0.1, 'right_to_buy_end_judgement'), quarters: 1, prereq: [],
+    passReq: { coalition: cited(34, 'bloc_methodology') },
+    blurb: 'Stop council stock erosion.',
+    citationId: 'right_to_buy_end_judgement',
+    onComplete: {
+      gini: cited(-0.1, 'right_to_buy_end_judgement'),
+      log: 'Right-to-Buy ended in England.',
+    },
+    blocEffects: {
+      workingClass: cited(6, 'bloc_methodology'),
+      youth: cited(4, 'bloc_methodology'),
+      pensioners: cited(-3, 'bloc_methodology'),
+      business: cited(-2, 'bloc_methodology'),
+    },
+  },
+
+  // ===========================================================================
+  // GREEN / INFRASTRUCTURE branch
+  // ===========================================================================
+  greenInvest: {
+    name: 'GB Energy + Grid Investment', branch: 'green',
+    cost: cited(10, 'gb_energy_grid'), quarters: 6, prereq: [],
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    blurb: 'Public energy company + grid upgrade. Lower bills mid-term.',
+    citationId: 'gb_energy_grid',
+    onComplete: {
+      growthBonus: cited(0.3, 'gb_energy_grid'),
+      ongoingRev: cited(2, 'gb_energy_grid'),
+      log: 'GB Energy delivering. Bills down 8%.',
+    },
+    blocEffects: {
+      youth: cited(7, 'bloc_methodology'),
+      workingClass: cited(4, 'bloc_methodology'),
+      northern: cited(5, 'bloc_methodology'),
+      business: cited(2, 'bloc_methodology'),
+    },
+  },
+  insulationScheme: {
+    name: 'Mass Home Insulation', branch: 'green',
+    cost: cited(4, 'ccc_insulation'), quarters: 4, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Retrofit 5m homes. Cuts bills + emissions; trade jobs.',
+    citationId: 'ccc_insulation',
+    onComplete: {
+      healthBoost: cited(1, 'ccc_insulation'),
+      gini: cited(-0.2, 'ccc_insulation'),
+      log: 'Insulation programme cutting energy poverty.',
+    },
+    blocEffects: {
+      workingClass: cited(7, 'bloc_methodology'),
+      pensioners: cited(6, 'bloc_methodology'),
+      northern: cited(5, 'bloc_methodology'),
+    },
+  },
+  rail: {
+    name: 'Northern Rail Investment', branch: 'green',
+    cost: cited(12, 'npr_rail'), quarters: 12, prereq: ['planningReform'],
+    passReq: { coalition: cited(36, 'bloc_methodology') },
+    blurb: 'Connecting Northern cities. Long lead time.',
+    citationId: 'npr_rail',
+    onComplete: {
+      growthBonus: cited(0.5, 'npr_rail'),
+      populationEffects: {
+        northern: cited(0.05, 'npr_rail'),
+      },
+      log: 'Northern rail upgrades commissioned.',
+    },
+    blocEffects: {
+      northern: cited(12, 'bloc_methodology'),
+      workingClass: cited(4, 'bloc_methodology'),
+      business: cited(5, 'bloc_methodology'),
+    },
+  },
+  digitalInfra: {
+    name: 'Full-Fibre Rollout', branch: 'green',
+    cost: cited(5, 'cebr_full_fibre'), quarters: 6, prereq: [],
+    passReq: { coalition: cited(31, 'bloc_methodology') },
+    blurb: 'Universal full-fibre by 2030.',
+    citationId: 'cebr_full_fibre',
+    onComplete: {
+      growthBonus: cited(0.2, 'cebr_full_fibre'),
+      log: 'Full-fibre near-universal.',
+    },
+    blocEffects: {
+      professional: cited(5, 'bloc_methodology'),
+      business: cited(6, 'bloc_methodology'),
+      northern: cited(4, 'bloc_methodology'),
+      youth: cited(3, 'bloc_methodology'),
+    },
+  },
+  deregulate: {
+    name: 'Deregulatory Bonfire', branch: 'green',
+    cost: cited(0.3, 'deregulation_judgement'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(28, 'bloc_methodology') },
+    blurb: 'Strip back environmental, planning, employment regulations.',
+    citationId: 'deregulation_judgement',
+    controversial: true,
+    onComplete: {
+      growthBonus: cited(0.15, 'deregulation_judgement'),
+      log: 'Deregulation underway. Markets cheered.',
+    },
+    blocEffects: {
+      business: cited(12, 'bloc_methodology'),
+      professional: cited(-3, 'bloc_methodology'),
+      publicSector: cited(-5, 'bloc_methodology'),
+      youth: cited(-6, 'bloc_methodology'),
+      workingClass: cited(-4, 'bloc_methodology'),
+    },
+    riskMods: {
+      financialCrisis: cited(5, 'deregulation_judgement'),
+      flood: cited(3, 'deregulation_judgement'),
+    },
+  },
+
+  // ===========================================================================
+  // EDUCATION / SKILLS branch
+  // ===========================================================================
+  freeChildcare: {
+    name: 'Universal Free Childcare', branch: 'education',
+    cost: cited(5, 'resolution_childcare'), quarters: 4, prereq: [],
+    passReq: { coalition: cited(34, 'bloc_methodology') },
+    blurb: 'Removes work disincentive. Labour supply boost.',
+    citationId: 'resolution_childcare',
+    onComplete: {
+      ongoingCost: cited(6, 'resolution_childcare'),
+      growthBonus: cited(0.4, 'resolution_childcare'),
+      populationEffects: {
+        youth: cited(0.05, 'resolution_childcare'),
+        workingClass: cited(0.05, 'resolution_childcare'),
+      },
+      log: 'Universal childcare live.',
+    },
+    blocEffects: {
+      youth: cited(6, 'bloc_methodology'),
+      workingClass: cited(5, 'bloc_methodology'),
+      professional: cited(7, 'bloc_methodology'),
+      middleClass: cited(4, 'bloc_methodology'),
+    },
+  },
+  skillsBudget: {
+    name: 'Skills & FE Funding', branch: 'education',
+    cost: cited(3, 'ifs_fe_funding'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Restore Further Education funding to 2010 real terms.',
+    citationId: 'ifs_fe_funding',
+    onComplete: {
+      growthBonus: cited(0.15, 'ifs_fe_funding'),
+      log: 'FE colleges rebuilt.',
+    },
+    blocEffects: {
+      workingClass: cited(5, 'bloc_methodology'),
+      northern: cited(4, 'bloc_methodology'),
+      youth: cited(3, 'bloc_methodology'),
+      business: cited(3, 'bloc_methodology'),
+    },
+  },
+  uniReform: {
+    name: 'University Fees Reform', branch: 'education',
+    cost: cited(4, 'obr_tuition_fees'), quarters: 4, prereq: [],
+    passReq: { coalition: cited(35, 'bloc_methodology') },
+    blurb: 'Replace tuition-fee debt with progressive graduate contribution.',
+    citationId: 'obr_tuition_fees',
+    onComplete: {
+      ongoingCost: cited(3, 'obr_tuition_fees'),
+      log: 'Tuition fee debt replaced with graduate tax.',
+    },
+    blocEffects: {
+      youth: cited(10, 'bloc_methodology'),
+      professional: cited(4, 'bloc_methodology'),
+      middleClass: cited(3, 'bloc_methodology'),
+      pensioners: cited(-2, 'bloc_methodology'),
+    },
+  },
+
+  // ===========================================================================
+  // LABOUR / WORK branch
+  // ===========================================================================
+  realLivingWage: {
+    name: 'Statutory Real Living Wage', branch: 'labour',
+    cost: cited(0.3, 'lpc_living_wage'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(33, 'bloc_methodology') },
+    blurb: 'Raise minimum to Living Wage Foundation rate (~£12.60/hr).',
+    citationId: 'lpc_living_wage',
+    onComplete: {
+      gini: cited(-0.3, 'lpc_living_wage'),
+      log: 'Real Living Wage on statute.',
+    },
+    blocEffects: {
+      workingClass: cited(8, 'bloc_methodology'),
+      youth: cited(4, 'bloc_methodology'),
+      ethnicMinority: cited(5, 'bloc_methodology'),
+      business: cited(-7, 'bloc_methodology'),
+    },
+  },
+  unionRights: {
+    name: 'Restore Union Rights', branch: 'labour',
+    cost: cited(0.1, 'oecd_sectoral_bargaining'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(36, 'bloc_methodology') },
+    blurb: 'Repeal Trade Union Act 2016; sectoral bargaining frameworks.',
+    citationId: 'oecd_sectoral_bargaining',
+    onComplete: {
+      gini: cited(-0.2, 'oecd_sectoral_bargaining'),
+      log: 'Trade union law reformed.',
+    },
+    blocEffects: {
+      workingClass: cited(6, 'bloc_methodology'),
+      publicSector: cited(8, 'bloc_methodology'),
+      business: cited(-5, 'bloc_methodology'),
+    },
+    riskMods: {
+      generalStrike: cited(-10, 'oecd_sectoral_bargaining'),
+    },
+  },
+  workersBoardSeats: {
+    name: 'Workers on Boards', branch: 'labour',
+    cost: cited(0.2, 'jager_codetermination'), quarters: 3, prereq: ['unionRights'],
+    passReq: { coalition: cited(38, 'bloc_methodology') },
+    blurb: 'German-style co-determination for firms >250 employees.',
+    citationId: 'jager_codetermination',
+    onComplete: {
+      growthBonus: cited(0.1, 'jager_codetermination'),
+      gini: cited(-0.2, 'jager_codetermination'),
+      log: 'Worker board representation in law.',
+    },
+    blocEffects: {
+      workingClass: cited(6, 'bloc_methodology'),
+      publicSector: cited(4, 'bloc_methodology'),
+      business: cited(-8, 'bloc_methodology'),
+    },
+  },
+  antiStrike: {
+    name: 'Minimum Service Levels Act', branch: 'labour',
+    cost: cited(0.1, 'ilo_minimum_service'), quarters: 2, prereq: [],
+    passReq: { coalition: cited(27, 'bloc_methodology') },
+    blurb: 'Mandate minimum service during strikes; sackings for non-compliance.',
+    citationId: 'ilo_minimum_service',
+    controversial: true,
+    onComplete: {
+      log: 'Anti-strike law in force.',
+    },
+    blocEffects: {
+      business: cited(6, 'bloc_methodology'),
+      middleClass: cited(3, 'bloc_methodology'),
+      publicSector: cited(-14, 'bloc_methodology'),
+      workingClass: cited(-8, 'bloc_methodology'),
+    },
+    riskMods: {
+      generalStrike: cited(12, 'ilo_minimum_service'),
+      nhsStrike: cited(8, 'ilo_minimum_service'),
+    },
+  },
+
+  // ===========================================================================
+  // STATE CAPACITY branch
+  // ===========================================================================
+  civilService: {
+    name: 'Rebuild Civil Service', branch: 'state',
+    cost: cited(2, 'nao_civil_service'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    blurb: 'Reverse decade of headcount cuts. Less consultant reliance.',
+    citationId: 'nao_civil_service',
+    onComplete: {
+      ongoingCost: cited(1, 'nao_civil_service'),
+      revBonus: cited(2, 'nao_civil_service'),
+      log: 'Civil service rebuilt.',
+    },
+    blocEffects: {
+      publicSector: cited(8, 'bloc_methodology'),
+      professional: cited(3, 'bloc_methodology'),
+    },
+  },
+  localGov: {
+    name: 'Local Government Settlement', branch: 'state',
+    cost: cited(5, 'ifs_local_gov'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(33, 'bloc_methodology') },
+    blurb: 'Multi-year council funding. Saves SEND, social care, libraries.',
+    citationId: 'ifs_local_gov',
+    onComplete: {
+      ongoingCost: cited(5, 'ifs_local_gov'),
+      healthBoost: cited(1, 'ifs_local_gov'),
+      log: 'Local government on stable footing.',
+    },
+    blocEffects: {
+      workingClass: cited(4, 'bloc_methodology'),
+      northern: cited(5, 'bloc_methodology'),
+      publicSector: cited(5, 'bloc_methodology'),
+      middleClass: cited(3, 'bloc_methodology'),
+    },
+    riskMods: {
+      councilBankruptcy: cited(-20, 'ifs_local_gov'),
+    },
+  },
+  banking: {
+    name: 'Banking Regulation', branch: 'state',
+    cost: cited(0.5, 'bcbs_capital_reqs'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    blurb: 'Higher capital requirements; ring-fence enforcement.',
+    citationId: 'bcbs_capital_reqs',
+    onComplete: {
+      log: 'Banking sector better capitalised.',
+    },
+    blocEffects: {
+      workingClass: cited(3, 'bloc_methodology'),
+      business: cited(-8, 'bloc_methodology'),
+      professional: cited(-3, 'bloc_methodology'),
+    },
+    riskMods: {
+      financialCrisis: cited(-4, 'bcbs_capital_reqs'),
+    },
+  },
+  immigrationCap: {
+    name: 'Cap Net Migration at 100k', branch: 'state',
+    cost: cited(0.5, 'obr_migration_cap'), quarters: 3, prereq: [],
+    passReq: { coalition: cited(28, 'bloc_methodology') },
+    blurb: 'Hard cap on visa routes. Reduces growth and population in working-age blocs.',
+    citationId: 'obr_migration_cap',
+    controversial: true,
+    onComplete: {
+      growthBonus: cited(-0.4, 'obr_migration_cap'),
+      ongoingRev: cited(-3, 'obr_migration_cap'),
+      populationEffects: {
+        professional: cited(-0.3, 'obr_migration_cap'),
+        ethnicMinority: cited(-0.5, 'obr_migration_cap'),
+        youth: cited(-0.15, 'obr_migration_cap'),
+      },
+      log: 'Net migration capped. Labour shortages biting.',
+    },
+    blocEffects: {
+      workingClass: cited(5, 'bloc_methodology'),
+      northern: cited(8, 'bloc_methodology'),
+      pensioners: cited(4, 'bloc_methodology'),
+      ethnicMinority: cited(-10, 'bloc_methodology'),
+      professional: cited(-8, 'bloc_methodology'),
+      business: cited(-10, 'bloc_methodology'),
+    },
+    riskMods: {
+      labourShortage: cited(25, 'obr_migration_cap'),
+    },
+  },
+  refugeeRestrict: {
+    name: 'Offshore Asylum Processing', branch: 'state',
+    cost: cited(2, 'pac_rwanda'), quarters: 4, prereq: [],
+    passReq: { coalition: cited(26, 'bloc_methodology') },
+    blurb: 'Offshoring scheme. Symbolic; legally fraught.',
+    citationId: 'pac_rwanda',
+    controversial: true,
+    onComplete: {
+      log: 'Offshoring scheme operational. Legal challenges ongoing.',
+    },
+    blocEffects: {
+      northern: cited(6, 'bloc_methodology'),
+      workingClass: cited(3, 'bloc_methodology'),
+      ethnicMinority: cited(-12, 'bloc_methodology'),
+      professional: cited(-10, 'bloc_methodology'),
+      youth: cited(-8, 'bloc_methodology'),
+    },
+  },
+  triple_lock_plus: {
+    name: 'Triple Lock+ Enhancement', branch: 'state',
+    cost: cited(0, 'obr_triple_lock_plus'), quarters: 1, prereq: [],
+    passReq: { coalition: cited(28, 'bloc_methodology') },
+    blurb: 'Raise pension by max of CPI+1, earnings+1, or 3.5%.',
+    citationId: 'obr_triple_lock_plus',
+    controversial: true,
+    onComplete: {
+      ongoingCost: cited(8, 'obr_triple_lock_plus'),
+      log: 'Pensioner generosity entrenched.',
+    },
+    blocEffects: {
+      pensioners: cited(14, 'bloc_methodology'),
+      youth: cited(-8, 'bloc_methodology'),
+      workingClass: cited(-2, 'bloc_methodology'),
+      professional: cited(-3, 'bloc_methodology'),
+    },
+  },
+};
+
+export const REFORM_BRANCHES = {
+  revenue: 'Revenue',
+  nhs: 'Health & Care',
+  housing: 'Housing',
+  green: 'Green & Infrastructure',
+  education: 'Education & Skills',
+  labour: 'Labour & Work',
+  state: 'State Capacity',
+};
