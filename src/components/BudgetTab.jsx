@@ -12,26 +12,26 @@ export function BudgetTab({ game, committed, set }) {
         <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-3">Income Tax</div>
         <Slider label="Basic rate" value={game.taxIncomeBasic} min={15} max={25} step={1}
           baseline={20} committed={committed?.taxIncomeBasic} onChange={(v) => set({taxIncomeBasic: v})} unit="%"
-          tooltip="HMRC: 1pp ≈ £7.2bn. Hits ~30m taxpayers; major bloc impact."
+          tooltip="HMRC RR: 1pp ≈ £6.9bn (FY 2026-27). Hits ~30m taxpayers; major bloc impact."
           citationId="hmrc_basic_rate" />
         <Slider label="Higher rate (£50,270+)" value={game.taxIncomeHigh} min={38} max={50} step={1}
           baseline={40} committed={committed?.taxIncomeHigh} onChange={(v) => set({taxIncomeHigh: v})} unit="%"
-          tooltip="HMRC Ready Reckoner: 1pp ≈ £2bn. Middle class & professionals."
+          tooltip="HMRC RR: 1pp ≈ £1.6bn. Middle class & professionals."
           citationId="hmrc_higher_rate" />
         <Slider label="Additional rate (above £125,140)" value={game.taxIncomeAdd} min={40} max={60} step={1}
           baseline={45} committed={committed?.taxIncomeAdd} onChange={(v) => set({taxIncomeAdd: v})} unit="%"
-          tooltip="HMRC Ready Reckoner: 1pp ≈ £0.17bn. Diamond-Saez revenue-max rate ≈ 73%."
+          tooltip="HMRC RR: 1pp ≈ £0.16bn (asymmetric: £145m yield / £175m cost). Diamond-Saez revenue-max rate ≈ 73%."
           citationId="diamond_saez_top_rate" />
       </div>
       <div className="bg-stone-900/40 rounded-lg border border-stone-800 p-4 mb-4">
         <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-3">Corporation Tax & VAT</div>
         <Slider label="Corporation Tax" value={game.taxCorp} min={19} max={35} step={1}
           baseline={25} committed={committed?.taxCorp} onChange={(v) => set({taxCorp: v})} unit="%"
-          tooltip="1pp ≈ £4bn. Hope-Limberg (2022): cuts produce no growth over 50y."
+          tooltip="HMRC RR: 1pp ≈ £3.6bn (onshore main + small profits). Hope-Limberg (2022): cuts produce no growth over 50y."
           citationId="hmrc_corp_rate" />
         <Slider label="VAT" value={game.taxVAT} min={15} max={25} step={1}
           baseline={20} committed={committed?.taxVAT} onChange={(v) => set({taxVAT: v})} unit="%"
-          tooltip="1pp ≈ £8.5bn. Highly regressive."
+          tooltip="HMRC RR: 1pp ≈ £8.8bn (standard rate). Highly regressive."
           citationId="hmrc_vat_rate" />
       </div>
       <div className="bg-stone-900/40 rounded-lg border border-stone-800 p-4">

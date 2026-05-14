@@ -72,19 +72,19 @@ export const PARAMS = {
   revenue: {
     incomeTax: {
       base: cited(330, 'hmrc_baseline_income_tax'),                 // £bn pa at baseline rates
-      additionalRatePerPP: cited(0.17, 'diamond_saez_top_rate'),    // HMRC Ready Reckoner implied
-      higherRatePerPP: cited(2.0, 'hmrc_higher_rate'),              // HMRC Ready Reckoner implied
-      basicRatePerPP: cited(7.2, 'hmrc_basic_rate'),
+      additionalRatePerPP: cited(0.16, 'diamond_saez_top_rate'),    // HMRC June 2025 RR (asymmetric: £145m yield / £175m cost; sim uses midpoint)
+      higherRatePerPP: cited(1.6, 'hmrc_higher_rate'),              // HMRC June 2025 RR (FY 2026-27)
+      basicRatePerPP: cited(6.9, 'hmrc_basic_rate'),                // HMRC June 2025 RR (FY 2026-27)
     },
     corpTax: {
       base: cited(96, 'hmrc_baseline_corp'),
-      perPP: cited(4, 'hmrc_corp_rate'),
+      perPP: cited(3.6, 'hmrc_corp_rate'),                          // HMRC June 2025 RR (onshore main + small profits, FY 2026-27)
       curvatureAbove30: cited(0.5, 'corp_elasticity_curve'),        // quadratic penalty
       curvatureThreshold: cited(30, 'corp_elasticity_curve'),       // headline rate above which penalty applies
     },
     vat: {
       base: cited(181, 'hmrc_baseline_vat'),
-      perPP: cited(8.5, 'hmrc_vat_rate'),
+      perPP: cited(8.8, 'hmrc_vat_rate'),                           // HMRC June 2025 RR (standard rate, FY 2026-27)
     },
     ni: cited(205, 'hmrc_baseline_ni'),
     other: cited(423, 'hmrc_other_baseline'),

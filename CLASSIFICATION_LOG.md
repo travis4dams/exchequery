@@ -329,3 +329,44 @@ Slider ranges in `BudgetTab.jsx` were also re-anchored on the new baselines.
 Ran `makeInitialState()` + `calcRevenue` / `calcSpending` / `calcBalance`
 post-recalibration; outputs match OBR Nov-2025 EFO aggregates to within
 rounding (deficit £132bn vs published £133bn).
+
+---
+
+## Per-pp tax yield direct verification (2026-05-14)
+
+Pulled the HMRC June 2025 *Direct effects of illustrative tax changes
+bulletin* PDF directly (it was previously triangulated via Oxford
+commentary because the gov.uk endpoint blocked WebFetch). All five
+per-pp tax yields are now sourced verbatim against the HMRC PDF for the
+sim's anchor year (FY 2026-27, the Chancellor's first complete fiscal
+year in office).
+
+| Parameter | Old | New (HMRC FY 2026-27) | Source |
+|---|---|---|---|
+| `incomeTax.basicRatePerPP` | 7.2 | **6.9** | HMRC §5: change basic rate by 1p = £6,900m |
+| `incomeTax.higherRatePerPP` | 2.0 | **1.6** | HMRC §5: change higher rate by 1p = £1,600m |
+| `incomeTax.additionalRatePerPP` | 0.17 | **0.16** | HMRC §5: increase 1p = £145m yield, decrease 1p = £175m cost; midpoint £160m |
+| `corpTax.perPP` | 4.0 | **3.6** | HMRC §12: 1pp on onshore main + small profits = £3,600m |
+| `vat.perPP` | 8.5 | **8.8** | HMRC §18: 1pp on standard rate = £8,800m |
+
+**Asymmetry note.** HMRC publishes a separate yield/cost split only for
+the additional rate (Laffer-curve effect at the top of the income
+distribution: behavioural responses make a cut cost more than an
+equivalent rise yields). The sim's linear-coefficient model uses the
+£160m midpoint; this slightly understates the cost of cutting and
+slightly overstates the yield of raising. Acceptable for game balance;
+documented in the citation note.
+
+**Sourcing upgrade.** Five citations moved from `extrapolated` /
+`sourced (via secondary)` to `sourced (verified directly against the
+HMRC PDF)`. The "via Oxford commentary" caveats in `hmrc_higher_rate`
+and `diamond_saez_top_rate` notes are removed.
+
+**Confidence summary update.** Combined with the OBR Nov 2025 EFO
+recalibration earlier this session, all major fiscal baseline inputs
+are now `sourced` against either the OBR EFO, HMRC ready reckoner, ONS
+PSF/income-inequality bulletins, or DWP/HoCL spending briefings.
+Remaining `judgement` tags now sit only on the parameters that are
+intrinsically designer calls (bloc-response coefficients, risk base
+rates, policy thresholds, surplus-allocation divisors, coalition floor,
+bond-yield ceiling, reelection threshold, forecast-noise band).
