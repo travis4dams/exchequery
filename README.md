@@ -1,0 +1,136 @@
+# Chancellor — UK Fiscal Simulation
+
+A quarterly fiscal simulation set in 2026. You are the UK Chancellor of the Exchequer. You have twenty quarters (five years) until the next general election. You must hold your coalition together, balance the books (or get the deficit below 2% of GDP), and survive the markets, the press, and your own backbenchers.
+
+Built with React + Vite + Tailwind. Deploys as a static site to GitHub Pages.
+
+---
+
+## How to play
+
+You inherit the UK in Q1 2026 with a deficit of roughly £140bn and debt at 100% of GDP. Each quarter:
+
+1. **Adjust budget levers** — income tax bands, corporation tax, VAT, and departmental spending.
+2. **Propose reforms** — multi-quarter projects with upfront costs, prerequisites, and uncertain outcomes (±25% forecast error until you pass OBR Independence).
+3. **Watch the risk register** — events roll quarterly with probabilities modified by your policy choices.
+4. **Advance the quarter** — see what changed, allocate any surplus, handle whatever the country throws at you.
+
+Three ways to win, three ways to lose. Coalition cohesion below 22% — government falls. Bond yields above 8% — markets revolt. Lose the election at Q20 — opposition takes power.
+
+---
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+Then open http://localhost:5173
+
+## Deploy to GitHub Pages
+
+1. Create a new GitHub repo (any name works).
+2. Push this project to the `main` branch.
+3. In repo settings: **Settings → Pages → Source → GitHub Actions**.
+4. The workflow at `.github/workflows/deploy.yml` builds and publishes on every push.
+5. After ~60 seconds, your site is live at `https://YOUR_USERNAME.github.io/YOUR_REPO/`.
+
+Vite's `base: './'` config means the build works at any subpath without further configuration.
+
+## Adding new reforms
+
+Open `src/ChancellorSim.jsx` and find the `REFORMS` object. Schema is documented in the comment block at the top of the file. Add an entry and it shows up automatically in the right branch.
+
+---
+
+## Bibliography & Sources
+
+This simulation tries to ground its numbers in real, citable research. The figures aren't exact — fiscal modelling is genuinely uncertain — but the rough magnitudes and behavioural assumptions come from the sources below. Where the literature is contested (rent controls, top-rate effects, immigration), the simulation reflects the contestation rather than picking a side.
+
+### Public finances — overall
+
+- **HMRC, *Direct effects of illustrative tax changes* ("Ready Reckoner")**, updated annually. The standard reference for "1 penny on basic rate raises £Xbn." Used for all per-percentage-point tax revenue estimates.
+  https://www.gov.uk/government/statistics/direct-effects-of-illustrative-tax-changes
+- **Office for Budget Responsibility (OBR), *Economic and Fiscal Outlook***. Twice-yearly forecasts; the source for fiscal sustainability framing (debt-to-GDP, growth–rate–vs–interest–rate dynamics).
+  https://obr.uk/efo/economic-and-fiscal-outlook/
+- **Institute for Fiscal Studies (IFS), *Green Budget* (annual)**. The most-cited UK fiscal policy analysis.
+  https://ifs.org.uk/green-budget
+- **HM Treasury, *Public Spending Statistics***. Departmental spending baselines.
+  https://www.gov.uk/government/collections/public-spending-statistics
+
+### Taxation — specific reforms
+
+- **CGT alignment**: Adam, Advani, Miller & Summers, *Capital Gains Tax Reform* (IFS / CenTax, 2024). Estimates ~£13bn pa from full alignment with income tax. https://ifs.org.uk/publications/capital-gains-tax-reform
+- **Non-dom abolition**: Advani, Burgherr & Summers, *The UK Non-Dom Regime: Implications of Reform* (CenTax / LSE / Warwick, 2025). Found 2017 reform caused only ~4.9% departures while tax paid rose >150%. https://centax.org.uk/research/
+- **Top-rate elasticities**: Diamond & Saez (2011), *The Case for a Progressive Tax: From Basic Research to Policy Recommendations*. Revenue-maximising top combined rate ≈ 73% under standard assumptions. *Journal of Economic Perspectives*. https://www.aeaweb.org/articles?id=10.1257/jep.25.4.165
+- **Top-rate behavioural response (UK)**: HMRC, *Estimating the elasticity of taxable income*. ETI estimates ~0.25 for additional rate taxpayers.
+- **Wealth tax**: Advani, Chamberlain & Summers, *A Wealth Tax for the UK* (Wealth Tax Commission, 2020). https://www.wealthandpolicy.com/
+- **Inheritance tax reliefs**: IFS, *Death and Taxes* (2024). APR/BPR cost ~£3bn pa, predominantly benefit estates >£2.5m. https://ifs.org.uk/
+- **Charity tax expenditure**: HMRC, *UK Charity Tax Relief Statistics 2024–25*. Total reliefs £6.7bn; higher-rate Gift Aid relief £820m. https://www.gov.uk/government/statistics/cost-of-tax-relief
+- **Trickle-down**: Hope & Limberg, *The Economic Consequences of Major Tax Cuts for the Rich* (LSE/KCL, *Socio-Economic Review*, 2022). 50 years of OECD data — no significant growth effects. https://academic.oup.com/ser/article/20/2/539/6500315
+
+### Migration and tax-flight
+
+- **Millionaire migration (US)**: Young, Varner, Lurie & Prisinzano, *Millionaire Migration and Taxation of the Elite*, *American Sociological Review* 81(3), 2016. 45m IRS records; migration semi-elasticities <0.1. https://journals.sagepub.com/doi/10.1177/0003122416639625
+- **UK non-dom departure data**: HMRC published statistics following 2017 and 2024 reforms; Tax Justice Network analysis. https://taxjustice.net/
+
+### Public services and austerity
+
+- **Marmot Review at 10 / Marmot 2024**: Institute of Health Equity, UCL. Estimates ~148,000 excess deaths attributable to austerity 2010–2019; over 1 million premature deaths in the poorest 90% of England. https://www.instituteofhealthequity.org/
+- **Walsh, McCartney et al.** (2022). Excess mortality in England & Scotland 2012–2019. https://pubmed.ncbi.nlm.nih.gov/
+- **Loopstra, Reeves et al.** (*Journal of the Royal Society of Medicine*, 2016). Each 1% cut in Pension Credit → 0.68% rise in mortality among those 85+.
+- **NHS productivity / agency spending**: NHS England Annual Report. https://www.england.nhs.uk/
+
+### Housing
+
+- **Social housing economics**: Shelter, *Building the Homes We Need* (2024). https://england.shelter.org.uk/professional_resources/policy_and_research
+- **Rent controls**: Diamond, McQuade & Qian, *The Effects of Rent Control Expansion on Tenants, Landlords, and Inequality: Evidence from San Francisco*, *American Economic Review* 109(9), 2019. https://www.aeaweb.org/articles?id=10.1257/aer.20181289
+- **Planning friction**: Competition and Markets Authority, *Housebuilding Market Study* (2024). https://www.gov.uk/cma-cases/housebuilding-market-study
+
+### Labour market and minimum wage
+
+- **Living Wage / NLW effects**: Low Pay Commission Annual Report. https://www.gov.uk/government/organisations/low-pay-commission
+- **Co-determination**: Jäger, Schoefer & Heining, *Labor in the Boardroom*, *Quarterly Journal of Economics* 136(2), 2021. Modest productivity effect from German codetermination. https://academic.oup.com/qje/article/136/2/669/6041122
+
+### Migration and growth
+
+- **OBR Migration analysis**: *Economic and Fiscal Outlook*, November 2023, box on net migration assumptions. Each ~100k of net migration adds ~0.5% to real GDP over 5 years. https://obr.uk/efo/economic-and-fiscal-outlook-november-2023/
+
+### Green investment and climate
+
+- **Climate Change Committee, *Net Zero* and *Carbon Budgets***. Insulation programme costs (~£15bn/5y, ~£300 household savings). https://www.theccc.org.uk/
+- **CEBR, *Full Fibre: Economic Impact* (2022)**. Full fibre could add £59bn to GDP by 2025. https://cebr.com/
+
+### Banking and financial stability
+
+- **Basel Committee on Banking Supervision**: 1pp higher capital requirement reduces crisis probability by ~0.5pp. https://www.bis.org/bcbs/
+
+### Fiscal/political philosophy
+
+- **Reich, Rob**, *Just Giving: Why Philanthropy is Failing Democracy and How It Can Do Better* (Princeton, 2018). Foundational case against treating charitable giving as a substitute for taxation. https://press.princeton.edu/books/hardcover/9780691183497/just-giving
+- **Hacker & Pierson**, *Winner-Take-All Politics* (2010). On the political economy of why tax cuts persist despite weak growth evidence.
+
+### Methodological note
+
+Reform revenue and cost estimates carry ±25% noise in the simulation (reduced to ±10% after passing "Strengthen OBR Independence") to reflect genuine forecasting uncertainty. This isn't fudge — it's an attempt to capture that fiscal scoring is meaningfully uncertain, and that institutional credibility (the OBR's whole reason for existing) matters.
+
+Bloc reactions to policy are illustrative rather than measured. They draw on YouGov, Ipsos, and British Election Study survey patterns but the per-policy numbers are designer judgments calibrated to feel right, not estimated from data.
+
+Event probabilities are likewise designer-set, modified by reasonable mechanisms (NHS pay deal cuts strike risk; deregulation raises financial-crisis risk).
+
+This is a game that tries to be informative, not a forecasting tool. If you want forecasts, the OBR is real and free.
+
+---
+
+## Tech stack
+
+- React 18
+- Vite 5
+- Tailwind CSS 3
+- lucide-react (icons)
+- localStorage save games (per-browser, one slot, auto-saves)
+
+## License
+
+MIT. Do whatever you want with this. Attribution appreciated but not required.
