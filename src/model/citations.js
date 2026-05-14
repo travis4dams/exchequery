@@ -112,6 +112,12 @@ export const CITATIONS = {
     title: 'Corp-tax behavioural-response curvature',
     note: 'Above ~30% headline rate, marginal revenue declines through profit-shifting and avoidance. The quadratic penalty is a designer simplification of behavioural-response literature, not a directly cited elasticity.',
   },
+  policy_threshold_judgement: {
+    parameter: 'policy / spending behavioural thresholds',
+    confidence: 'judgement',
+    title: 'Policy thresholds for bloc & risk responses',
+    note: 'Bloc reactions and risk modifiers kick in at designer-set policy thresholds (e.g. corp tax 28% high / 22% low; NHS boost above £210bn; investment-surge boost above £45bn infra). These thresholds are judgement-set to match the simulation\'s game-balance intent, not derived from data.',
+  },
   hmrc_vat_rate: {
     parameter: 'vat.perPP',
     value: 8.5,
