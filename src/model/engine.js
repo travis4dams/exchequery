@@ -80,7 +80,7 @@ export function calcRevenue(s) {
 }
 
 export function calcSpending(s) {
-  const debtInterest = s.debt * (s.bondYield / 100);
+  const debtInterest = s.debt * (s.effectiveServicingRate / 100);
   const departmental = s.spendNHS + s.spendEdu + s.spendWelfare + s.spendDefence + s.spendInfra + s.spendLocal;
 
   const popScale = s.population / v(PARAMS.spending.populationScaleAnchor);
@@ -395,7 +395,8 @@ export function makeCommittedSnapshot(s) {
     blocSupport: { ...s.blocSupport }, blocWeights: { ...s.blocWeights },
     coalitionCohesion: calcCoalitionCohesion(s.blocSupport, s.blocWeights),
     overallApproval: calcOverallApproval(s.blocSupport, s.blocWeights),
-    growth: s.growth, gini: s.gini, healthIndex: s.healthIndex, bondYield: s.bondYield,
+    growth: s.growth, gini: s.gini, healthIndex: s.healthIndex,
+    bondYield: s.bondYield, effectiveServicingRate: s.effectiveServicingRate,
     debt: s.debt, gdp: s.gdp, realGDP: s.realGDP, population: s.population,
   };
 }
@@ -425,7 +426,8 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     gdp: v(I.gdp), realGDP: v(I.realGDP),
     population: v(I.population),
     debt: v(I.debt), growth: v(I.growth), inflation: v(I.inflation),
-    unemployment: v(I.unemployment), bondYield: v(I.bondYield),
+    unemployment: v(I.unemployment),
+    bondYield: v(I.bondYield), effectiveServicingRate: v(I.effectiveServicingRate),
     taxIncomeAdd: v(I.taxIncomeAdd), taxIncomeHigh: v(I.taxIncomeHigh),
     taxIncomeBasic: v(I.taxIncomeBasic), taxCorp: v(I.taxCorp), taxVAT: v(I.taxVAT),
     spendNHS: v(I.spendNHS), spendEdu: v(I.spendEdu), spendWelfare: v(I.spendWelfare),

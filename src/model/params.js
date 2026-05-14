@@ -42,27 +42,28 @@ export const PARAMS = {
   // Initial macro state
   // ===========================================================================
   initial: {
-    gdp: cited(2800, 'initial_nominal_gdp'),                        // £bn nominal
-    realGDP: cited(2800, 'initial_nominal_gdp'),
+    gdp: cited(3100, 'initial_nominal_gdp'),                        // £bn nominal
+    realGDP: cited(3100, 'initial_nominal_gdp'),
     population: cited(67.5, 'initial_population'),                  // millions
-    debt: cited(2800, 'obr_baseline_deficit'),                      // £bn
-    growth: cited(1.2, 'obr_growth_baseline'),                      // % pa
+    debt: cited(2950, 'obr_baseline_deficit'),                      // £bn
+    growth: cited(1.1, 'obr_growth_baseline'),                      // % pa
     inflation: cited(2.8, 'ons_inflation_baseline'),                // % pa
     unemployment: cited(4.4, 'ons_unemployment_baseline'),          // %
-    bondYield: cited(4.5, 'bond_yield_baseline'),                   // %
+    bondYield: cited(5.0, 'bond_yield_baseline'),                   // % (market gilt yield; drives sentiment / endgame ceiling)
+    effectiveServicingRate: cited(3.7, 'effective_servicing_rate_baseline'), // % (effective rate paid on debt stock; drives debt-interest cost)
     healthIndex: cited(68, 'health_index_baseline'),                // 0-100
-    gini: cited(35.2, 'ons_gini_baseline'),                         // Gini index
+    gini: cited(33.0, 'ons_gini_baseline'),                         // Gini index
     taxIncomeAdd: cited(45, 'diamond_saez_top_rate'),               // % (anchor for delta calcs)
     taxIncomeHigh: cited(40, 'hmrc_higher_rate'),
     taxIncomeBasic: cited(20, 'hmrc_basic_rate'),
     taxCorp: cited(25, 'hmrc_corp_rate'),
     taxVAT: cited(20, 'hmrc_vat_rate'),
-    spendNHS: cited(200, 'bloc_response_nhs_spend'),                // £bn pa (baseline)
-    spendEdu: cited(90, 'bloc_response_edu_spend'),
-    spendWelfare: cited(300, 'bloc_response_welfare_spend'),
-    spendDefence: cited(55, 'whole_govt_residual'),
-    spendInfra: cited(35, 'bloc_response_infra_spend'),
-    spendLocal: cited(60, 'bloc_response_local_spend'),
+    spendNHS: cited(204, 'obr_nhs_baseline'),                       // £bn pa (baseline)
+    spendEdu: cited(95, 'obr_edu_baseline'),
+    spendWelfare: cited(187, 'obr_welfare_baseline'),
+    spendDefence: cited(39, 'obr_defence_baseline'),
+    spendInfra: cited(90, 'obr_infra_baseline'),
+    spendLocal: cited(140, 'obr_local_baseline'),
   },
 
   // ===========================================================================
@@ -70,24 +71,24 @@ export const PARAMS = {
   // ===========================================================================
   revenue: {
     incomeTax: {
-      base: cited(280, 'hmrc_baseline_income_tax'),                 // £bn pa at baseline rates
-      additionalRatePerPP: cited(0.9, 'diamond_saez_top_rate'),     // ETI-derived
-      higherRatePerPP: cited(4.5, 'hmrc_higher_rate'),
+      base: cited(330, 'hmrc_baseline_income_tax'),                 // £bn pa at baseline rates
+      additionalRatePerPP: cited(0.17, 'diamond_saez_top_rate'),    // HMRC Ready Reckoner implied
+      higherRatePerPP: cited(2.0, 'hmrc_higher_rate'),              // HMRC Ready Reckoner implied
       basicRatePerPP: cited(7.2, 'hmrc_basic_rate'),
     },
     corpTax: {
-      base: cited(100, 'hmrc_baseline_corp'),
+      base: cited(96, 'hmrc_baseline_corp'),
       perPP: cited(4, 'hmrc_corp_rate'),
       curvatureAbove30: cited(0.5, 'corp_elasticity_curve'),        // quadratic penalty
       curvatureThreshold: cited(30, 'corp_elasticity_curve'),       // headline rate above which penalty applies
     },
     vat: {
-      base: cited(180, 'hmrc_baseline_vat'),
+      base: cited(181, 'hmrc_baseline_vat'),
       perPP: cited(8.5, 'hmrc_vat_rate'),
     },
-    ni: cited(170, 'hmrc_baseline_ni'),
-    other: cited(200, 'hmrc_other_baseline'),
-    gdpScaleAnchor: cited(2800, 'initial_nominal_gdp'),             // revenue scales with GDP/anchor
+    ni: cited(205, 'hmrc_baseline_ni'),
+    other: cited(423, 'hmrc_other_baseline'),
+    gdpScaleAnchor: cited(3100, 'initial_nominal_gdp'),             // revenue scales with GDP/anchor
   },
 
   // ===========================================================================
@@ -95,11 +96,12 @@ export const PARAMS = {
   // ===========================================================================
   spending: {
     fixedCosts: {
-      pensions: cited(130, 'dwp_state_pensions'),
-      justice: cited(40, 'moj_baseline'),
-      otherDept: cited(110, 'whole_govt_residual'),
+      pensions: cited(146, 'dwp_state_pensions'),
+      justice: cited(55, 'moj_baseline'),
+      otherDept: cited(302, 'whole_govt_residual'),
     },
     populationScaleAnchor: cited(67.5, 'initial_population'),
+    effectiveRateDriftPerQuarter: cited(0.05, 'effective_servicing_rate_baseline'), // fraction of (marketYield - effectiveRate) gap closed per quarter
   },
 
   // ===========================================================================
@@ -126,12 +128,12 @@ export const PARAMS = {
   thresholds: {
     corpHighRate: cited(28, 'policy_threshold_judgement'),         // > → business hostile
     corpLowRate: cited(22, 'policy_threshold_judgement'),          // < → working-class/public-sector hostile
-    nhsBoostFloor: cited(210, 'policy_threshold_judgement'),       // > → bloc rewards
-    welfareCutFloor: cited(290, 'policy_threshold_judgement'),     // < → bloc hostility
-    eduCutFloor: cited(85, 'policy_threshold_judgement'),
-    localCutFloor: cited(60, 'policy_threshold_judgement'),
-    infraBoostFloor: cited(40, 'policy_threshold_judgement'),      // bloc rewards
-    infraInvestmentSurgeFloor: cited(45, 'policy_threshold_judgement'), // risk modifier
+    nhsBoostFloor: cited(214, 'policy_threshold_judgement'),       // > → bloc rewards (£10bn over £204 baseline)
+    welfareCutFloor: cited(177, 'policy_threshold_judgement'),     // < → bloc hostility (£10bn below £187 baseline)
+    eduCutFloor: cited(90, 'policy_threshold_judgement'),          // £5bn below £95 baseline
+    localCutFloor: cited(135, 'policy_threshold_judgement'),       // £5bn below £140 baseline
+    infraBoostFloor: cited(95, 'policy_threshold_judgement'),      // bloc rewards (£5bn over £90 baseline)
+    infraInvestmentSurgeFloor: cited(100, 'policy_threshold_judgement'), // risk modifier (£10bn over baseline)
     basicRateGeneralStrikeFloor: cited(22, 'policy_threshold_judgement'),
     vatGeneralStrikeFloor: cited(22, 'policy_threshold_judgement'),
   },
