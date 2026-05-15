@@ -580,6 +580,10 @@ export function computeRiskMods(s) {
       && (s.riskPremium ?? 0) > v(R.sovereignRatingAction.whenPremiumAbove))
       ? v(R.sovereignRatingAction.activeBase)
       : v(R.sovereignRatingAction.base),
+    recession: v(R.recession.base)
+      + Math.max(0, s.growth - v(PARAMS.potentialGrowth))
+      * Math.max(0, s.inflation - s.inflationTarget)
+      * v(R.recession.overheatingCoef),
   };
 
   // Spending-based modifiers
@@ -732,6 +736,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     equityIndex: v(I.equityIndex),
     equityPath: [],
     riskPremium: v(I.riskPremium),
+    permanentGrowthShift: 0,
     cohesionHistory: [],
     log: [], pendingEvent: null, pendingSummary: null,
     pendingSurplus: 0,

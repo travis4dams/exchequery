@@ -52,6 +52,8 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
 
     const history = [];
     let triggeredEventCount = 0;
+    let recessionFired = false;
+    let minGrowthSeen = Infinity;
     let safety = 0;
 
     while (safety++ < HARD_QUARTER_CAP) {
@@ -71,10 +73,13 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       if (g.pendingEvent) {
         triggeredEventCount += 1;
         const event = g.pendingEvent;
+        if (event.id === 'recession') recessionFired = true;
         const idx = strategy.resolveEvent(g, event);
         const choice = event.choices[Math.max(0, Math.min(event.choices.length - 1, idx))];
         g = resolveEvent(g, choice);
       }
+
+      if (g.growth < minGrowthSeen) minGrowthSeen = g.growth;
 
       // e. Dismiss summary + maybe allocate surplus.
       if (g.pendingSummary) {
@@ -122,6 +127,8 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       finalRiskPremium: g.riskPremium,
       completedReforms: Object.values(g.reforms).filter(r => r.status === 'complete').length,
       triggeredEventCount,
+      recessionFired,
+      minGrowthSeen: minGrowthSeen === Infinity ? null : minGrowthSeen,
       history,
     };
   });
@@ -153,5 +160,8 @@ export function aggregate(results) {
     meanFinalRiskPremium: mean(r => r.finalRiskPremium),
     meanCompletedReforms: mean(r => r.completedReforms),
     meanEventsTriggered: mean(r => r.triggeredEventCount),
+    recessionFireRate: results.filter(r => r.recessionFired).length / n,
+    meanMinGrowthSeen: mean(r => r.minGrowthSeen ?? 0),
+    minGrowthEver: results.reduce((m, r) => Math.min(m, r.minGrowthSeen ?? Infinity), Infinity),
   };
 }

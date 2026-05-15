@@ -279,6 +279,17 @@ export const EVENT_DEFINITIONS = {
       { label: 'Community infrastructure premium', effect: { debt: cited(2, 'event_planning_revolt'), blocs: blocs('event_planning_revolt', { northern: 2, pensioners: 2, workingClass: 3 }), log: 'Local areas bought off with new schools and surgeries.' } },
     ],
   },
+  recession: {
+    title: 'Recession Hits',
+    body: 'Overheated economy tipping into contraction. Quarterly output forecast to fall sharply; jobless claims rising.',
+    tone: 'bad',
+    citationId: 'recession_business_cycle_judgement',
+    choices: [
+      { label: 'Fiscal stimulus package', effect: { debt: cited(15, 'recession_business_cycle_judgement'), growth: cited(0.6, 'recession_business_cycle_judgement'), bondYield: cited(0.2, 'recession_business_cycle_judgement'), blocs: blocs('recession_business_cycle_judgement', { workingClass: 5, business: 3, professional: -3 }), log: 'Stimulus announced. Markets digesting wider deficit.' } },
+      { label: 'Austerity to defend gilts', effect: { debt: cited(-8, 'recession_business_cycle_judgement'), growth: cited(-1.0, 'recession_business_cycle_judgement'), riskPremium: cited(-0.3, 'recession_business_cycle_judgement'), blocs: blocs('recession_business_cycle_judgement', { workingClass: -6, professional: 4, business: 2 }), log: 'Spending cuts to reassure markets. Coalition strained.' } },
+      { label: 'Ride it out', effect: { growth: cited(-1.5, 'recession_business_cycle_judgement'), unemployment: cited(0.5, 'recession_business_cycle_judgement'), blocs: blocs('recession_business_cycle_judgement', { workingClass: -3, business: -2 }), log: 'You stood back. Output contracted; unemployment ticked up.' } },
+    ],
+  },
   monetaryPolicyError: {
     title: 'MPC Out of Step',
     body: 'Commentators argue the MPC is materially off the right rate path. Volatility rising.',

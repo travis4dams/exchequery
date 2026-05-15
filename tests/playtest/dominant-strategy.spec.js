@@ -99,4 +99,24 @@ describe(`dominant-strategy playtest (${TRIALS} games)`, () => {
     expect(flexStats.meanFinalRiskPremium)
       .toBeGreaterThan(supplyStats.meanFinalRiskPremium + 0.05);
   });
+
+  it('cheese sees real recession risk — growth dips negative on at least one seed', () => {
+    // The original complaint that motivated the growth-realism work: cheese
+    // could ride a permanently-upward GDP curve. Mean reversion + Gaussian
+    // noise + Laffer drag should mean growth visibly turns negative in at
+    // least some cheese runs.
+    expect(cheeseStats.minGrowthEver).toBeLessThan(0);
+  });
+
+  it('recession event fires under at least one strategy', () => {
+    // Overheating-driven recession risk should produce visible event fires.
+    // Random and supply paths run hot most reliably; cheese fires less often
+    // because the VAT cut pushes inflation down rather than up.
+    const anyRecession =
+      cheeseStats.recessionFireRate
+      + doNothingStats.recessionFireRate
+      + randomStats.recessionFireRate
+      + supplyStats.recessionFireRate;
+    expect(anyRecession).toBeGreaterThan(0.10);
+  });
 });
