@@ -15,7 +15,22 @@ section accumulates on the `dev` branch between releases.
 
 ---
 
-## [v1.0.0] — 2026-05-15
+## [v0.1.1] — 2026-05-15
+
+### New
+- Game-dev branching workflow: `feature/*` → `dev` → `main`, with `hotfix/*` for emergencies.
+- Release-readiness CI gate on `dev` → `main` PRs (requires version bump + matching patch notes section).
+- 500-seed extended playtest job on release PRs to catch balance regressions across many games.
+- `release.yml` GitHub Actions workflow: tag `v*` push creates a GitHub Release with parsed patch notes and a `dist.zip` asset.
+- In-game version footer in the About tab, sourced from `package.json` via Vite's `define`.
+- `CONTRIBUTING.md` and `CLAUDE.md` documenting the workflow for humans and future AI sessions.
+
+### Balance
+- Versioning reset to `0.x.x` to better reflect that this is pre-1.0 development.
+
+---
+
+## [v0.1.0] — 2026-05-15
 
 ### New
 - Initial public release: 20-quarter Chancellor of the Exchequer simulation.
