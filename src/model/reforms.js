@@ -5,10 +5,20 @@
 //   id: {
 //     name: string,
 //     branch: string,                // revenue | nhs | housing | green | education | labour | state
-//     cost: { value, citationId },   // upfront £bn (paid on commit)
+//     cost: { value, citationId },   // upfront £bn (paid on commit). Zero
+//                                    // when a statutory/admin change is
+//                                    // absorbed within existing departmental
+//                                    // DEL — see statutory_no_upfront_judgement.
+//                                    // Non-zero for capital programmes, new
+//                                    // headcount, nationalisation buy-outs,
+//                                    // pay settlements.
 //     quarters: number,              // time to complete
 //     prereq: string[],              // reform IDs that must be complete
 //     passReq: { coalition: { value, citationId } },
+//     capacityLoad: number,          // 1–8; how much reform-capacity this
+//                                    // reform occupies while in flight or
+//                                    // queued. Sum of loads must fit under
+//                                    // calcReformCapacity(state).
 //     blurb: string,                 // one-line description
 //     citationId: string,            // primary citation for the reform's evidence base
 //     controversial?: boolean,       // marks as contested
@@ -46,7 +56,7 @@ export const REFORMS = {
   // ===========================================================================
   hmrcCapacity: {
     name: 'HMRC Modernisation', branch: 'revenue',
-    cost: cited(2, 'nao_hmrc_compliance'), quarters: 4, prereq: [],
+    cost: cited(2, 'nao_hmrc_compliance'), quarters: 4, prereq: [], capacityLoad: 4,
     passReq: { coalition: cited(30, 'bloc_methodology') },
     blurb: 'Reverse digitisation cuts; recruit compliance staff.',
     citationId: 'nao_hmrc_compliance',
@@ -61,7 +71,7 @@ export const REFORMS = {
   },
   obrIndependence: {
     name: 'Strengthen OBR Independence', branch: 'revenue',
-    cost: cited(0.5, 'obr_independence_judgement'), quarters: 3, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 3,
     passReq: { coalition: cited(30, 'bloc_methodology') },
     blurb: 'Statutory pre-publication review of Treasury costings. Reduces forecast uncertainty.',
     citationId: 'obr_independence_judgement',
@@ -77,7 +87,7 @@ export const REFORMS = {
   },
   cgtAlign: {
     name: 'Align CGT with Income Tax', branch: 'revenue',
-    cost: cited(0.5, 'ifs_cgt_alignment'), quarters: 2, prereq: ['hmrcCapacity'],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: ['hmrcCapacity'], capacityLoad: 3,
     passReq: { coalition: cited(32, 'bloc_methodology') },
     blurb: 'Close the entrepreneur loophole. Capital gains taxed as ordinary income.',
     citationId: 'ifs_cgt_alignment',
@@ -95,7 +105,7 @@ export const REFORMS = {
   },
   nondomEnd: {
     name: 'Abolish Non-Dom Regime', branch: 'revenue',
-    cost: cited(0.3, 'centax_nondom'), quarters: 2, prereq: ['hmrcCapacity'],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: ['hmrcCapacity'], capacityLoad: 3,
     passReq: { coalition: cited(30, 'bloc_methodology') },
     blurb: 'Full abolition of remittance basis; replace with 4-year FIG regime.',
     citationId: 'centax_nondom',
@@ -111,8 +121,8 @@ export const REFORMS = {
   },
   wealthTax: {
     name: 'Wealth Tax (2% above £10m)', branch: 'revenue',
-    cost: cited(1, 'wealth_tax_commission'), quarters: 4, prereq: ['hmrcCapacity', 'nondomEnd'],
-    passReq: { coalition: cited(40, 'bloc_methodology') },
+    cost: cited(0.5, 'wealth_tax_commission'), quarters: 4, prereq: ['hmrcCapacity', 'nondomEnd'], capacityLoad: 5,
+    passReq: { coalition: cited(42, 'bloc_methodology') },
     blurb: 'Annual 2% on net wealth above £10m. ~22,000 households affected.',
     citationId: 'wealth_tax_commission',
     onComplete: {
@@ -130,7 +140,7 @@ export const REFORMS = {
   },
   charityCredit: {
     name: 'Charitable Deduction → Credit', branch: 'revenue',
-    cost: cited(0.2, 'hmrc_charity_credit'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(28, 'bloc_methodology') },
     blurb: 'Replace higher-rate relief with flat 25% credit.',
     citationId: 'hmrc_charity_credit',
@@ -147,7 +157,7 @@ export const REFORMS = {
   },
   windfallTax: {
     name: 'Permanent Excess Profits Levy', branch: 'revenue',
-    cost: cited(0.1, 'windfall_levy'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(30, 'bloc_methodology') },
     blurb: 'Permanent windfall mechanism in energy, banking, supermarkets.',
     citationId: 'windfall_levy',
@@ -163,7 +173,7 @@ export const REFORMS = {
   },
   niEmployer: {
     name: 'Employer NI on Investment Income', branch: 'revenue',
-    cost: cited(0.2, 'ifs_employer_ni'), quarters: 2, prereq: ['hmrcCapacity'],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: ['hmrcCapacity'], capacityLoad: 3,
     passReq: { coalition: cited(33, 'bloc_methodology') },
     blurb: 'Extend Employer NI to dividends and rental income.',
     citationId: 'ifs_employer_ni',
@@ -180,7 +190,7 @@ export const REFORMS = {
   },
   benefitFreeze: {
     name: 'Multi-Year Benefit Freeze', branch: 'revenue',
-    cost: cited(0, 'ifs_benefit_freeze'), quarters: 1, prereq: [],
+    cost: cited(0, 'ifs_benefit_freeze'), quarters: 1, prereq: [], capacityLoad: 1,
     passReq: { coalition: cited(27, 'bloc_methodology') },
     blurb: 'Freeze working-age benefits for 3 years. Real-terms cut.',
     citationId: 'ifs_benefit_freeze',
@@ -201,7 +211,7 @@ export const REFORMS = {
   },
   topRateCut: {
     name: 'Cut Additional Rate to 40%', branch: 'revenue',
-    cost: cited(0, 'hope_limberg_top_rate'), quarters: 1, prereq: [],
+    cost: cited(0, 'hope_limberg_top_rate'), quarters: 1, prereq: [], capacityLoad: 1,
     passReq: { coalition: cited(25, 'bloc_methodology') },
     blurb: 'Abolish additional rate. Trickle-down theory in action.',
     citationId: 'hope_limberg_top_rate',
@@ -225,8 +235,8 @@ export const REFORMS = {
   // ===========================================================================
   nhsPay: {
     name: 'NHS Pay Settlement', branch: 'nhs',
-    cost: cited(4, 'nhs_pay_settlement'), quarters: 2, prereq: [],
-    passReq: { coalition: cited(32, 'bloc_methodology') },
+    cost: cited(4, 'nhs_pay_settlement'), quarters: 2, prereq: [], capacityLoad: 3,
+    passReq: { coalition: cited(34, 'bloc_methodology') },
     blurb: 'Multi-year pay deal; ends rolling strikes; cuts agency spend.',
     citationId: 'nhs_pay_settlement',
     onComplete: {
@@ -243,16 +253,16 @@ export const REFORMS = {
       nhsStrike: cited(-50, 'nhs_strike_payDeal_effect'),
     },
   },
-  socialCareReform: {
-    name: 'Social Care Funding Settlement', branch: 'nhs',
-    cost: cited(6, 'dilnot_social_care'), quarters: 4, prereq: ['nhsPay'],
+  dilnotCap: {
+    name: 'Dilnot Cap on Personal Contributions', branch: 'nhs',
+    cost: cited(6, 'dilnot_social_care'), quarters: 4, prereq: ['nhsPay'], capacityLoad: 5,
     passReq: { coalition: cited(38, 'bloc_methodology') },
-    blurb: 'Dilnot-style cap on personal contributions; NI surcharge funding.',
+    blurb: '£86k lifetime cap on personal social-care contributions; NI surcharge funding.',
     citationId: 'dilnot_social_care',
     onComplete: {
       ongoingCost: cited(5, 'dilnot_social_care'),
       healthBoost: cited(3, 'dilnot_social_care'),
-      log: 'Social care settled.',
+      log: 'Dilnot cap in force. Personal contributions capped at £86k.',
     },
     blocEffects: {
       pensioners: cited(8, 'bloc_methodology'),
@@ -260,9 +270,27 @@ export const REFORMS = {
       publicSector: cited(4, 'bloc_methodology'),
     },
   },
+  socialCareSystemic: {
+    name: 'Social Care Systemic Reform', branch: 'nhs',
+    cost: cited(10, 'social_care_systemic_extrapolated'), quarters: 6, prereq: ['dilnotCap'], capacityLoad: 7,
+    passReq: { coalition: cited(42, 'bloc_methodology') },
+    blurb: 'Free personal care, workforce pay uplift, NHS/LA integration.',
+    citationId: 'social_care_systemic_extrapolated',
+    onComplete: {
+      ongoingCost: cited(12, 'social_care_systemic_extrapolated'),
+      healthBoost: cited(5, 'social_care_systemic_extrapolated'),
+      log: 'Systemic social care reform delivered. Free personal care live; workforce on NHS pay parity.',
+    },
+    blocEffects: {
+      publicSector: cited(10, 'bloc_methodology'),
+      professional: cited(5, 'bloc_methodology'),
+      pensioners: cited(6, 'bloc_methodology'),
+      middleClass: cited(3, 'bloc_methodology'),
+    },
+  },
   preventativeHealth: {
     name: 'Preventative Health Programme', branch: 'nhs',
-    cost: cited(3, 'marmot_preventative'), quarters: 6, prereq: ['nhsPay'],
+    cost: cited(3, 'marmot_preventative'), quarters: 6, prereq: ['nhsPay'], capacityLoad: 5,
     passReq: { coalition: cited(35, 'bloc_methodology') },
     blurb: 'Marmot-style upstream investment. Long-run mortality + productivity.',
     citationId: 'marmot_preventative',
@@ -280,7 +308,7 @@ export const REFORMS = {
   },
   mentalHealth: {
     name: 'Mental Health Parity', branch: 'nhs',
-    cost: cited(2, 'nhs_mental_health_parity'), quarters: 4, prereq: [],
+    cost: cited(2, 'nhs_mental_health_parity'), quarters: 4, prereq: [], capacityLoad: 4,
     passReq: { coalition: cited(33, 'bloc_methodology') },
     blurb: 'Statutory parity between MH and physical health services.',
     citationId: 'nhs_mental_health_parity',
@@ -298,7 +326,7 @@ export const REFORMS = {
   },
   privatiseNHS: {
     name: 'Expand NHS Private Provision', branch: 'nhs',
-    cost: cited(0.5, 'bmj_nhs_private'), quarters: 3, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 4,
     passReq: { coalition: cited(25, 'bloc_methodology') },
     blurb: 'Outsource elective procedures. Cuts waiting lists short-term.',
     citationId: 'bmj_nhs_private',
@@ -321,8 +349,8 @@ export const REFORMS = {
   // ===========================================================================
   socialHousing: {
     name: 'Council House Building', branch: 'housing',
-    cost: cited(8, 'shelter_social_housing'), quarters: 8, prereq: [],
-    passReq: { coalition: cited(33, 'bloc_methodology') },
+    cost: cited(8, 'shelter_social_housing'), quarters: 8, prereq: [], capacityLoad: 7,
+    passReq: { coalition: cited(36, 'bloc_methodology') },
     blurb: '300,000 council homes over 8Q. Lowers Housing Benefit long-term.',
     citationId: 'shelter_social_housing',
     onComplete: {
@@ -344,8 +372,8 @@ export const REFORMS = {
   },
   planningReform: {
     name: 'Planning System Overhaul', branch: 'housing',
-    cost: cited(1, 'planning_friction'), quarters: 3, prereq: [],
-    passReq: { coalition: cited(30, 'bloc_methodology') },
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 4,
+    passReq: { coalition: cited(33, 'bloc_methodology') },
     blurb: 'Presumption in favour of development; restrict NIMBY blocks.',
     citationId: 'planning_friction',
     onComplete: {
@@ -362,7 +390,7 @@ export const REFORMS = {
   },
   rentControls: {
     name: 'Rent Caps (High-Pressure Zones)', branch: 'housing',
-    cost: cited(0.2, 'diamond_mcquade_qian_rent_control'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(32, 'bloc_methodology') },
     blurb: 'Annual rent rises capped at CPI.',
     citationId: 'diamond_mcquade_qian_rent_control',
@@ -382,7 +410,7 @@ export const REFORMS = {
   },
   rightToBuyEnd: {
     name: 'End Right-to-Buy', branch: 'housing',
-    cost: cited(0.1, 'right_to_buy_end_judgement'), quarters: 1, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 1, prereq: [], capacityLoad: 1,
     passReq: { coalition: cited(34, 'bloc_methodology') },
     blurb: 'Stop council stock erosion.',
     citationId: 'right_to_buy_end_judgement',
@@ -403,8 +431,8 @@ export const REFORMS = {
   // ===========================================================================
   greenInvest: {
     name: 'GB Energy + Grid Investment', branch: 'green',
-    cost: cited(10, 'gb_energy_grid'), quarters: 6, prereq: [],
-    passReq: { coalition: cited(32, 'bloc_methodology') },
+    cost: cited(10, 'gb_energy_grid'), quarters: 6, prereq: [], capacityLoad: 6,
+    passReq: { coalition: cited(36, 'bloc_methodology') },
     blurb: 'Public energy company + grid upgrade. Lower bills mid-term.',
     citationId: 'gb_energy_grid',
     onComplete: {
@@ -421,7 +449,7 @@ export const REFORMS = {
   },
   insulationScheme: {
     name: 'Mass Home Insulation', branch: 'green',
-    cost: cited(4, 'ccc_insulation'), quarters: 4, prereq: [],
+    cost: cited(4, 'ccc_insulation'), quarters: 4, prereq: [], capacityLoad: 4,
     passReq: { coalition: cited(30, 'bloc_methodology') },
     blurb: 'Retrofit 5m homes. Cuts bills + emissions; trade jobs.',
     citationId: 'ccc_insulation',
@@ -438,8 +466,8 @@ export const REFORMS = {
   },
   rail: {
     name: 'Northern Rail Investment', branch: 'green',
-    cost: cited(12, 'npr_rail'), quarters: 12, prereq: ['planningReform'],
-    passReq: { coalition: cited(36, 'bloc_methodology') },
+    cost: cited(12, 'npr_rail'), quarters: 12, prereq: ['planningReform'], capacityLoad: 8,
+    passReq: { coalition: cited(38, 'bloc_methodology') },
     blurb: 'Connecting Northern cities. Long lead time.',
     citationId: 'npr_rail',
     onComplete: {
@@ -457,7 +485,7 @@ export const REFORMS = {
   },
   digitalInfra: {
     name: 'Full-Fibre Rollout', branch: 'green',
-    cost: cited(5, 'cebr_full_fibre'), quarters: 6, prereq: [],
+    cost: cited(5, 'cebr_full_fibre'), quarters: 6, prereq: [], capacityLoad: 5,
     passReq: { coalition: cited(31, 'bloc_methodology') },
     blurb: 'Universal full-fibre by 2030.',
     citationId: 'cebr_full_fibre',
@@ -474,7 +502,7 @@ export const REFORMS = {
   },
   deregulate: {
     name: 'Deregulatory Bonfire', branch: 'green',
-    cost: cited(0.3, 'deregulation_judgement'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(28, 'bloc_methodology') },
     blurb: 'Strip back environmental, planning, employment regulations.',
     citationId: 'deregulation_judgement',
@@ -501,8 +529,8 @@ export const REFORMS = {
   // ===========================================================================
   freeChildcare: {
     name: 'Universal Free Childcare', branch: 'education',
-    cost: cited(5, 'resolution_childcare'), quarters: 4, prereq: [],
-    passReq: { coalition: cited(34, 'bloc_methodology') },
+    cost: cited(5, 'resolution_childcare'), quarters: 4, prereq: [], capacityLoad: 5,
+    passReq: { coalition: cited(36, 'bloc_methodology') },
     blurb: 'Removes work disincentive. Labour supply boost.',
     citationId: 'resolution_childcare',
     onComplete: {
@@ -523,7 +551,7 @@ export const REFORMS = {
   },
   skillsBudget: {
     name: 'Skills & FE Funding', branch: 'education',
-    cost: cited(3, 'ifs_fe_funding'), quarters: 3, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 3,
     passReq: { coalition: cited(30, 'bloc_methodology') },
     blurb: 'Restore Further Education funding to 2010 real terms.',
     citationId: 'ifs_fe_funding',
@@ -540,7 +568,7 @@ export const REFORMS = {
   },
   uniReform: {
     name: 'University Fees Reform', branch: 'education',
-    cost: cited(4, 'obr_tuition_fees'), quarters: 4, prereq: [],
+    cost: cited(4, 'obr_tuition_fees'), quarters: 4, prereq: [], capacityLoad: 4,
     passReq: { coalition: cited(35, 'bloc_methodology') },
     blurb: 'Replace tuition-fee debt with progressive graduate contribution.',
     citationId: 'obr_tuition_fees',
@@ -561,7 +589,7 @@ export const REFORMS = {
   // ===========================================================================
   realLivingWage: {
     name: 'Statutory Real Living Wage', branch: 'labour',
-    cost: cited(0.3, 'lpc_living_wage'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(33, 'bloc_methodology') },
     blurb: 'Raise minimum to Living Wage Foundation rate (~£12.60/hr).',
     citationId: 'lpc_living_wage',
@@ -578,7 +606,7 @@ export const REFORMS = {
   },
   unionRights: {
     name: 'Restore Union Rights', branch: 'labour',
-    cost: cited(0.1, 'oecd_sectoral_bargaining'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(36, 'bloc_methodology') },
     blurb: 'Repeal Trade Union Act 2016; sectoral bargaining frameworks.',
     citationId: 'oecd_sectoral_bargaining',
@@ -597,7 +625,7 @@ export const REFORMS = {
   },
   workersBoardSeats: {
     name: 'Workers on Boards', branch: 'labour',
-    cost: cited(0.2, 'jager_codetermination'), quarters: 3, prereq: ['unionRights'],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: ['unionRights'], capacityLoad: 3,
     passReq: { coalition: cited(38, 'bloc_methodology') },
     blurb: 'German-style co-determination for firms >250 employees.',
     citationId: 'jager_codetermination',
@@ -614,7 +642,7 @@ export const REFORMS = {
   },
   antiStrike: {
     name: 'Minimum Service Levels Act', branch: 'labour',
-    cost: cited(0.1, 'ilo_minimum_service'), quarters: 2, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 2, prereq: [], capacityLoad: 2,
     passReq: { coalition: cited(27, 'bloc_methodology') },
     blurb: 'Mandate minimum service during strikes; sackings for non-compliance.',
     citationId: 'ilo_minimum_service',
@@ -639,8 +667,8 @@ export const REFORMS = {
   // ===========================================================================
   civilService: {
     name: 'Rebuild Civil Service', branch: 'state',
-    cost: cited(2, 'nao_civil_service'), quarters: 3, prereq: [],
-    passReq: { coalition: cited(30, 'bloc_methodology') },
+    cost: cited(2, 'nao_civil_service'), quarters: 3, prereq: [], capacityLoad: 4,
+    passReq: { coalition: cited(32, 'bloc_methodology') },
     blurb: 'Reverse decade of headcount cuts. Less consultant reliance.',
     citationId: 'nao_civil_service',
     onComplete: {
@@ -655,8 +683,8 @@ export const REFORMS = {
   },
   localGov: {
     name: 'Local Government Settlement', branch: 'state',
-    cost: cited(5, 'ifs_local_gov'), quarters: 3, prereq: [],
-    passReq: { coalition: cited(33, 'bloc_methodology') },
+    cost: cited(5, 'ifs_local_gov'), quarters: 3, prereq: [], capacityLoad: 5,
+    passReq: { coalition: cited(35, 'bloc_methodology') },
     blurb: 'Multi-year council funding. Saves SEND, social care, libraries.',
     citationId: 'ifs_local_gov',
     onComplete: {
@@ -676,7 +704,7 @@ export const REFORMS = {
   },
   banking: {
     name: 'Banking Regulation', branch: 'state',
-    cost: cited(0.5, 'bcbs_capital_reqs'), quarters: 3, prereq: [],
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 3,
     passReq: { coalition: cited(32, 'bloc_methodology') },
     blurb: 'Higher capital requirements; ring-fence enforcement.',
     citationId: 'bcbs_capital_reqs',
@@ -694,7 +722,7 @@ export const REFORMS = {
   },
   immigrationCap: {
     name: 'Cap Net Migration at 100k', branch: 'state',
-    cost: cited(0.5, 'obr_migration_cap'), quarters: 3, prereq: [],
+    cost: cited(0.2, 'obr_migration_cap'), quarters: 3, prereq: [], capacityLoad: 3,
     passReq: { coalition: cited(28, 'bloc_methodology') },
     blurb: 'Hard cap on visa routes. Reduces growth and population in working-age blocs.',
     citationId: 'obr_migration_cap',
@@ -723,7 +751,7 @@ export const REFORMS = {
   },
   refugeeRestrict: {
     name: 'Offshore Asylum Processing', branch: 'state',
-    cost: cited(2, 'pac_rwanda'), quarters: 4, prereq: [],
+    cost: cited(2, 'pac_rwanda'), quarters: 4, prereq: [], capacityLoad: 5,
     passReq: { coalition: cited(26, 'bloc_methodology') },
     blurb: 'Offshoring scheme. Symbolic; legally fraught.',
     citationId: 'pac_rwanda',
@@ -741,7 +769,7 @@ export const REFORMS = {
   },
   triple_lock_plus: {
     name: 'Triple Lock+ Enhancement', branch: 'state',
-    cost: cited(0, 'obr_triple_lock_plus'), quarters: 1, prereq: [],
+    cost: cited(0, 'obr_triple_lock_plus'), quarters: 1, prereq: [], capacityLoad: 1,
     passReq: { coalition: cited(28, 'bloc_methodology') },
     blurb: 'Raise pension by max of CPI+1, earnings+1, or 3.5%.',
     citationId: 'obr_triple_lock_plus',

@@ -1,9 +1,13 @@
-import React from 'react';
-import { CheckCircle2, Clock, ArrowRight, Lock, AlertCircle, Eye, Undo2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CheckCircle2, Clock, ArrowRight, Lock, AlertCircle, Eye, Undo2, XCircle } from 'lucide-react';
 
 const unwrap = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
-export function ReformCard({ id, reform, status, isProposed, onPropose, onUnpropose, canStart, currentQ, coalitionCohesion, onInspect }) {
+export function ReformCard({
+  id, reform, status, isProposed, onPropose, onUnpropose, onCancel,
+  canStart, prereqMet = true, fitsCapacity = true, load = 1,
+  currentQ, coalitionCohesion, onInspect,
+}) {
   const isInProgress = status?.status === 'inProgress';
   const isComplete = status?.status === 'complete';
   const progress = isInProgress ? ((currentQ - status.startedQ) / reform.quarters) : 0;
@@ -11,12 +15,28 @@ export function ReformCard({ id, reform, status, isProposed, onPropose, onUnprop
   const meetsCoal = coalitionCohesion >= passReqCoal;
   const ctrl = reform.controversial;
   const cost = unwrap(reform.cost);
+  const capacityBlocked = !isComplete && !isInProgress && !isProposed && prereqMet && meetsCoal && !fitsCapacity;
+
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const confirmTimer = useRef(null);
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
+  const handleCancel = () => {
+    if (!confirmCancel) {
+      setConfirmCancel(true);
+      confirmTimer.current = setTimeout(() => setConfirmCancel(false), 3000);
+      return;
+    }
+    clearTimeout(confirmTimer.current);
+    setConfirmCancel(false);
+    onCancel?.();
+  };
 
   return (
     <div className={`p-3 rounded-md border mb-2 transition-colors ${
       isComplete ? 'border-emerald-700/50 bg-emerald-950/15' :
       isInProgress ? 'border-amber-700/50 bg-amber-950/15' :
       isProposed ? 'border-sky-700/60 bg-sky-950/20' :
+      capacityBlocked ? 'border-stone-700/70 bg-stone-800/30 opacity-75' :
       canStart && meetsCoal ? 'border-stone-700 bg-stone-900/40' :
       'border-stone-800 bg-stone-950/40 opacity-60'
     }`}>
@@ -42,14 +62,22 @@ export function ReformCard({ id, reform, status, isProposed, onPropose, onUnprop
           <div className="h-1 bg-stone-800 rounded-full overflow-hidden">
             <div className="h-full bg-amber-500" style={{width: `${progress * 100}%`}} />
           </div>
-          <div className="text-[10px] text-stone-500 mt-1">
-            {reform.quarters - (currentQ - status.startedQ)}Q remaining of {reform.quarters}Q
+          <div className="flex items-center justify-between mt-1">
+            <div className="text-[10px] text-stone-500">
+              {reform.quarters - (currentQ - status.startedQ)}Q remaining of {reform.quarters}Q · Load {load}
+            </div>
+            {onCancel && (
+              <button onClick={handleCancel}
+                className={`text-[10px] flex items-center gap-1 ${confirmCancel ? 'text-rose-300' : 'text-stone-500 hover:text-rose-400'}`}>
+                <XCircle size={9} /> {confirmCancel ? 'Tap to confirm' : 'Cancel'}
+              </button>
+            )}
           </div>
         </div>
       )}
       {isProposed && (
         <div className="mb-2 flex items-center justify-between bg-sky-950/30 rounded px-2 py-1">
-          <span className="text-[10px] text-sky-300">Queued — starts next quarter</span>
+          <span className="text-[10px] text-sky-300">Queued · Load {load} · starts next quarter</span>
           <button onClick={onUnpropose} className="text-[10px] text-sky-300 hover:text-sky-200 flex items-center gap-1">
             <Undo2 size={9} /> Undo
           </button>
@@ -64,6 +92,7 @@ export function ReformCard({ id, reform, status, isProposed, onPropose, onUnprop
                 · {passReqCoal}% coal.
               </span>
             )}
+            <span className={capacityBlocked ? 'text-rose-400 ml-2' : 'text-stone-500 ml-2'}>· Load {load}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={onInspect} className="text-stone-500 hover:text-stone-300">
@@ -75,6 +104,9 @@ export function ReformCard({ id, reform, status, isProposed, onPropose, onUnprop
             </button>
           </div>
         </div>
+      )}
+      {capacityBlocked && (
+        <div className="text-[10px] text-amber-400/80 mt-1.5">No capacity — too many reforms in flight.</div>
       )}
     </div>
   );

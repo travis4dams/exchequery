@@ -21,4 +21,7 @@ export {
   rollEvents,
   makeCommittedSnapshot,
   makeInitialState,
+  reformCapacityLoad,
+  calcReformCapacity,
+  calcReformLoadInFlight,
 } from './engine.js';

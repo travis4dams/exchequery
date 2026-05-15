@@ -17,6 +17,33 @@ import { EVENT_DEFINITIONS, REFORM_RISK_MODS } from './events.js';
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
 // =============================================================================
+// Reform capacity
+// =============================================================================
+
+export function reformCapacityLoad(reform) {
+  return reform?.capacityLoad ?? 1;
+}
+
+export function calcReformCapacity(s) {
+  const C = PARAMS.reformCapacity;
+  const totalDept = s.spendNHS + s.spendEdu + s.spendWelfare + s.spendDefence + s.spendInfra + s.spendLocal;
+  let cap = Math.max(1, Math.round((totalDept - v(C.deptBudgetAnchor)) / v(C.deptBudgetPerSlot)));
+  if (s.reforms.civilService?.status === 'complete') cap += v(C.civilServiceBonus);
+  return cap;
+}
+
+export function calcReformLoadInFlight(s) {
+  let load = 0;
+  for (const r of Object.values(s.reforms)) {
+    if (r.status === 'inProgress') load += reformCapacityLoad(r.reformDef);
+  }
+  for (const id of s.proposedReforms) {
+    if (REFORMS[id]) load += reformCapacityLoad(REFORMS[id]);
+  }
+  return load;
+}
+
+// =============================================================================
 // Approval & cohesion
 // =============================================================================
 

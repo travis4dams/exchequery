@@ -909,7 +909,7 @@ export const CITATIONS = {
     note: 'Designer judgement; multi-year pay deal cuts NHS strike risk by 50pp.',
   },
   dilnot_social_care: {
-    parameter: 'socialCareReform',
+    parameter: 'dilnotCap reform',
     value: 5,
     unit: '£bn pa ongoingCost',
     confidence: 'extrapolated',
@@ -1186,6 +1186,33 @@ export const CITATIONS = {
     confidence: 'judgement',
     title: 'Event-choice payout magnitudes',
     note: 'All debt/growth/inflation/bondYield/bloc-support deltas in event choices are designer-set to feel proportionate to the event scale. Magnitudes are not estimated from historical equivalents.',
+  },
+
+  // ===========================================================================
+  // Reform capacity & social-care extension
+  // ===========================================================================
+  reform_capacity_judgement: {
+    parameter: 'reformCapacity scaling',
+    confidence: 'judgement',
+    title: 'Reform capacity scaling',
+    note: 'Reform capacity is a designer-set constraint reflecting that any government can only run a finite number of substantive reform programmes simultaneously: ministerial bandwidth, civil-service drafting capacity, parliamentary time, and stakeholder management are all bottlenecks. The baseline cap of 5 (at starting departmental spend) and per-reform loads of 1–8 are calibrated to make sequencing decisions matter, not estimated from primary research. The +30bn per slot scaling means growing the state (via spending) buys reform throughput, while the +2 bonus from completing Civil Service Rebuild reflects restored departmental capacity.',
+  },
+  statutory_no_upfront_judgement: {
+    parameter: 'upfront cost = 0 for statutory/admin reforms',
+    confidence: 'judgement',
+    title: 'Statutory/admin reform absorbed within existing DEL',
+    note: "Reforms that change tax law, employment law, or regulatory rules without standing up new capital programmes, headcount, or service expansion incur no separate upfront cash beyond the responsible department's existing operating budget. Drafting, parliamentary time, and minor enforcement scaffolding are de minimis at the £bn-scale resolution of this model. Effects of each policy (revenue gains, supply-side responses, distributional effects) remain attributed to their original reform-specific citations.",
+  },
+  social_care_systemic_extrapolated: {
+    parameter: 'socialCareSystemic reform',
+    value: 12,
+    unit: '£bn pa ongoingCost',
+    confidence: 'extrapolated',
+    title: 'Systemic social care reform — free personal care, workforce uplift, NHS/LA integration',
+    publisher: "King's Fund / Health Foundation / IFS (composite range)",
+    year: 2024,
+    url: 'https://www.kingsfund.org.uk/insight-and-analysis/data-and-charts/social-care-360',
+    note: "Composite range from King's Fund, Health Foundation, and IFS estimates places comprehensive social care reform — free personal care plus workforce pay parity with the NHS plus LA grant integration — at roughly £8–14bn pa steady state in 2024 prices. Simulation £12bn pa picks the mid-upper end on the assumption of a reasonably ambitious settlement; £10bn upfront covers transition, training-place expansion, and IT integration. healthBoost +5 reflects fewer delayed transfers of care and earlier intervention. Bloc reactions (publicSector +10 in particular) reflect the workforce pay component. Prerequisite Dilnot Cap captures the staged-implementation reality: systemic reform builds on the cap framework rather than replacing it.",
   },
 };
 
