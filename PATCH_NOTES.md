@@ -15,7 +15,7 @@ section accumulates on the `dev` branch between releases.
 
 ---
 
-## [v0.2.0] — 2026-05-15
+## [v0.1.2] — 2026-05-15
 
 ### New
 - Event payouts now each carry their own citation. Tapping a choice's details panel surfaces a per-event source note explaining the magnitudes, not a generic methodology stub.
