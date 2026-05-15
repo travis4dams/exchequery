@@ -320,8 +320,9 @@ export const REFORMS = {
     passReq: { coalition: cited(42, 'bloc_methodology') },
     politicalCapitalCost: cited(15, 'political_capital_authoring_methodology'),
     ideologyStance: { econ: -0.4, social: -0.1 },
-    blurb: 'Free personal care, workforce pay uplift, NHS/LA integration.',
+    blurb: 'Free personal care, workforce pay uplift, NHS/LA integration. Compounds pandemic-severity damper.',
     citationId: 'social_care_systemic_extrapolated',
+    special: 'enablePandemicDamperSocialCare',
     onComplete: {
       ongoingCost: cited(12, 'social_care_systemic_extrapolated'),
       healthBoost: cited(5, 'social_care_systemic_extrapolated'),
@@ -340,8 +341,9 @@ export const REFORMS = {
     passReq: { coalition: cited(35, 'bloc_methodology') },
     politicalCapitalCost: cited(6, 'political_capital_authoring_methodology'),
     ideologyStance: { econ: -0.2, social: -0.1 },
-    blurb: 'Marmot-style upstream investment. Long-run mortality + productivity.',
+    blurb: 'Marmot-style upstream investment. Long-run mortality + productivity. Damps pandemic severity.',
     citationId: 'marmot_preventative',
+    special: 'enablePandemicDamperPreventative',
     onComplete: {
       ongoingCost: cited(2, 'marmot_preventative'),
       healthBoost: cited(4, 'marmot_preventative'),

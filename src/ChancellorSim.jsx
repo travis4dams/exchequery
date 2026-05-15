@@ -6,6 +6,7 @@ import {
   INITIAL_BLOC_SUPPORT,
   INITIAL_BLOC_WEIGHTS,
   REFORMS,
+  EVENT_DEFINITIONS,
   calcCoalitionCohesion,
   calcOverallApproval,
   calcRevenue,
@@ -109,7 +110,13 @@ export default function ChancellorSim() {
       localStorage.removeItem('chancellor_v6_save');
       const saved = localStorage.getItem('chancellor_v7_save');
       if (saved) {
-        setGame(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Migrate legacy saves: pendingEvent (object) → pendingEvents (queue).
+        if (!Array.isArray(parsed.pendingEvents)) {
+          parsed.pendingEvents = parsed.pendingEvent?.id ? [parsed.pendingEvent.id] : [];
+        }
+        if (parsed.pandemicDamper == null) parsed.pandemicDamper = 1;
+        setGame(parsed);
         setShowIntro(false);
       }
     } catch (e) {}
@@ -168,15 +175,26 @@ export default function ChancellorSim() {
     setGame(g => modelCancelReform(g, id));
   }
 
+  const pendingEventCount = (game.pendingEvents || []).length;
+  const currentPendingEventDef = pendingEventCount > 0
+    ? EVENT_DEFINITIONS[game.pendingEvents[0]]
+    : null;
+  const currentPendingEvent = currentPendingEventDef
+    ? { id: game.pendingEvents[0], ...currentPendingEventDef }
+    : null;
+  const initialBriefCount = game.pendingSummary?.eventQueueLength ?? pendingEventCount;
+  const briefIndex = Math.max(1, initialBriefCount - pendingEventCount + 1);
+
   function advanceQuarter() {
-    if (game.pendingEvent || game.pendingSummary || showReelect || showSurplusAlloc) return;
+    if (pendingEventCount > 0 || game.pendingSummary || showReelect || showSurplusAlloc) return;
     setGame(g => stepQuarter(g));
   }
 
   useEffect(() => {
-    if (game.status === 'election' && !game.pendingSummary && !game.pendingEvent && !showReelect) setShowReelect(true);
-    if (['collapsed', 'lost-markets', 'lost-election'].includes(game.status) && !game.pendingSummary && !game.pendingEvent && !showFinal) setShowFinal(true);
-  }, [game.status, game.pendingSummary, game.pendingEvent, showFinal, showReelect]);
+    const eventsClear = pendingEventCount === 0;
+    if (game.status === 'election' && !game.pendingSummary && eventsClear && !showReelect) setShowReelect(true);
+    if (['collapsed', 'lost-markets', 'lost-election'].includes(game.status) && !game.pendingSummary && eventsClear && !showFinal) setShowFinal(true);
+  }, [game.status, game.pendingSummary, pendingEventCount, showFinal, showReelect]);
 
   function continueAfterElection() {
     setGame(g => modelContinueAfterElection(g));
@@ -184,7 +202,7 @@ export default function ChancellorSim() {
   }
 
   function resolveEvent(choice) {
-    setGame(g => modelResolveEvent(g, choice));
+    setGame(g => modelResolveEvent(g, choice, { eventDef: currentPendingEventDef }));
   }
 
   function dismissSummary() {
@@ -240,8 +258,13 @@ export default function ChancellorSim() {
       {game.pendingSummary && !showIntro && (
         <QuarterSummary summary={game.pendingSummary} growth={game.growth} population={game.population} onContinue={dismissSummary} />
       )}
-      {game.pendingEvent && !showIntro && !game.pendingSummary && !showSurplusAlloc && (
-        <EventModal event={game.pendingEvent} onChoice={resolveEvent} />
+      {currentPendingEvent && !showIntro && !game.pendingSummary && !showSurplusAlloc && (
+        <EventModal
+          event={currentPendingEvent}
+          onChoice={resolveEvent}
+          briefIndex={briefIndex}
+          briefTotal={initialBriefCount}
+        />
       )}
       {showReelect && (
         <Reelect term={game.term} coalitionCohesion={coalitionCohesion} balance={balance} deficitGDP={deficitGDP}
@@ -365,7 +388,7 @@ export default function ChancellorSim() {
         {tab === 'about' && <AboutTab />}
       </div>
 
-      {!showIntro && !showFinal && !showReelect && !showSurplusAlloc && !game.pendingEvent && !game.pendingSummary && (
+      {!showIntro && !showFinal && !showReelect && !showSurplusAlloc && pendingEventCount === 0 && !game.pendingSummary && (
         <div className="fixed bottom-0 left-0 right-0 z-20 backdrop-blur-md border-t border-stone-800/80 p-3"
              style={{background: 'rgba(20, 17, 12, 0.92)'}}>
           <div className="max-w-md mx-auto flex items-center gap-3">

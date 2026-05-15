@@ -296,6 +296,12 @@ export function stepQuarter(game) {
       if (reform.special === 'enablePensionDamper') {
         n.equityShockDamper = v(PARAMS.equity.pensionDamper);
       }
+      if (reform.special === 'enablePandemicDamperPreventative') {
+        n.pandemicDamper = (n.pandemicDamper ?? 1) * v(PARAMS.health.pandemicDamperPreventative);
+      }
+      if (reform.special === 'enablePandemicDamperSocialCare') {
+        n.pandemicDamper = (n.pandemicDamper ?? 1) * v(PARAMS.health.pandemicDamperSocialCare);
+      }
 
       completedReforms.push(reform.name);
       completedReformDefs.push(reform);
@@ -334,15 +340,25 @@ export function stepQuarter(game) {
 
   // 9. Risk mods + event roll. rollEvents iterates Object.entries(mods),
   // which preserves insertion order (i.e. the order keys were added to `m`
-  // in computeRiskMods). The event-pick draw below is the second Math.random()
-  // consumed by this step.
+  // in computeRiskMods). The Red Box queue is built by Fisher–Yates
+  // shuffling the triggered ids and taking up to 3 — each draw consumes a
+  // Math.random(). Subsequent RNG consumers (the Box-Muller block below)
+  // therefore see a shifted seed stream.
   const newMods = computeRiskMods(n);
   const triggered = rollEvents(n, newMods);
-  let eventToShow = null;
-  if (triggered.length > 0) {
-    const eventId = triggered[Math.floor(Math.random() * triggered.length)];
-    eventToShow = { id: eventId, ...EVENT_DEFINITIONS[eventId] };
+  const queued = triggered.slice();
+  // Fisher–Yates shuffle
+  for (let i = queued.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [queued[i], queued[j]] = [queued[j], queued[i]];
   }
+  const RED_BOX_CAP = 3;
+  const pendingEvents = queued.slice(0, RED_BOX_CAP);
+  // Legacy field — keep populated with the head so any caller still reading
+  // pendingEvent in the same render tick sees the same event.
+  const eventToShow = pendingEvents.length > 0
+    ? { id: pendingEvents[0], ...EVENT_DEFINITIONS[pendingEvents[0]] }
+    : null;
 
   // 9b. Gaussian growth noise — Box-Muller. Placed AFTER the event roll so
   //     the existing playtest seed library (equity sentiment + risk draws +
@@ -394,6 +410,7 @@ export function stepQuarter(game) {
     deferredForPC: deferredForPC.map((id) => REFORMS[id]?.name).filter(Boolean),
     completedReforms,
     eventPending: !!eventToShow,
+    eventQueueLength: pendingEvents.length,
     pendingSurplus: n.pendingSurplus,
     qBalance,
     pcChange: n.politicalCapital - prePoliticalCapital,
@@ -401,6 +418,7 @@ export function stepQuarter(game) {
     parliamentMoodChange: n.parliamentMood - preParliamentMood,
   };
   n.pendingEvent = eventToShow;
+  n.pendingEvents = pendingEvents;
 
   n.quarter = n.quarter + 1;
   n.globalQuarter = n.globalQuarter + 1;
@@ -418,18 +436,31 @@ export function stepQuarter(game) {
 }
 
 // =============================================================================
-// resolveEvent — apply an event choice's effect deltas, clear pendingEvent.
+// resolveEvent — apply an event choice's effect deltas, pop the head of the
+// pendingEvents queue. The legacy pendingEvent field is also cleared so old
+// localStorage saves load cleanly during the transition.
+//
+// If the event def is flagged pandemicEffect, negative health/growth/positive
+// debt+inflation+unemployment deltas are scaled by n.pandemicDamper (mirrors
+// the existing energyShockDamper / equityShockDamper pattern).
 // =============================================================================
-export function resolveEvent(game, choice) {
-  let n = { ...game, pendingEvent: null };
+export function resolveEvent(game, choice, { eventDef } = {}) {
+  let n = {
+    ...game,
+    pendingEvent: null,
+    pendingEvents: (game.pendingEvents || []).slice(1),
+  };
   const eff = choice.effect;
-  const debt = v(eff.debt);
-  const growth = v(eff.growth);
-  const inflation = v(eff.inflation);
-  const healthIndex = v(eff.healthIndex);
+  const damper = (eventDef && eventDef.pandemicEffect)
+    ? (n.pandemicDamper ?? 1) : 1;
+  const scale = (x) => x ? x * damper : x;
+  const debt = scale(v(eff.debt));
+  const growth = scale(v(eff.growth));
+  const inflation = scale(v(eff.inflation));
+  const healthIndex = scale(v(eff.healthIndex));
   const bondYield = v(eff.bondYield);
   const bankRate = v(eff.bankRate);
-  const unemployment = v(eff.unemployment);
+  const unemployment = scale(v(eff.unemployment));
   if (debt) n.debt = n.debt + debt;
   if (growth) n.growth = n.growth + growth;
   if (inflation) n.inflation = Math.max(0, n.inflation + inflation);

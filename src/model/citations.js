@@ -1295,6 +1295,110 @@ export const CITATIONS = {
   },
 
   // ===========================================================================
+  // Red Box expansion events (pandemic, supply, cyber, cold snap, AI, etc.)
+  // ===========================================================================
+  event_pandemic: {
+    parameter: 'pandemic event choice effects',
+    confidence: 'judgement',
+    title: 'Pandemic — choice payouts',
+    note: 'COVID-19 envelope: HMT cumulative fiscal support ~£310bn over 2020-22 (NAO 2022). Mass-testing + PPE scenario calibrated against £37bn Test & Trace (NAO), £15bn PPE (NAO). Lockdown + furlough scenario calibrated against ~£70bn CJRS + SEISS. Health-index drag of 5-10pp reflects ONS excess-mortality data (~190k UK COVID deaths). "Let it run" magnitudes reflect Swedish-comparison studies (Karolinska 2021): higher excess mortality, smaller direct GDP hit. Severity scaled by pandemicDamper from preventativeHealth / socialCareSystemic.',
+  },
+  event_teacher_strike: {
+    parameter: 'teacherStrike event choice effects',
+    confidence: 'judgement',
+    title: 'Teacher / civil-service strike — choice payouts',
+    note: 'NEU + NASUWT + PCS coordinated 2022-23 action: 2-3% extra pay settlements ~£1.5-2.5bn pa. Anti-strike legislation (MSL Act 2023) extended to schools polled at -10 to -14pp among public-sector workers (YouGov 2023). "Hold the line" reflects exam-disruption coverage costs and bloc backlash from parents. Mitigated by civilService rebuild and realLivingWage reforms.',
+  },
+  event_drought_stress: {
+    parameter: 'droughtStress event choice effects',
+    confidence: 'judgement',
+    title: 'Drought / water stress — choice payouts',
+    note: 'Severe droughts in 2022 and 1976: Environment Agency hosepipe-ban escalation £0.2-0.5bn relief packages. Nationalisation precedent: Thames Water special-administration regime discussed 2023-24 (~£3-5bn capital cost). Yorkshire/Anglian regional bloc reaction tracks NIC water-resilience polling. Q3 boost calibrated against Met Office 1-in-5-year severe-drought baseline.',
+  },
+  event_supply_chain_shock: {
+    parameter: 'supplyChainShock event choice effects',
+    confidence: 'judgement',
+    title: 'Supply-chain shock — choice payouts',
+    note: 'Suez 2021, semiconductor 2021-22, Red Sea 2024 references. BoE estimated ~0.3-0.5pp inflation drag from supply shocks (MPR Aug-2022). Reshoring schemes (US CHIPS Act, EU Chips Act): £5-10bn envelopes typical. "Market clear" magnitudes reflect 2022 container-rate spikes feeding through to CPI ~0.5pp. Mitigated by digitalInfra (logistics resilience) and skillsBudget (substitution capacity).',
+  },
+  event_cyber_attack: {
+    parameter: 'cyberAttack event choice effects',
+    confidence: 'judgement',
+    title: 'Cyber attack on critical infrastructure — choice payouts',
+    note: 'NHS WannaCry 2017 (DHSC review: ~£92m direct + ~£20m cancellations). British Library 2023, NHS pathology Synnovis 2024 outages with significant care impact. Emergency cyber-budget scale matches NCSC Active Cyber Defence (£300m programme). digitalInfra reform reduces both probability and severity (resilience uplift).',
+  },
+  event_cold_snap: {
+    parameter: 'coldSnap event choice effects',
+    confidence: 'judgement',
+    title: 'Winter cold snap / energy stress — choice payouts',
+    note: 'Beast from the East 2018 and Dec-2022 cold snap: energy-price index pressure ~10-20pp, NHS bed-blocking from cold-related admissions. Emergency wholesale-gas purchases (Centrica/National Gas) ~£2-4bn at scale. Demand-reduction campaigns (2022 ESO winter plan) £0.5bn-ish for marketing + targeted payments. Winter Q1/Q4 seasonal kick. Severity shares energyShockDamper with energyShock.',
+  },
+  event_ai_displacement: {
+    parameter: 'aiDisplacement event choice effects',
+    confidence: 'judgement',
+    title: 'AI / automation displacement — choice payouts',
+    note: 'IMF 2024 staff paper estimates ~40% of advanced-economy jobs are AI-exposed; medium-run displacement ~5-10% in white-collar professions. OECD 2023 Skills Outlook reskilling envelopes: £3-6bn for national programmes. Regulation-first scenario reflects EU AI Act drag (-0.1 to -0.3pp growth, JRC). "Embrace fully" magnitudes reflect Goldman 2023 productivity upside (+0.5pp pa) at the cost of faster unemployment ticks. Mitigated by skillsBudget and uniReform.',
+  },
+  event_scientific_breakthrough: {
+    parameter: 'scientificBreakthrough event choice effects',
+    confidence: 'judgement',
+    title: 'Scientific / commercial breakthrough — choice payouts',
+    note: 'Reference cases: Oxford-AstraZeneca vaccine 2020, JET fusion record 2022, AlphaFold 2021. Commercialisation backing (e.g. ARIA, BBB scaleup): £1-2bn typical. Sell-to-highest-bidder reflects ARM/SoftBank precedent: short-term proceeds, long-run capability loss. Probability boosted by skillsBudget, uniReform, digitalInfra (R&D ecosystem health).',
+  },
+  event_sterling_slide: {
+    parameter: 'sterlingSlide event choice effects',
+    confidence: 'judgement',
+    title: 'Sterling slide — choice payouts',
+    note: 'Mini-Budget 2022 GBP/USD low ~1.04, gilt yields +1.5pp in 48 hours. BoE intervention (28-Sep-2022) cost ~£19bn balance-sheet exposure. Jawboning scenario reflects Lawson 1988 Mansion House and Sunak Oct-2022 stabilisation. "Let it float" calibrated against ERM-exit Sep-1992 pass-through (~0.4pp CPI per 10% depreciation). Gated on combined bondYield + riskPremium stress threshold.',
+  },
+  event_commercial_property_crash: {
+    parameter: 'commercialPropertyCrash event choice effects',
+    confidence: 'judgement',
+    title: 'Commercial property crash — choice payouts',
+    note: 'WFH-driven office vacancy: 2023 IPF data shows London regional vacancy 12-18%, secondary stock writedowns of 30-50%. Business-rates relief (analogue: 2020-21 retail-leisure-hospitality holiday) ~£2-3bn pa. Office-to-resi conversion grants (LURA 2023) ~£0.5-1bn. Probability scales with equityIndex (asset-price overshoot leading indicator).',
+  },
+  event_pension_fund_crisis: {
+    parameter: 'pensionFundCrisis event choice effects',
+    confidence: 'judgement',
+    title: 'Pension fund crisis — choice payouts',
+    note: 'LDI crisis Sep-Oct 2022: BoE temporary purchases £19.3bn, scheme distress widespread. PPF backstop scale: £3-5bn one-off plus regulatory uplift. Pensions Regulator (TPR) tightening scenarios: 2023 Mansion House Compact extends to DB schemes. Mitigated by pensionConsolidation (sharing the existing equityShockDamper via consolidated buffer).',
+  },
+  event_fintech_ipo: {
+    parameter: 'fintechIpo event choice effects',
+    confidence: 'judgement',
+    title: 'Fintech / scaleup IPO surge — choice payouts',
+    note: 'Wise (Jul-2021), Deliveroo (Mar-2021), Darktrace (Apr-2021) IPO clusters at £30-50bn combined market cap. Fast-track listings (FCA reform 2024) plus fintech-bond programmes (BBB) typically £1-3bn envelope. Probability boosted by cityRegulation and banking reform (market-confidence channel).',
+  },
+  event_inflation_surprise: {
+    parameter: 'inflationSurprise event choice effects',
+    confidence: 'judgement',
+    title: 'Inflation surprise (downside) — choice payouts',
+    note: 'ONS/MPC surprises 2023-24: CPI undershoot of 0.3-0.7pp vs MPR forecast in two quarters. "Claim credit" magnitudes reflect headline-management gains; pre-emptive cuts reflect ECB Jun-2024 / SNB Mar-2024 cycle entries. Bond-yield reactions calibrated to UK 2024 yield-curve pivot. Triggers when inflation is just above target.',
+  },
+  event_cabinet_scandal: {
+    parameter: 'cabinetScandal event choice effects',
+    confidence: 'judgement',
+    title: 'Cabinet scandal — choice payouts',
+    note: 'Reference cases: Owen Paterson 2021, Nadhim Zahawi 2023, Suella Braverman 2022. Resignation/sacking cost in PC: typically -8 to -12 (YouGov tracker swings). PM-relationship hit reflects reshuffle politics. Inquiry scenario reflects Sue Gray/partygate model: drawn-out reputational drag. Scaled with parliamentMood (febrile chamber = higher trigger probability).',
+  },
+  event_devolution_dispute: {
+    parameter: 'devolutionDispute event choice effects',
+    confidence: 'judgement',
+    title: 'Devolution dispute — choice payouts',
+    note: 'Reference cases: Section 35 IndyRef2 row (Jan-2023), Welsh budget gap negotiations 2023-24, NI Executive funding floor 2024 (£3.3bn package). Concede block-grant uplift typically £1-3bn one-off. "Hold firm" reflects intergovernmental relations chill (LGA 2023). Probability scales with local-spend underfunding.',
+  },
+
+  // ===========================================================================
+  // Pandemic-damper PARAMS
+  // ===========================================================================
+  pandemic_damper_judgement: {
+    parameter: 'health.pandemicDamper* multipliers',
+    confidence: 'judgement',
+    title: 'Pandemic-damper multipliers from preventative reforms',
+    note: 'preventativeHealth shrinks pandemic severity by ~30% (Marmot 2010 / King\'s Fund 2020: upstream health investment reduces excess-mortality vulnerability and surge-capacity strain). socialCareSystemic shrinks remaining severity by another ~20% (Dilnot 2011 / ADASS: care-home discharge pathway and workforce stability reduce hospital pressure during pandemics — the COVID-era care-home discharge scandal is the negative-space evidence). Compounding multipliers (0.7 × 0.8 = 0.56) reflect that both reforms hit complementary parts of the pandemic stress envelope. Designer-set, not estimated.',
+  },
+
+  // ===========================================================================
   // Reform capacity & social-care extension
   // ===========================================================================
   reform_capacity_judgement: {
