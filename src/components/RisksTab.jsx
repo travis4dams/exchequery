@@ -1,6 +1,24 @@
 import React from 'react';
 import { EVENT_DEFINITIONS } from '../model/index.js';
 
+const CRISIS_EVENTS = [
+  'nhsStrike', 'energyShock', 'fuelPoverty', 'housingCrisis', 'councilBankruptcy',
+  'financialCrisis', 'generalStrike', 'careCrisis', 'flood', 'heatwave', 'allyCrisis',
+  'labourShortage', 'rateHikeShock', 'wagePriceSpiral', 'monetaryPolicyError',
+  'housePriceCorrection', 'planningRevolt', 'equityCrash', 'giltStrike', 'sovereignRatingAction',
+  'recession',
+  // Red Box expansion
+  'pandemic', 'teacherStrike', 'droughtStress', 'supplyChainShock', 'cyberAttack',
+  'coldSnap', 'aiDisplacement', 'sterlingSlide', 'commercialPropertyCrash',
+  'pensionFundCrisis', 'cabinetScandal', 'devolutionDispute',
+];
+
+const OPPORTUNITY_EVENTS = [
+  'investmentSurge', 'exportBoom', 'productivityJump', 'taxBeats', 'demographicDividend', 'tradeDeal',
+  // Red Box expansion
+  'scientificBreakthrough', 'fintechIpo', 'inflationSurprise',
+];
+
 export function RisksTab({ riskMods }) {
   return (
     <div>
@@ -11,7 +29,7 @@ export function RisksTab({ riskMods }) {
       <div className="mb-4">
         <div className="text-[10px] uppercase tracking-wider text-rose-400 mb-2">Crisis Risks</div>
         <div className="space-y-1.5">
-          {['nhsStrike', 'energyShock', 'fuelPoverty', 'housingCrisis', 'councilBankruptcy', 'financialCrisis', 'generalStrike', 'careCrisis', 'flood', 'heatwave', 'allyCrisis', 'labourShortage', 'rateHikeShock', 'wagePriceSpiral', 'monetaryPolicyError', 'housePriceCorrection', 'planningRevolt', 'equityCrash', 'giltStrike', 'sovereignRatingAction']
+          {CRISIS_EVENTS
             .filter(k => riskMods[k] > 1).sort((a, b) => riskMods[b] - riskMods[a]).map(k => (
             <div key={k} className="flex items-center justify-between bg-stone-900/40 rounded p-2">
               <span className="text-[12px] text-stone-300">{EVENT_DEFINITIONS[k]?.title || k}</span>
@@ -29,8 +47,8 @@ export function RisksTab({ riskMods }) {
       <div>
         <div className="text-[10px] uppercase tracking-wider text-emerald-400 mb-2">Opportunity Probabilities</div>
         <div className="space-y-1.5">
-          {['investmentSurge', 'exportBoom', 'productivityJump', 'taxBeats', 'demographicDividend', 'tradeDeal']
-            .filter(k => riskMods[k] > 1).map(k => (
+          {OPPORTUNITY_EVENTS
+            .filter(k => riskMods[k] > 1).sort((a, b) => riskMods[b] - riskMods[a]).map(k => (
             <div key={k} className="flex items-center justify-between bg-stone-900/40 rounded p-2">
               <span className="text-[12px] text-stone-300">{EVENT_DEFINITIONS[k]?.title || k}</span>
               <div className="flex items-center gap-2">

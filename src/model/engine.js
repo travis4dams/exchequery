@@ -639,6 +639,9 @@ export function computeRiskMods(s) {
   const hotLabour = Math.max(0, s.naturalUnemployment - s.unemployment);
   const inflGap = Math.max(0, s.inflation - s.inflationTarget);
   const taylorDivergence = Math.abs(s.bankRate - taylorRule(s));
+  const eduAnchor = v(PARAMS.initial.spendEdu);
+  const winterQ = ((s.quarter - 1) % 4) + 1;
+  const marketStress = (s.bondYield ?? 0) + (s.riskPremium ?? 0);
 
   const m = {
     nhsStrike: v(R.nhsStrike.base),
@@ -683,6 +686,28 @@ export function computeRiskMods(s) {
     civilUnrest: v(R.civilUnrest.base),
     diplomaticIsolation: v(R.diplomaticIsolation.base),
     independenceMovement: v(R.independenceMovement.base),
+
+    // Red Box expansion events
+    pandemic: v(R.pandemic.base),
+    teacherStrike: v(R.teacherStrike.base),
+    droughtStress: v(R.droughtStress.base) + (winterQ === 3 ? v(R.droughtStress.summerKick) : 0),
+    supplyChainShock: v(R.supplyChainShock.base)
+      + Math.max(0, s.riskPremium ?? 0) * v(R.supplyChainShock.perPpRiskPremium),
+    cyberAttack: v(R.cyberAttack.base),
+    coldSnap: v(R.coldSnap.base) + (winterQ === 1 || winterQ === 4 ? v(R.coldSnap.winterKick) : 0),
+    aiDisplacement: v(R.aiDisplacement.base) + (s.globalQuarter ?? 1) * v(R.aiDisplacement.perGlobalQuarter),
+    scientificBreakthrough: v(R.scientificBreakthrough.base),
+    sterlingSlide: marketStress > v(R.sterlingSlide.whenStressAbove)
+      ? v(R.sterlingSlide.activeBase) : v(R.sterlingSlide.base),
+    commercialPropertyCrash: v(R.commercialPropertyCrash.base)
+      + Math.max(0, (s.equityIndex ?? 100) - 130) * v(R.commercialPropertyCrash.perEquityAboveThreshold),
+    pensionFundCrisis: v(R.pensionFundCrisis.base)
+      + Math.max(0, 85 - (s.equityIndex ?? 100)) * v(R.pensionFundCrisis.perEquityBelowThreshold),
+    fintechIpo: v(R.fintechIpo.base),
+    inflationSurprise: v(R.inflationSurprise.base) + inflGap * v(R.inflationSurprise.perPpAboveTarget),
+    cabinetScandal: v(R.cabinetScandal.base)
+      + Math.max(0, -(s.parliamentMood ?? 0)) * v(R.cabinetScandal.perPpMoodDeficit),
+    devolutionDispute: v(R.devolutionDispute.base),
   };
 
   // Spending-based modifiers
@@ -709,6 +734,11 @@ export function computeRiskMods(s) {
   if (s.spendDevolved < devolvedCutFloor) {
     m.independenceMovement += (devolvedCutFloor - s.spendDevolved) * v(R.independenceMovement.perBnDevolvedUnderfunded);
   }
+
+  // Red Box expansion: spending-driven probability bumps
+  if (s.spendNHS < nhsAnchor) m.pandemic += (nhsAnchor - s.spendNHS) * v(R.pandemic.perBnNhsUnderfunded);
+  if (s.spendEdu < eduAnchor) m.teacherStrike += (eduAnchor - s.spendEdu) * v(R.teacherStrike.perBnEduUnderfunded);
+  if (s.spendLocal < localAnchor) m.devolutionDispute += (localAnchor - s.spendLocal) * v(R.devolutionDispute.perBnLocalUnderfunded);
 
   // Reform-declared risk mods
   for (const r of Object.values(s.reforms)) {
@@ -850,10 +880,17 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     phillipsSlopeMultiplier: 1,
     equityIndex: v(I.equityIndex),
     equityPath: [],
+    gdpPath: [],
+    debtRatioPath: [],
+    deficitRatioPath: [],
+    unemploymentPath: [],
+    healthIndexPath: [],
+    populationPath: [],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],
-    log: [], pendingEvent: null, pendingSummary: null,
+    log: [], pendingEvent: null, pendingEvents: [], pendingSummary: null,
+    pandemicDamper: 1,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,
     forecastNoise: v(PARAMS.forecastNoise.base),

@@ -243,6 +243,14 @@ export const PARAMS = {
   },
 
   // ===========================================================================
+  // Health — pandemic damper multipliers (mirror energy.shockReformDamper)
+  // ===========================================================================
+  health: {
+    pandemicDamperPreventative: cited(0.7, 'pandemic_damper_judgement'),  // multiplier applied to pandemic effect magnitudes when preventativeHealth complete
+    pandemicDamperSocialCare:   cited(0.8, 'pandemic_damper_judgement'),  // additional multiplier when socialCareSystemic complete (compounds with preventative)
+  },
+
+  // ===========================================================================
   // Risk premium — sovereign spread above the term-premium-anchored target
   // ===========================================================================
   riskPremium: {
@@ -533,17 +541,74 @@ export const PARAMS = {
       overheatingCoef: cited(4, 'recession_business_cycle_judgement'),  // % per (growthGap × inflGap) pp-product
     },
     civilUnrest: {
-      base: cited(4, 'civil_unrest_base'),
+      base: cited(2, 'civil_unrest_base'),
       perBnJusticeUnderfunded: cited(1.5, 'civil_unrest_justice_response'),  // per £bn below justiceCutFloor
     },
     diplomaticIsolation: {
-      base: cited(3, 'diplomatic_isolation_base'),
+      base: cited(2, 'diplomatic_isolation_base'),
       perBnFcdoUnderfunded: cited(2.0, 'diplomatic_isolation_fcdo_response'),  // per £bn below fcdoCutFloor
     },
     independenceMovement: {
-      base: cited(5, 'independence_movement_base'),
+      base: cited(3, 'independence_movement_base'),
       perBnDevolvedUnderfunded: cited(1.2, 'independence_movement_devolved_response'),  // per £bn below devolvedCutFloor
     },
+
+    // Red Box expansion events
+    pandemic: {
+      base: cited(6, 'event_pandemic'),                               // ~once-per-decade base
+      perBnNhsUnderfunded: cited(0.4, 'event_pandemic'),              // pp probability per £bn NHS spend under anchor
+    },
+    teacherStrike: {
+      base: cited(12, 'event_teacher_strike'),
+      perBnEduUnderfunded: cited(1.2, 'event_teacher_strike'),
+    },
+    droughtStress: {
+      base: cited(6, 'event_drought_stress'),
+      summerKick: cited(8, 'event_drought_stress'),                   // additional pp probability in Q3 (summer)
+    },
+    supplyChainShock: {
+      base: cited(10, 'event_supply_chain_shock'),
+      perPpRiskPremium: cited(3, 'event_supply_chain_shock'),         // pp probability per pp riskPremium
+    },
+    cyberAttack: {
+      base: cited(8, 'event_cyber_attack'),
+    },
+    coldSnap: {
+      base: cited(12, 'event_cold_snap'),
+      winterKick: cited(6, 'event_cold_snap'),                        // additional pp probability in Q1 or Q4
+    },
+    aiDisplacement: {
+      base: cited(5, 'event_ai_displacement'),
+      perGlobalQuarter: cited(0.2, 'event_ai_displacement'),          // pp probability per globalQuarter (rises over time)
+    },
+    scientificBreakthrough: { base: cited(5, 'event_scientific_breakthrough') },
+    sterlingSlide: {
+      base: cited(0, 'event_sterling_slide'),                         // gated on combined market stress
+      whenStressAbove: cited(6.5, 'event_sterling_slide'),            // bondYield + riskPremium threshold
+      activeBase: cited(20, 'event_sterling_slide'),
+    },
+    commercialPropertyCrash: {
+      base: cited(3, 'event_commercial_property_crash'),
+      perEquityAboveThreshold: cited(3, 'event_commercial_property_crash'),  // pp prob per pp equity above 130
+    },
+    pensionFundCrisis: {
+      base: cited(4, 'event_pension_fund_crisis'),
+      perEquityBelowThreshold: cited(3, 'event_pension_fund_crisis'),  // pp prob per pp equity below 85
+    },
+    fintechIpo: { base: cited(4, 'event_fintech_ipo') },
+    inflationSurprise: {
+      base: cited(5, 'event_inflation_surprise'),
+      perPpAboveTarget: cited(3, 'event_inflation_surprise'),         // pp probability per pp inflation above target (capped via clampMax)
+    },
+    cabinetScandal: {
+      base: cited(10, 'event_cabinet_scandal'),
+      perPpMoodDeficit: cited(0.5, 'event_cabinet_scandal'),          // pp probability per pp of parliamentMood < 0
+    },
+    devolutionDispute: {
+      base: cited(6, 'event_devolution_dispute'),
+      perBnLocalUnderfunded: cited(0.5, 'event_devolution_dispute'),
+    },
+
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),
   },

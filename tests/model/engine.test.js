@@ -129,13 +129,27 @@ describe('stepQuarter', () => {
     expect(s.proposedReforms).toEqual([]);
   });
 
-  it('pushes Bank Rate onto bankRatePath each quarter (max 8)', () => {
+  it('pushes Bank Rate onto bankRatePath each quarter (max 20)', () => {
     let s = freshState();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 25; i++) {
       s = withSeededRandom(i + 1, () => stepQuarter(s));
     }
-    expect(s.bankRatePath.length).toBe(8);
+    expect(s.bankRatePath.length).toBe(20);
     expect(s.bankRatePath[s.bankRatePath.length - 1]).toBe(s.bankRate);
+  });
+
+  it('records overview history paths each quarter (max 20)', () => {
+    let s = freshState();
+    for (let i = 0; i < 25; i++) {
+      s = withSeededRandom(i + 1, () => stepQuarter(s));
+    }
+    expect(s.gdpPath.length).toBe(20);
+    expect(s.gdpPath[s.gdpPath.length - 1]).toBe(s.gdp);
+    expect(s.unemploymentPath[s.unemploymentPath.length - 1]).toBe(s.unemployment);
+    expect(s.healthIndexPath[s.healthIndexPath.length - 1]).toBe(s.healthIndex);
+    expect(s.populationPath[s.populationPath.length - 1]).toBe(s.population);
+    expect(s.debtRatioPath.length).toBe(20);
+    expect(s.deficitRatioPath.length).toBe(20);
   });
 });
 

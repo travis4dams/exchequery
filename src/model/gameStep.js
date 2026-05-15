@@ -91,7 +91,7 @@ const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
 //     unemployment (uses fresh growth) → inflation (uses fresh
 //     unemployment) → Bank Rate (uses fresh inflation + unemployment) →
 //     bond yield (uses fresh Bank Rate). Push Bank Rate onto bankRatePath
-//     (max 8) for sparkline + rolling-4Q rate-rise risk mod.
+//     (max 20) for sparkline + rolling-4Q rate-rise risk mod.
 // 7. Reform completions (mind the +1: completesQ <= globalQuarter+1).
 //    Handles special flags reduceForecastNoise, setBoeMandateDual,
 //    raiseInflationTarget.
@@ -233,15 +233,15 @@ export function stepQuarter(game) {
   // 6a. Housing & energy markets — update before inflation so contributions
   //     flow into the Phillips-curve forcing term in updateInflation.
   n.housePriceIndex = updateHousePriceIndex(n);
-  n.housePricePath = [...((n.housePricePath || []).slice(-7)), n.housePriceIndex];
+  n.housePricePath = [...((n.housePricePath || []).slice(-19)), n.housePriceIndex];
   n.energyPriceIndex = updateEnergyPriceIndex(n);
-  n.energyPricePath = [...((n.energyPricePath || []).slice(-7)), n.energyPriceIndex];
+  n.energyPricePath = [...((n.energyPricePath || []).slice(-19)), n.energyPriceIndex];
 
   // 6b. Equity index — consumes Math.random() once. MUST run before the
   //     event roll in step 9 so the existing playtest seed library stays
   //     stable.
   n.equityIndex = updateEquityIndex(n);
-  n.equityPath = [...((n.equityPath || []).slice(-7)), n.equityIndex];
+  n.equityPath = [...((n.equityPath || []).slice(-19)), n.equityIndex];
 
   // 6c. Risk premium — reads debt-to-GDP inline and stdev of cohesionHistory.
   //     Computed BEFORE bondYieldFromBankRate so the yield picks it up.
@@ -253,7 +253,7 @@ export function stepQuarter(game) {
   // DEFRA cut → food/energy inflation impulse, applied post-Phillips.
   n.inflation = n.inflation + deptHooks.inflation;
   n.bankRate = updateBankRate(n);
-  n.bankRatePath = [...((n.bankRatePath || []).slice(-7)), n.bankRate];
+  n.bankRatePath = [...((n.bankRatePath || []).slice(-19)), n.bankRate];
   n.bondYield = bondYieldFromBankRate(n);
 
   // 7. Reform completions — note the +1 (globalQuarter hasn't been bumped yet)
@@ -304,12 +304,28 @@ export function stepQuarter(game) {
       if (reform.special === 'enablePensionDamper') {
         n.equityShockDamper = v(PARAMS.equity.pensionDamper);
       }
+      if (reform.special === 'enablePandemicDamperPreventative') {
+        n.pandemicDamper = (n.pandemicDamper ?? 1) * v(PARAMS.health.pandemicDamperPreventative);
+      }
+      if (reform.special === 'enablePandemicDamperSocialCare') {
+        n.pandemicDamper = (n.pandemicDamper ?? 1) * v(PARAMS.health.pandemicDamperSocialCare);
+      }
 
       completedReforms.push(reform.name);
       completedReformDefs.push(reform);
       n.log = [...n.log, { q: n.quarter + 1, text: `✓ ${actual.log}` }];
     }
   }
+
+  // 7b. Overview-tab history — push the quarter's final macro readings onto
+  //     20-quarter sliding windows. Placed after step 7 so reform completions
+  //     that move healthIndex are reflected.
+  n.gdpPath = [...((n.gdpPath || []).slice(-19)), n.gdp];
+  n.debtRatioPath = [...((n.debtRatioPath || []).slice(-19)), n.debt / n.gdp * 100];
+  n.deficitRatioPath = [...((n.deficitRatioPath || []).slice(-19)), -calcBalance(n) / n.gdp * 100];
+  n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];
+  n.healthIndexPath = [...((n.healthIndexPath || []).slice(-19)), n.healthIndex];
+  n.populationPath = [...((n.populationPath || []).slice(-19)), n.population];
 
   // 8. Effective rate drifts toward market (models refinancing).
   //    Bond yield itself was already set in step 6b by bondYieldFromBankRate,
@@ -342,15 +358,25 @@ export function stepQuarter(game) {
 
   // 9. Risk mods + event roll. rollEvents iterates Object.entries(mods),
   // which preserves insertion order (i.e. the order keys were added to `m`
-  // in computeRiskMods). The event-pick draw below is the second Math.random()
-  // consumed by this step.
+  // in computeRiskMods). The Red Box queue is built by Fisher–Yates
+  // shuffling the triggered ids and taking up to 3 — each draw consumes a
+  // Math.random(). Subsequent RNG consumers (the Box-Muller block below)
+  // therefore see a shifted seed stream.
   const newMods = computeRiskMods(n);
   const triggered = rollEvents(n, newMods);
-  let eventToShow = null;
-  if (triggered.length > 0) {
-    const eventId = triggered[Math.floor(Math.random() * triggered.length)];
-    eventToShow = { id: eventId, ...EVENT_DEFINITIONS[eventId] };
+  const queued = triggered.slice();
+  // Fisher–Yates shuffle
+  for (let i = queued.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [queued[i], queued[j]] = [queued[j], queued[i]];
   }
+  const RED_BOX_CAP = 3;
+  const pendingEvents = queued.slice(0, RED_BOX_CAP);
+  // Legacy field — keep populated with the head so any caller still reading
+  // pendingEvent in the same render tick sees the same event.
+  const eventToShow = pendingEvents.length > 0
+    ? { id: pendingEvents[0], ...EVENT_DEFINITIONS[pendingEvents[0]] }
+    : null;
 
   // 9b. Gaussian growth noise — Box-Muller. Placed AFTER the event roll so
   //     the existing playtest seed library (equity sentiment + risk draws +
@@ -402,6 +428,7 @@ export function stepQuarter(game) {
     deferredForPC: deferredForPC.map((id) => REFORMS[id]?.name).filter(Boolean),
     completedReforms,
     eventPending: !!eventToShow,
+    eventQueueLength: pendingEvents.length,
     pendingSurplus: n.pendingSurplus,
     qBalance,
     pcChange: n.politicalCapital - prePoliticalCapital,
@@ -409,6 +436,7 @@ export function stepQuarter(game) {
     parliamentMoodChange: n.parliamentMood - preParliamentMood,
   };
   n.pendingEvent = eventToShow;
+  n.pendingEvents = pendingEvents;
 
   n.quarter = n.quarter + 1;
   n.globalQuarter = n.globalQuarter + 1;
@@ -426,18 +454,31 @@ export function stepQuarter(game) {
 }
 
 // =============================================================================
-// resolveEvent — apply an event choice's effect deltas, clear pendingEvent.
+// resolveEvent — apply an event choice's effect deltas, pop the head of the
+// pendingEvents queue. The legacy pendingEvent field is also cleared so old
+// localStorage saves load cleanly during the transition.
+//
+// If the event def is flagged pandemicEffect, negative health/growth/positive
+// debt+inflation+unemployment deltas are scaled by n.pandemicDamper (mirrors
+// the existing energyShockDamper / equityShockDamper pattern).
 // =============================================================================
-export function resolveEvent(game, choice) {
-  let n = { ...game, pendingEvent: null };
+export function resolveEvent(game, choice, { eventDef } = {}) {
+  let n = {
+    ...game,
+    pendingEvent: null,
+    pendingEvents: (game.pendingEvents || []).slice(1),
+  };
   const eff = choice.effect;
-  const debt = v(eff.debt);
-  const growth = v(eff.growth);
-  const inflation = v(eff.inflation);
-  const healthIndex = v(eff.healthIndex);
+  const damper = (eventDef && eventDef.pandemicEffect)
+    ? (n.pandemicDamper ?? 1) : 1;
+  const scale = (x) => x ? x * damper : x;
+  const debt = scale(v(eff.debt));
+  const growth = scale(v(eff.growth));
+  const inflation = scale(v(eff.inflation));
+  const healthIndex = scale(v(eff.healthIndex));
   const bondYield = v(eff.bondYield);
   const bankRate = v(eff.bankRate);
-  const unemployment = v(eff.unemployment);
+  const unemployment = scale(v(eff.unemployment));
   if (debt) n.debt = n.debt + debt;
   if (growth) n.growth = n.growth + growth;
   if (inflation) n.inflation = Math.max(0, n.inflation + inflation);
