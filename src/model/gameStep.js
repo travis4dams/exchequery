@@ -263,15 +263,20 @@ export function stepQuarter(game) {
 export function resolveEvent(game, choice) {
   let n = { ...game, pendingEvent: null };
   const eff = choice.effect;
-  if (eff.debt) n.debt = n.debt + eff.debt;
-  if (eff.growth) n.growth = n.growth + eff.growth;
-  if (eff.inflation) n.inflation = Math.max(0, n.inflation + eff.inflation);
-  if (eff.healthIndex) n.healthIndex = Math.max(0, Math.min(100, n.healthIndex + eff.healthIndex));
-  if (eff.bondYield) n.bondYield = Math.max(2, n.bondYield + eff.bondYield);
+  const debt = v(eff.debt);
+  const growth = v(eff.growth);
+  const inflation = v(eff.inflation);
+  const healthIndex = v(eff.healthIndex);
+  const bondYield = v(eff.bondYield);
+  if (debt) n.debt = n.debt + debt;
+  if (growth) n.growth = n.growth + growth;
+  if (inflation) n.inflation = Math.max(0, n.inflation + inflation);
+  if (healthIndex) n.healthIndex = Math.max(0, Math.min(100, n.healthIndex + healthIndex));
+  if (bondYield) n.bondYield = Math.max(2, n.bondYield + bondYield);
   if (eff.blocs) {
     n.blocSupport = { ...n.blocSupport };
-    for (const [bloc, delta] of Object.entries(eff.blocs)) {
-      n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + delta));
+    for (const [bloc, leaf] of Object.entries(eff.blocs)) {
+      n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + v(leaf)));
     }
   }
   n.log = [...n.log, { q: game.quarter, text: `[Event] ${eff.log}` }];

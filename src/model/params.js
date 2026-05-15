@@ -46,6 +46,7 @@ export const PARAMS = {
     realGDP: cited(3100, 'initial_nominal_gdp'),
     population: cited(67.5, 'initial_population'),                  // millions
     debt: cited(2950, 'obr_baseline_deficit'),                      // £bn
+    deficit: cited(133, 'obr_baseline_deficit'),                    // £bn pa (PSNB at start; surfaced in AboutTab intro)
     growth: cited(1.1, 'obr_growth_baseline'),                      // % pa
     inflation: cited(2.8, 'ons_inflation_baseline'),                // % pa
     unemployment: cited(4.4, 'ons_unemployment_baseline'),          // %
