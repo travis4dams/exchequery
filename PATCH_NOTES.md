@@ -73,6 +73,20 @@ section accumulates on the `dev` branch between releases.
 
 ---
 
+## [v0.1.2] — 2026-05-15
+
+### New
+- Event payouts now each carry their own citation. Tapping a choice's details panel surfaces a per-event source note explaining the magnitudes, not a generic methodology stub.
+- About tab intro and README "How to play" now pull live deficit, debt-to-GDP, coalition floor, bond ceiling, term length and forecast-noise band from PARAMS instead of hardcoded prose. `npm run sync-docs` regenerates the README block; CI fails if it drifts.
+
+### Balance
+- Replaced shared `event_payouts_judgement` citation with 18 per-event citations, each documenting the scale-of-event reasoning for that scenario.
+
+### Fixes
+- Inherited-deficit text updated to £133bn (OBR Nov-2025 EFO) — was lingering at the older £132bn round-down.
+
+---
+
 ## [v0.1.1] — 2026-05-15
 
 ### New
