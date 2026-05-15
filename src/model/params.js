@@ -549,6 +549,46 @@ export const PARAMS = {
     taxCutProfessionalDivisor: cited(10, 'surplus_allocation_judgement'),
     surplusAllocPromptThreshold: cited(10, 'surplus_allocation_judgement'),  // £bn
   },
+
+  // ===========================================================================
+  // Slider ranges — UI affordance bounds for BudgetTab levers.
+  //   base:         default range available from quarter 1.
+  //   taxExtreme:   replaces base bounds for tax sliders once the
+  //                 taxCodeRewrite reform completes.
+  //   spendExtreme: replaces base bounds for spending sliders once the
+  //                 spendingReviewOverride reform completes.
+  // Baselines (PARAMS.initial.*) must sit inside every range here.
+  // ===========================================================================
+  sliderRanges: {
+    base: {
+      taxIncomeBasic: { min: cited(10, 'slider_range_judgement'), max: cited(30, 'slider_range_judgement') },   // baseline 20
+      taxIncomeHigh:  { min: cited(30, 'slider_range_judgement'), max: cited(55, 'slider_range_judgement') },   // baseline 40
+      taxIncomeAdd:   { min: cited(35, 'slider_range_judgement'), max: cited(65, 'slider_range_judgement') },   // baseline 45
+      taxCorp:        { min: cited(15, 'slider_range_judgement'), max: cited(40, 'slider_range_judgement') },   // baseline 25
+      taxVAT:         { min: cited(10, 'slider_range_judgement'), max: cited(30, 'slider_range_judgement') },   // baseline 20
+      spendNHS:       { min: cited(140, 'slider_range_judgement'), max: cited(280, 'slider_range_judgement') }, // baseline 204
+      spendWelfare:   { min: cited(120, 'slider_range_judgement'), max: cited(280, 'slider_range_judgement') }, // baseline 187
+      spendEdu:       { min: cited(60,  'slider_range_judgement'), max: cited(145, 'slider_range_judgement') }, // baseline 95
+      spendLocal:     { min: cited(90,  'slider_range_judgement'), max: cited(190, 'slider_range_judgement') }, // baseline 140
+      spendDefence:   { min: cited(20,  'slider_range_judgement'), max: cited(125, 'slider_range_judgement') }, // baseline 39
+      spendInfra:     { min: cited(40,  'slider_range_judgement'), max: cited(160, 'slider_range_judgement') }, // baseline 90
+    },
+    taxExtreme: {
+      taxIncomeBasic: { min: cited(0, 'slider_range_judgement'), max: cited(50, 'slider_range_judgement') },
+      taxIncomeHigh:  { min: cited(0, 'slider_range_judgement'), max: cited(80, 'slider_range_judgement') },
+      taxIncomeAdd:   { min: cited(0, 'slider_range_judgement'), max: cited(90, 'slider_range_judgement') },
+      taxCorp:        { min: cited(0, 'slider_range_judgement'), max: cited(60, 'slider_range_judgement') },
+      taxVAT:         { min: cited(0, 'slider_range_judgement'), max: cited(50, 'slider_range_judgement') },
+    },
+    spendExtreme: {
+      spendNHS:     { min: cited(50, 'slider_range_judgement'), max: cited(400, 'slider_range_judgement') },
+      spendWelfare: { min: cited(40, 'slider_range_judgement'), max: cited(400, 'slider_range_judgement') },
+      spendEdu:     { min: cited(20, 'slider_range_judgement'), max: cited(220, 'slider_range_judgement') },
+      spendLocal:   { min: cited(30, 'slider_range_judgement'), max: cited(280, 'slider_range_judgement') },
+      spendDefence: { min: cited(0,  'slider_range_judgement'), max: cited(200, 'slider_range_judgement') },
+      spendInfra:   { min: cited(0,  'slider_range_judgement'), max: cited(250, 'slider_range_judgement') },
+    },
+  },
 };
 
 // =============================================================================

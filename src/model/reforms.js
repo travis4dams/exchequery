@@ -269,6 +269,24 @@ export const REFORMS = {
       youth: cited(-5, 'bloc_methodology'),
     },
   },
+  taxCodeRewrite: {
+    name: 'Tax Code Rewrite', branch: 'revenue',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 6, prereq: ['hmrcCapacity'], capacityLoad: 6,
+    passReq: { coalition: cited(40, 'bloc_methodology') },
+    politicalCapitalCost: cited(20, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0.0, social: 0.0 },
+    blurb: 'Wholesale rewrite of the tax code. Removes legacy guardrails on headline rate-setting — unlocks extreme tax-rate ranges.',
+    citationId: 'slider_range_judgement',
+    special: 'unlockExtremeTaxSliders',
+    onComplete: {
+      log: 'Tax code rewritten. The Chancellor can now set any rate from 0 to confiscatory.',
+    },
+    blocEffects: {
+      professional: cited(-2, 'bloc_methodology'),
+      business: cited(-3, 'bloc_methodology'),
+      publicSector: cited(2, 'bloc_methodology'),
+    },
+  },
 
   // ===========================================================================
   // NHS & CARE branch
@@ -838,6 +856,24 @@ export const REFORMS = {
     blocEffects: {
       publicSector: cited(8, 'bloc_methodology'),
       professional: cited(3, 'bloc_methodology'),
+    },
+  },
+  spendingReviewOverride: {
+    name: 'Spending Review Override', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 6, prereq: ['civilService'], capacityLoad: 6,
+    passReq: { coalition: cited(40, 'bloc_methodology') },
+    politicalCapitalCost: cited(20, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0.0, social: 0.0 },
+    blurb: 'Strip the multi-year settlement conventions. The Treasury can now reshape departmental budgets to extremes.',
+    citationId: 'slider_range_judgement',
+    special: 'unlockExtremeSpendingSliders',
+    onComplete: {
+      log: 'Spending review framework overridden. Departmental envelopes are now fully discretionary.',
+    },
+    blocEffects: {
+      publicSector: cited(-4, 'bloc_methodology'),
+      professional: cited(-2, 'bloc_methodology'),
+      business: cited(1, 'bloc_methodology'),
     },
   },
   localGov: {

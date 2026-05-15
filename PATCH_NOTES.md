@@ -10,8 +10,12 @@ section accumulates on the `dev` branch between releases.
 
 ### New
 - Playtest harness now runs four OBR/HMRC scenario strategies (EFO central, EFO downside, FRS long-run, HMRC frozen thresholds) and asserts mean outcomes land within ±25% of the published forecast figures. Catches drift in judgement-tier model parameters when balance is tuned.
+- Two new structural reforms: **Tax Code Rewrite** (revenue branch, follows HMRC Modernisation) unlocks extreme tax-rate ranges; **Spending Review Override** (state branch, follows Rebuild Civil Service) unlocks extreme departmental budget ranges. Both are heavyweight (6 quarters, capacity load 6, 20 PC, 40 coalition).
 
 ### Balance
+- Budget Levers sliders now have much more headroom from the jump — e.g. VAT goes 10-30% (was 15-25%), Defence £20-125bn (was £35-95bn). Existing strike/Laffer/Section 114 thresholds are unchanged, so pushing past them still hurts.
+- The two new reforms above push the ranges further still: VAT all the way down to 0%, NHS up to £400bn, etc. Baselines (and their citations) are unchanged.
+
 ### Fixes
 ### Known Issues
 - The do-nothing fiscal path drives debt-to-GDP strongly negative across all OBR/HMRC benchmark scenarios (model produces persistent surpluses where OBR projects continued deficit). The `finalDebtToGDP` benchmark assertions are skipped pending revenue/spend baseline recalibration; other metrics (inflation, bond yield, unemployment, Bank Rate) converge inside the ±25% tolerance.

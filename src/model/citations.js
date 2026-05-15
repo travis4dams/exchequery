@@ -1309,6 +1309,12 @@ export const CITATIONS = {
     title: 'Statutory/admin reform absorbed within existing DEL',
     note: "Reforms that change tax law, employment law, or regulatory rules without standing up new capital programmes, headcount, or service expansion incur no separate upfront cash beyond the responsible department's existing operating budget. Drafting, parliamentary time, and minor enforcement scaffolding are de minimis at the £bn-scale resolution of this model. Effects of each policy (revenue gains, supply-side responses, distributional effects) remain attributed to their original reform-specific citations.",
   },
+  slider_range_judgement: {
+    parameter: 'sliderRanges (BudgetTab)',
+    confidence: 'judgement',
+    title: 'Budget-lever slider bounds',
+    note: "UI affordance bounds, not engine constants. 'Base' widens each lever ~5-10pp (tax) or ~£30-50bn (spend) either side of the cited baseline, giving players meaningful headroom without trivialising the existing threshold penalties. 'Extreme' (unlocked by Tax Code Rewrite / Spending Review Override) pushes to politically near-impossible values (e.g. VAT 0%, NHS £400bn). Baselines (PARAMS.initial.*) sit inside every range and are unchanged regardless of unlock state. Existing threshold penalties (Laffer drag, general-strike risk, Section 114 floor, NHS strike floor) continue to fire when the player crosses them.",
+  },
   social_care_systemic_extrapolated: {
     parameter: 'socialCareSystemic reform',
     value: 12,
