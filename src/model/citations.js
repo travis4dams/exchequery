@@ -1898,6 +1898,46 @@ export const CITATIONS = {
     publisher: 'IMF WEO recession-frequency dataset; OBR business-cycle methodology',
     note: "Recession probability per quarter = base (1%) + overheatingCoef (4) × max(0, growth − potential) × max(0, inflation − target). With growth 2pp above potential and inflation 2pp above target, probability is ~17%/qtr. The event delivers a one-shot growth hit (-0.6 to -1.5pp depending on choice); mean reversion then pulls growth back to potential over ~4 quarters, mimicking the persistence of real recessions. Choice payouts mirror conventional stimulus/austerity/inaction trade-offs.",
   },
+
+  // ===========================================================================
+  // OBR / HMRC scenario benchmarks (used by tests/playtest/obr-hmrc-scenarios)
+  // ===========================================================================
+  obr_efo_central_2025: {
+    parameter: 'OBR central path benchmark — end-of-horizon outcomes',
+    confidence: 'sourced',
+    title: 'Economic and Fiscal Outlook — November 2025 central forecast',
+    publisher: 'OBR',
+    year: 2025,
+    url: 'https://obr.uk/efo/economic-and-fiscal-outlook-november-2025/',
+    note: 'OBR Nov-2025 EFO central forecast end-of-horizon (FY 2029-30) figures used as playtest benchmarks for the do-nothing-style "stated policy" path: real GDP growth ~1.7%, CPI inflation 2.0% (target), 10-year gilt yield ~4.5%, debt-to-GDP ~96%, ILO unemployment ~4.1%. Bank Rate path glides toward ~3.25% as inflation returns to target. Playtest tolerance ±25% on each metric.',
+  },
+  obr_efo_downside_2025: {
+    parameter: 'OBR downside-scenario benchmark — productivity / energy',
+    confidence: 'sourced',
+    title: 'Economic and Fiscal Outlook Nov 2025 — sensitivity scenarios',
+    publisher: 'OBR',
+    year: 2025,
+    url: 'https://obr.uk/efo/economic-and-fiscal-outlook-november-2025/',
+    note: 'OBR Nov-2025 EFO sensitivity tables: a sustained -0.5pp productivity shock combined with an energy-price spike pushes growth toward ~0.5%, inflation persistence into the 3-4% range over the medium term, debt-to-GDP toward ~104%, and gilt yields ~5.5% via the deficit kicker. Used as the benchmark for a strategy that declines every supply-side reform and resolves productivity events pessimistically.',
+  },
+  obr_frs_2024: {
+    parameter: 'OBR Fiscal Risks & Sustainability — long-run adverse path',
+    confidence: 'extrapolated',
+    title: 'Fiscal Risks and Sustainability Report 2024 — adverse demographic scenario',
+    publisher: 'OBR',
+    year: 2024,
+    url: 'https://obr.uk/frs/fiscal-risks-and-sustainability-2024/',
+    note: 'OBR FRS 2024 projects debt-to-GDP rising past 100% and continuing upward over multiple decades under unchanged ageing-related spending policy. Extrapolated to the 20-year horizon (4 game terms × 20 quarters) we expect debt-to-GDP at game end ~110-120%, inflation drifting marginally above target, gilt yields elevated by the deficit kicker (4.5-5.0% range over the FRS horizon, depending on rate normalisation assumptions). Used as the benchmark for a strategy that declines all NHS / welfare / pension reform and routes surplus to services rather than debt paydown.',
+  },
+  hmrc_frozen_thresholds_2025: {
+    parameter: 'HMRC fiscal-drag receipts path benchmark',
+    confidence: 'extrapolated',
+    title: 'Frozen income-tax thresholds — fiscal-drag yield',
+    publisher: 'HMRC / OBR',
+    year: 2025,
+    url: 'https://www.gov.uk/government/statistics/direct-effects-of-illustrative-tax-changes',
+    note: 'HMRC RR June 2025 + OBR Nov-2025 EFO costings imply that holding income-tax thresholds frozen while inflation runs near target lifts effective tax burden by ~£8-12bn pa cumulatively, narrowing the deficit toward 3.0-3.5% of GDP by year 5 with debt-to-GDP plateauing ~93-94%. Inflation and growth track close to OBR central path because no rate change is enacted. Used as benchmark for a strategy that holds all income-tax rates flat for the whole run.',
+  },
 };
 
 // Helper: given a citationId, return the entry or throw.

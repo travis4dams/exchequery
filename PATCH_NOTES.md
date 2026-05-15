@@ -16,6 +16,7 @@ section accumulates on the `dev` branch between releases.
   - Markets: Sterling Under Pressure, Commercial Property Crash, Pension Fund Crisis, Fintech IPO Boom, Inflation Surprise (Downside).
   - Political: Cabinet Scandal, Devolution Funding Row.
 - **Pandemic-severity damper.** Completing Preventative Health and Social Care Systemic Reform compounds a multiplier on pandemic effect magnitudes — health, growth, debt and unemployment hits all shrink. Mirrors the existing energy-shock and equity-shock dampers.
+- Playtest harness now runs four OBR/HMRC scenario strategies (EFO central, EFO downside, FRS long-run, HMRC frozen thresholds) and asserts mean outcomes land within ±25% of the published forecast figures. Catches drift in judgement-tier model parameters when balance is tuned.
 
 ### Balance
 - Event probabilities are now reform- and state-driven across all new events. Pandemics rise when NHS spend is below anchor; teacher strikes rise when education spend lags; cold snaps and droughts have seasonal kicks; sterling slides activate only when bond-yield + risk-premium stress crosses a threshold; AI displacement grows over time. Reform mitigations are wired through `REFORM_RISK_MODS`.
@@ -24,6 +25,7 @@ section accumulates on the `dev` branch between releases.
 
 ### Fixes
 ### Known Issues
+- The do-nothing fiscal path drives debt-to-GDP strongly negative across all OBR/HMRC benchmark scenarios (model produces persistent surpluses where OBR projects continued deficit). The `finalDebtToGDP` benchmark assertions are skipped pending revenue/spend baseline recalibration; other metrics (inflation, bond yield, unemployment, Bank Rate) converge inside the ±25% tolerance.
 
 ---
 
