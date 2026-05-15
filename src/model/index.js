@@ -1,5 +1,6 @@
 // Convenience re-exports for the model layer.
 export { CITATIONS, CONFIDENCE, getCitation, confidenceSummary } from './citations.js';
+export { BENCHMARKS, BENCHMARK_TOLERANCE, unwrapTargets } from './benchmarks.js';
 export { PARAMS, walkParams } from './params.js';
 export { BLOCS, COALITION, INITIAL_BLOC_SUPPORT, INITIAL_BLOC_WEIGHTS } from './blocs.js';
 export { REFORMS, REFORM_BRANCHES } from './reforms.js';
