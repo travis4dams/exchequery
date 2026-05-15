@@ -90,7 +90,7 @@ const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
 //     unemployment (uses fresh growth) → inflation (uses fresh
 //     unemployment) → Bank Rate (uses fresh inflation + unemployment) →
 //     bond yield (uses fresh Bank Rate). Push Bank Rate onto bankRatePath
-//     (max 8) for sparkline + rolling-4Q rate-rise risk mod.
+//     (max 20) for sparkline + rolling-4Q rate-rise risk mod.
 // 7. Reform completions (mind the +1: completesQ <= globalQuarter+1).
 //    Handles special flags reduceForecastNoise, setBoeMandateDual,
 //    raiseInflationTarget.
@@ -227,15 +227,15 @@ export function stepQuarter(game) {
   // 6a. Housing & energy markets — update before inflation so contributions
   //     flow into the Phillips-curve forcing term in updateInflation.
   n.housePriceIndex = updateHousePriceIndex(n);
-  n.housePricePath = [...((n.housePricePath || []).slice(-7)), n.housePriceIndex];
+  n.housePricePath = [...((n.housePricePath || []).slice(-19)), n.housePriceIndex];
   n.energyPriceIndex = updateEnergyPriceIndex(n);
-  n.energyPricePath = [...((n.energyPricePath || []).slice(-7)), n.energyPriceIndex];
+  n.energyPricePath = [...((n.energyPricePath || []).slice(-19)), n.energyPriceIndex];
 
   // 6b. Equity index — consumes Math.random() once. MUST run before the
   //     event roll in step 9 so the existing playtest seed library stays
   //     stable.
   n.equityIndex = updateEquityIndex(n);
-  n.equityPath = [...((n.equityPath || []).slice(-7)), n.equityIndex];
+  n.equityPath = [...((n.equityPath || []).slice(-19)), n.equityIndex];
 
   // 6c. Risk premium — reads debt-to-GDP inline and stdev of cohesionHistory.
   //     Computed BEFORE bondYieldFromBankRate so the yield picks it up.
@@ -245,7 +245,7 @@ export function stepQuarter(game) {
   n.unemployment = updateUnemployment(n);
   n.inflation = updateInflation(n);
   n.bankRate = updateBankRate(n);
-  n.bankRatePath = [...((n.bankRatePath || []).slice(-7)), n.bankRate];
+  n.bankRatePath = [...((n.bankRatePath || []).slice(-19)), n.bankRate];
   n.bondYield = bondYieldFromBankRate(n);
 
   // 7. Reform completions — note the +1 (globalQuarter hasn't been bumped yet)
@@ -308,6 +308,16 @@ export function stepQuarter(game) {
       n.log = [...n.log, { q: n.quarter + 1, text: `✓ ${actual.log}` }];
     }
   }
+
+  // 7b. Overview-tab history — push the quarter's final macro readings onto
+  //     20-quarter sliding windows. Placed after step 7 so reform completions
+  //     that move healthIndex are reflected.
+  n.gdpPath = [...((n.gdpPath || []).slice(-19)), n.gdp];
+  n.debtRatioPath = [...((n.debtRatioPath || []).slice(-19)), n.debt / n.gdp * 100];
+  n.deficitRatioPath = [...((n.deficitRatioPath || []).slice(-19)), -calcBalance(n) / n.gdp * 100];
+  n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];
+  n.healthIndexPath = [...((n.healthIndexPath || []).slice(-19)), n.healthIndex];
+  n.populationPath = [...((n.populationPath || []).slice(-19)), n.population];
 
   // 8. Effective rate drifts toward market (models refinancing).
   //    Bond yield itself was already set in step 6b by bondYieldFromBankRate,
