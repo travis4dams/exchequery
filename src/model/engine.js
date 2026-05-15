@@ -261,6 +261,22 @@ export function quarterlyBlocDelta(s) {
     d.northern += delta * v(B.infraAbove40.northern);
   }
 
+  // Cost-of-living: inflation above target hurts real-income-sensitive blocs.
+  const inflationGap = Math.max(0, (s.inflation ?? 0) - (s.inflationTarget ?? 0));
+  if (inflationGap > 0 && B.inflationAboveTarget) {
+    for (const [bloc, leaf] of Object.entries(B.inflationAboveTarget)) {
+      d[bloc] -= inflationGap * v(leaf);
+    }
+  }
+
+  // Jobs damage: unemployment above NAIRU hurts jobs-sensitive blocs.
+  const unempGap = Math.max(0, (s.unemployment ?? 0) - (s.naturalUnemployment ?? 0));
+  if (unempGap > 0 && B.unemploymentAboveNAIRU) {
+    for (const [bloc, leaf] of Object.entries(B.unemploymentAboveNAIRU)) {
+      d[bloc] -= unempGap * v(leaf);
+    }
+  }
+
   // Mean-reverting drift back to baseline, then per-quarter normalisation.
   const drift = v(PARAMS.blocDriftToBaseline);
   for (const k of Object.keys(d)) {
@@ -301,6 +317,79 @@ export function quarterlyPopulationGrowth(reforms) {
 }
 
 // =============================================================================
+// Bank of England — Phillips, Okun, Taylor rule
+//
+// All four updaters are state-in/scalar-out so callers in stepQuarter can
+// compose them in a deterministic order. None mutate `s`. The intentional
+// order in stepQuarter is: GDP grows → unemployment (uses fresh growth) →
+// inflation (uses fresh unemployment) → Bank Rate (uses fresh inflation +
+// unemployment) → bond yield (uses fresh Bank Rate). Math.random is not
+// consumed here — the existing event-roll randomness remains the only RNG
+// in the per-quarter loop.
+// =============================================================================
+
+export function updateInflation(s) {
+  const target = s.inflationTarget;
+  const persistence = v(PARAMS.phillips.persistence);
+  const slope = v(PARAMS.phillips.slope);
+  const vatImpulseCoef = v(PARAMS.phillips.vatImpulseCoef);
+  const basicImpulseCoef = v(PARAMS.phillips.basicImpulseCoef);
+  const growthDriftCoef = v(PARAMS.phillips.growthDriftCoef);
+  const trendGrowth = v(PARAMS.okun.trendGrowth);
+  const vatAnchor = v(PARAMS.initial.taxVAT);
+  const basicAnchor = v(PARAMS.initial.taxIncomeBasic);
+
+  const phillipsTerm = slope * (s.naturalUnemployment - s.unemployment);
+  const demandImpulse = vatImpulseCoef * (s.taxVAT - vatAnchor)
+                      + basicImpulseCoef * (s.taxIncomeBasic - basicAnchor);
+  const growthDrift = growthDriftCoef * (s.growth - trendGrowth);
+  const forcing = target + phillipsTerm + demandImpulse + growthDrift;
+
+  return Math.max(0, persistence * s.inflation + (1 - persistence) * forcing);
+}
+
+export function updateUnemployment(s) {
+  const trend = v(PARAMS.okun.trendGrowth);
+  const neutralReal = v(PARAMS.okun.neutralRealRate);
+  const okunCoef = v(PARAMS.okun.coefficient);
+  const rateChannel = v(PARAMS.okun.rateChannel);
+  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  // Annual deltas / 4 to convert to per-quarter step.
+  const delta = (-okunCoef * (s.growth - trend) + rateChannel * realRateGap) / 4;
+  return Math.max(0, Math.min(20, s.unemployment + delta));
+}
+
+export function taylorRule(s) {
+  const neutral = v(PARAMS.monetary.neutralRate);
+  const inflCoef = v(PARAMS.monetary.taylorInflationCoef);
+  const unempCoef = s.boeMandate === 'dual' ? v(PARAMS.monetary.taylorUnempCoefDual) : 0;
+  const rStar = neutral
+    + inflCoef * (s.inflation - s.inflationTarget)
+    + unempCoef * (s.naturalUnemployment - s.unemployment);
+  const lo = v(PARAMS.monetary.bankRateClampLow);
+  const hi = v(PARAMS.monetary.bankRateClampHigh);
+  return Math.max(lo, Math.min(hi, rStar));
+}
+
+export function updateBankRate(s) {
+  const inertia = v(PARAMS.monetary.bankRateInertia);
+  const target = taylorRule(s);
+  return inertia * s.bankRate + (1 - inertia) * target;
+}
+
+export function bondYieldFromBankRate(s) {
+  const termPremium = v(PARAMS.monetary.termPremium);
+  const deficitCoef = v(PARAMS.monetary.deficitYieldCoef);
+  const yieldSmooth = v(PARAMS.monetary.yieldSmooth);
+  const balYr = calcBalance(s);
+  const deficitAdj = Math.max(0, -balYr) * deficitCoef;
+  const target = s.bankRate + termPremium + deficitAdj;
+  const lo = v(PARAMS.bondYield.floor);
+  const hi = v(PARAMS.bondYield.ceiling);
+  return Math.max(lo, Math.min(hi, yieldSmooth * s.bondYield + (1 - yieldSmooth) * target));
+}
+
+// =============================================================================
 // Risk modifiers — applied to event base probabilities
 // =============================================================================
 
@@ -313,6 +402,15 @@ export function computeRiskMods(s) {
   const basicStrikeFloor = v(T.basicRateGeneralStrikeFloor);
   const vatStrikeFloor = v(T.vatGeneralStrikeFloor);
   const infraSurgeFloor = v(T.infraInvestmentSurgeFloor);
+
+  // Rolling 4Q rise in Bank Rate, for rateHikeShock.
+  const path = s.bankRatePath || [];
+  const rateRiseRecent = path.length >= 4
+    ? Math.max(0, path[path.length - 1] - path[path.length - 4])
+    : 0;
+  const hotLabour = Math.max(0, s.naturalUnemployment - s.unemployment);
+  const inflGap = Math.max(0, s.inflation - s.inflationTarget);
+  const taylorDivergence = Math.abs(s.bankRate - taylorRule(s));
 
   const m = {
     nhsStrike: v(R.nhsStrike.base),
@@ -333,6 +431,9 @@ export function computeRiskMods(s) {
     taxBeats: v(R.taxBeats.base),
     demographicDividend: v(R.demographicDividend.base),
     labourShortage: v(R.labourShortage.base),
+    rateHikeShock: v(R.rateHikeShock.base) + rateRiseRecent * v(R.rateHikeShock.perRateRise),
+    wagePriceSpiral: v(R.wagePriceSpiral.base) + hotLabour * inflGap * v(R.wagePriceSpiral.perGapProduct),
+    monetaryPolicyError: v(R.monetaryPolicyError.base) + Math.max(0, taylorDivergence - 1) * v(R.monetaryPolicyError.perDivergencePP),
   };
 
   // Spending-based modifiers
@@ -425,6 +526,8 @@ export function makeCommittedSnapshot(s) {
     growth: s.growth, gini: s.gini, healthIndex: s.healthIndex,
     bondYield: s.bondYield, effectiveServicingRate: s.effectiveServicingRate,
     debt: s.debt, gdp: s.gdp, realGDP: s.realGDP, population: s.population,
+    inflation: s.inflation, unemployment: s.unemployment,
+    bankRate: s.bankRate, inflationTarget: s.inflationTarget,
   };
 }
 
@@ -464,6 +567,11 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     reforms: {}, proposedReforms: [],
     revBonusFromReforms: 0, ongoingCostFromReforms: 0, ongoingRevFromReforms: 0,
     healthIndex: v(I.healthIndex), gini: v(I.gini),
+    bankRate: v(I.bankRate),
+    inflationTarget: v(I.inflationTarget),
+    naturalUnemployment: v(I.naturalUnemployment),
+    boeMandate: 'inflation_only',
+    bankRatePath: [],
     log: [], pendingEvent: null, pendingSummary: null,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,

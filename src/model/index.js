@@ -24,6 +24,11 @@ export {
   reformCapacityLoad,
   calcReformCapacity,
   calcReformLoadInFlight,
+  updateInflation,
+  updateUnemployment,
+  taylorRule,
+  updateBankRate,
+  bondYieldFromBankRate,
 } from './engine.js';
 export {
   stepQuarter,

@@ -44,6 +44,10 @@ import {
   makeCommittedSnapshot,
   reformCapacityLoad,
   calcReformCapacity,
+  updateInflation,
+  updateUnemployment,
+  updateBankRate,
+  bondYieldFromBankRate,
 } from './engine.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
@@ -56,7 +60,7 @@ const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
 // =============================================================================
 // stepQuarter — one full quarter advance.
 //
-// Ordering must match the original ChancellorSim.advanceQuarter exactly:
+// Ordering:
 // 1. Commit proposed reforms (no passReq re-check — UI gates that).
 //    Engine enforces capacity: skip any proposal whose capacityLoad would
 //    push total in-flight load past calcReformCapacity. Skipped proposals
@@ -67,13 +71,19 @@ const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
 // 4. Overall population growth.
 // 5. Fiscal flow on quarterly balance (surplus accrues to pendingSurplus,
 //    deficit adds to debt).
-// 6. GDP growth (nominal + real).
+// 6. GDP growth (nominal + real), then real-rate drag on growth.
+// 6b. Monetary block (in this strict order):
+//     unemployment (uses fresh growth) → inflation (uses fresh
+//     unemployment) → Bank Rate (uses fresh inflation + unemployment) →
+//     bond yield (uses fresh Bank Rate). Push Bank Rate onto bankRatePath
+//     (max 8) for sparkline + rolling-4Q rate-rise risk mod.
 // 7. Reform completions (mind the +1: completesQ <= globalQuarter+1).
-// 8. Bond-yield band update on annual balance.
-// 9. Effective servicing rate drift toward bondYield.
-// 10. Risk mods + event roll. Pick one event uniformly from triggered set.
-// 11. Build summary; bump quarter + globalQuarter; snapshot.
-// 12. Terminal state check on the bumped quarter.
+//    Handles special flags reduceForecastNoise, setBoeMandateDual,
+//    raiseInflationTarget.
+// 8. Effective servicing rate drift toward bondYield.
+// 9. Risk mods + event roll. Pick one event uniformly from triggered set.
+// 10. Build summary; bump quarter + globalQuarter; snapshot.
+// 11. Terminal state check on the bumped quarter.
 // =============================================================================
 export function stepQuarter(game) {
   const preBlocs = { ...game.blocSupport };
@@ -87,6 +97,10 @@ export function stepQuarter(game) {
   const preWeights = { ...game.blocWeights };
   const preGDP = game.gdp;
   const preRealGDP = game.realGDP;
+
+  const preInflation = game.inflation;
+  const preUnemployment = game.unemployment;
+  const preBankRate = game.bankRate;
 
   let n = { ...game };
 
@@ -147,9 +161,18 @@ export function stepQuarter(game) {
     n.debt = n.debt - qBalance;
   }
 
-  // 6. GDP grows
+  // 6. GDP grows; then real-rate drag on growth state.
   n.gdp = n.gdp * (1 + (n.growth + n.inflation) / 100 / 4);
   n.realGDP = n.realGDP * (1 + n.growth / 100 / 4);
+  const realRateGap = n.bankRate - n.inflation - v(PARAMS.okun.neutralRealRate);
+  n.growth = n.growth - v(PARAMS.growthDrag.realRateCoef) * realRateGap;
+
+  // 6b. Monetary block — strict order: unemployment, inflation, Bank Rate, yield.
+  n.unemployment = updateUnemployment(n);
+  n.inflation = updateInflation(n);
+  n.bankRate = updateBankRate(n);
+  n.bankRatePath = [...((n.bankRatePath || []).slice(-7)), n.bankRate];
+  n.bondYield = bondYieldFromBankRate(n);
 
   // 7. Reform completions — note the +1 (globalQuarter hasn't been bumped yet)
   const completedReforms = [];
@@ -174,25 +197,23 @@ export function stepQuarter(game) {
         }
       }
       if (reform.special === 'reduceForecastNoise') n.forecastNoise = v(PARAMS.forecastNoise.afterObr);
+      if (reform.special === 'setBoeMandateDual') n.boeMandate = 'dual';
+      if (reform.special === 'raiseInflationTarget') {
+        n.inflationTarget = v(PARAMS.monetary.raisedInflationTarget);
+        n.bondYield = Math.min(v(PARAMS.bondYield.ceiling),
+          n.bondYield + v(PARAMS.monetary.inflationTargetReviewYieldShock));
+      }
 
       completedReforms.push(reform.name);
       n.log = [...n.log, { q: n.quarter + 1, text: `✓ ${actual.log}` }];
     }
   }
 
-  // 8. Bond yield (market) — drifts based on annual balance
-  const BY = PARAMS.bondYield;
-  const balYr = calcBalance(n);
-  if (balYr < v(BY.bigDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.bigDeficitDelta));
-  else if (balYr < v(BY.midDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.midDeficitDelta));
-  else if (balYr > 0) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.surplusDelta));
-  else if (balYr > v(BY.smallDeficitThreshold)) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.smallDeficitDelta));
-
-  // 9. Effective rate drifts toward market (models refinancing).
+  // 8. Effective rate drifts toward market (models refinancing).
   const drift = v(PARAMS.spending.effectiveRateDriftPerQuarter);
   n.effectiveServicingRate = n.effectiveServicingRate + drift * (n.bondYield - n.effectiveServicingRate);
 
-  // 10. Risk mods + event roll. rollEvents iterates Object.entries(mods),
+  // 9. Risk mods + event roll. rollEvents iterates Object.entries(mods),
   // which preserves insertion order (i.e. the order keys were added to `m`
   // in computeRiskMods). The event-pick draw below is the second Math.random()
   // consumed by this step.
@@ -204,7 +225,7 @@ export function stepQuarter(game) {
     eventToShow = { id: eventId, ...EVENT_DEFINITIONS[eventId] };
   }
 
-  // 11. Build summary
+  // 10. Build summary
   const blocChanges = {};
   for (const id of Object.keys(BLOCS)) {
     const change = n.blocSupport[id] - preBlocs[id];
@@ -231,6 +252,9 @@ export function stepQuarter(game) {
     gdpChange: n.gdp - preGDP,
     realGDPChange: n.realGDP - preRealGDP,
     populationChange: popChange,
+    inflationChange: n.inflation - preInflation,
+    unemploymentChange: n.unemployment - preUnemployment,
+    bankRateChange: n.bankRate - preBankRate,
     blocChanges: blocChangeArray.slice(0, 4),
     weightChanges: Object.entries(weightChanges).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3),
     startedReforms,
@@ -246,7 +270,7 @@ export function stepQuarter(game) {
   n.globalQuarter = n.globalQuarter + 1;
   n.committed = makeCommittedSnapshot(n);
 
-  // 12. Terminal state (uses post-bump quarter)
+  // 11. Terminal state (uses post-bump quarter)
   const newCoal = calcCoalitionCohesion(n.blocSupport, n.blocWeights);
   if (newCoal < COALITION_FLOOR) n.status = 'collapsed';
   else if (n.bondYield > BOND_YIELD_CEILING) n.status = 'lost-markets';
@@ -268,6 +292,11 @@ export function resolveEvent(game, choice) {
   if (eff.inflation) n.inflation = Math.max(0, n.inflation + eff.inflation);
   if (eff.healthIndex) n.healthIndex = Math.max(0, Math.min(100, n.healthIndex + eff.healthIndex));
   if (eff.bondYield) n.bondYield = Math.max(2, n.bondYield + eff.bondYield);
+  if (eff.bankRate) n.bankRate = Math.max(
+    v(PARAMS.monetary.bankRateClampLow),
+    Math.min(v(PARAMS.monetary.bankRateClampHigh), n.bankRate + eff.bankRate)
+  );
+  if (eff.unemployment) n.unemployment = Math.max(0, Math.min(20, n.unemployment + eff.unemployment));
   if (eff.blocs) {
     n.blocSupport = { ...n.blocSupport };
     for (const [bloc, delta] of Object.entries(eff.blocs)) {

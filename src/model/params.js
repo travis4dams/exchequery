@@ -64,6 +64,9 @@ export const PARAMS = {
     spendDefence: cited(39, 'obr_defence_baseline'),
     spendInfra: cited(90, 'obr_infra_baseline'),
     spendLocal: cited(140, 'obr_local_baseline'),
+    bankRate: cited(4.5, 'boe_current_bank_rate'),                  // %
+    inflationTarget: cited(2.0, 'boe_inflation_target_remit'),       // % (mandated)
+    naturalUnemployment: cited(4.0, 'boe_nairu_estimate'),           // % (NAIRU)
   },
 
   // ===========================================================================
@@ -105,19 +108,59 @@ export const PARAMS = {
   },
 
   // ===========================================================================
-  // Bond-yield response per quarter (calcBalance → bondYield update)
-  // Thresholds are £bn ANNUAL balance; adjustments are pp on yield.
+  // Bond yield — anchored to Bank Rate plus a deficit kicker. Replaces the
+  // pure-band model that drove yields independently of monetary policy.
+  // bondYield = bankRate + termPremium + deficitYieldCoef × max(0, -annualBalance)
+  // smoothed by yieldSmooth toward last quarter's value.
   // ===========================================================================
   bondYield: {
     floor: cited(2, 'bond_yield_response_judgement'),
     ceiling: cited(10, 'bond_yield_response_judgement'),
-    bigDeficitThreshold: cited(-200, 'bond_yield_response_judgement'),
-    bigDeficitDelta: cited(0.08, 'bond_yield_response_judgement'),
-    midDeficitThreshold: cited(-100, 'bond_yield_response_judgement'),
-    midDeficitDelta: cited(0.02, 'bond_yield_response_judgement'),
-    surplusDelta: cited(-0.06, 'bond_yield_response_judgement'),    // applied when balance > 0
-    smallDeficitThreshold: cited(-50, 'bond_yield_response_judgement'),
-    smallDeficitDelta: cited(-0.03, 'bond_yield_response_judgement'),
+  },
+
+  // ===========================================================================
+  // Monetary policy — Bank of England reaction function (Taylor rule)
+  // ===========================================================================
+  monetary: {
+    neutralRate: cited(3.5, 'boe_neutral_rate'),                   // % nominal anchor
+    taylorInflationCoef: cited(1.5, 'taylor_rule_classic'),         // pp Bank Rate per pp inflation gap
+    taylorUnempCoefDual: cited(0.5, 'taylor_rule_classic'),         // pp Bank Rate per pp unemployment gap (only under dual mandate)
+    bankRateInertia: cited(0.5, 'boe_smoothing_methodology'),       // weight on prior-quarter Bank Rate
+    bankRateClampLow: cited(0, 'boe_rate_history'),                 // % floor
+    bankRateClampHigh: cited(12, 'boe_rate_history'),               // % ceiling
+    termPremium: cited(0.3, 'boe_term_premium'),                    // pp added to Bank Rate to derive base bond yield
+    deficitYieldCoef: cited(0.003, 'monetary_deficit_yield_judgement'), // pp on yield per £bn annual deficit
+    yieldSmooth: cited(0.5, 'boe_smoothing_methodology'),           // weight on prior-quarter yield
+    raisedInflationTarget: cited(3.0, 'inflation_target_review_judgement'), // value used by inflationTargetReview reform
+    inflationTargetReviewYieldShock: cited(0.3, 'inflation_target_review_judgement'), // pp on bondYield on commit
+  },
+
+  // ===========================================================================
+  // Phillips curve — inflation reaction to slack and demand
+  // ===========================================================================
+  phillips: {
+    persistence: cited(0.85, 'obr_inflation_persistence'),          // weight on prior-quarter inflation
+    slope: cited(0.3, 'boe_phillips_slope'),                        // pp inflation per pp (NAIRU − unemployment)
+    vatImpulseCoef: cited(-0.6, 'phillips_demand_judgement'),       // pp inflation per pp VAT (negative = cut adds inflation)
+    basicImpulseCoef: cited(-0.05, 'phillips_demand_judgement'),    // pp inflation per pp basic-rate
+    growthDriftCoef: cited(0.05, 'phillips_demand_judgement'),      // pp inflation per pp (growth − trend)
+  },
+
+  // ===========================================================================
+  // Okun's law — unemployment reaction to growth and real rates
+  // ===========================================================================
+  okun: {
+    coefficient: cited(0.4, 'okun_uk_estimate'),                    // pp unemployment per pp growth gap (annual)
+    trendGrowth: cited(1.5, 'okun_uk_estimate'),                    // %, anchor for output gap
+    rateChannel: cited(0.1, 'okun_rate_channel_judgement'),         // pp unemployment per pp real-rate gap (annual)
+    neutralRealRate: cited(1.5, 'okun_rate_channel_judgement'),     // %, anchor for real rate
+  },
+
+  // ===========================================================================
+  // Growth drag from real interest rates
+  // ===========================================================================
+  growthDrag: {
+    realRateCoef: cited(0.05, 'growth_drag_real_rate'),             // pp growth per pp real rate above neutral, per quarter
   },
 
   // ===========================================================================
@@ -232,6 +275,23 @@ export const PARAMS = {
       business: cited(0.2, 'bloc_response_infra_spend'),
       northern: cited(0.15, 'bloc_response_infra_spend'),
     },
+    // Cost-of-living: per-pp coefficient applied to max(0, inflation − target).
+    inflationAboveTarget: {
+      pensioners: cited(6.0, 'cost_of_living_bloc_judgement'),
+      workingClass: cited(4.5, 'cost_of_living_bloc_judgement'),
+      ethnicMinority: cited(3.5, 'cost_of_living_bloc_judgement'),
+      northern: cited(3.5, 'cost_of_living_bloc_judgement'),
+      middleClass: cited(2.5, 'cost_of_living_bloc_judgement'),
+      youth: cited(3.0, 'cost_of_living_bloc_judgement'),
+      publicSector: cited(2.0, 'cost_of_living_bloc_judgement'),
+    },
+    // Jobs damage: per-pp coefficient applied to max(0, unemployment − NAIRU).
+    unemploymentAboveNAIRU: {
+      youth: cited(3.0, 'cost_of_living_bloc_judgement'),
+      workingClass: cited(2.5, 'cost_of_living_bloc_judgement'),
+      ethnicMinority: cited(2.0, 'cost_of_living_bloc_judgement'),
+      northern: cited(2.0, 'cost_of_living_bloc_judgement'),
+    },
   },
 
   // ===========================================================================
@@ -275,6 +335,18 @@ export const PARAMS = {
     taxBeats: { base: cited(7, 'tax_beats_base') },
     demographicDividend: { base: cited(4, 'demographic_dividend_base') },
     labourShortage: { base: cited(0, 'labour_shortage_base') },     // triggered only by reforms
+    rateHikeShock: {
+      base: cited(4, 'monetary_event_methodology'),
+      perRateRise: cited(8, 'monetary_event_methodology'),          // per pp 4Q rise in Bank Rate
+    },
+    wagePriceSpiral: {
+      base: cited(3, 'monetary_event_methodology'),
+      perGapProduct: cited(6, 'monetary_event_methodology'),        // per (pp hot labour × pp inflation gap)
+    },
+    monetaryPolicyError: {
+      base: cited(2, 'monetary_event_methodology'),
+      perDivergencePP: cited(4, 'monetary_event_methodology'),      // per pp |actual Bank Rate − Taylor| above 1pp
+    },
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),
   },

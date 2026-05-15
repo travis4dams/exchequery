@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Users, Calendar, AlertTriangle, BookOpen } from 'lucide-react';
+import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Users, Calendar, AlertTriangle, BookOpen, LineChart } from 'lucide-react';
 
 import {
   PARAMS,
@@ -38,6 +38,7 @@ import { BudgetTab } from './components/BudgetTab.jsx';
 import { ReformsTab } from './components/ReformsTab.jsx';
 import { RisksTab } from './components/RisksTab.jsx';
 import { LedgerTab } from './components/LedgerTab.jsx';
+import { MarketsTab } from './components/MarketsTab.jsx';
 import { AboutTab } from './components/AboutTab.jsx';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
@@ -68,7 +69,11 @@ export default function ChancellorSim() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('chancellor_v6_save');
+      // v7 added BoE/Phillips/Okun state. Drop older saves rather than try
+      // to migrate (the new fields would all be undefined and the model
+      // would NaN-cascade on the first quarter).
+      localStorage.removeItem('chancellor_v6_save');
+      const saved = localStorage.getItem('chancellor_v7_save');
       if (saved) {
         setGame(JSON.parse(saved));
         setShowIntro(false);
@@ -78,7 +83,7 @@ export default function ChancellorSim() {
 
   useEffect(() => {
     if (game.quarter > 1 || Object.keys(game.reforms).length > 0 || game.proposedReforms.length > 0) {
-      try { localStorage.setItem('chancellor_v6_save', JSON.stringify(game)); } catch (e) {}
+      try { localStorage.setItem('chancellor_v7_save', JSON.stringify(game)); } catch (e) {}
     }
   }, [game]);
 
@@ -141,7 +146,7 @@ export default function ChancellorSim() {
   }
 
   function reset() {
-    try { localStorage.removeItem('chancellor_v6_save'); } catch (e) {}
+    try { localStorage.removeItem('chancellor_v7_save'); } catch (e) {}
     setGame(INITIAL); setShowIntro(true); setShowFinal(false); setShowReelect(false); setTab('overview');
   }
 
@@ -239,7 +244,7 @@ export default function ChancellorSim() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-1 text-center">
+          <div className="grid grid-cols-6 gap-1 text-center">
             <div>
               <div className="text-[9px] uppercase tracking-wider text-stone-500">GDP</div>
               <div className="text-[11px] font-semibold text-stone-200" style={{fontFamily: 'IBM Plex Mono'}}>£{(game.gdp/1000).toFixed(2)}tn</div>
@@ -250,13 +255,19 @@ export default function ChancellorSim() {
                    style={{fontFamily: 'IBM Plex Mono'}}>{game.growth.toFixed(1)}%</div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-wider text-stone-500">Pop</div>
-              <div className="text-[11px] font-semibold text-stone-200" style={{fontFamily: 'IBM Plex Mono'}}>{game.population.toFixed(1)}m</div>
+              <div className="text-[9px] uppercase tracking-wider text-stone-500">Bank Rate</div>
+              <div className={`text-[11px] font-semibold ${game.bankRate < 4 ? 'text-emerald-400' : game.bankRate < 6 ? 'text-stone-200' : 'text-rose-400'}`}
+                   style={{fontFamily: 'IBM Plex Mono'}}>{game.bankRate.toFixed(2)}%</div>
             </div>
             <div>
               <div className="text-[9px] uppercase tracking-wider text-stone-500">Gilts</div>
               <div className={`text-[11px] font-semibold ${game.bondYield < 4 ? 'text-emerald-400' : game.bondYield < 5.5 ? 'text-stone-200' : 'text-rose-400'}`}
                    style={{fontFamily: 'IBM Plex Mono'}}>{game.bondYield.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className="text-[9px] uppercase tracking-wider text-stone-500">CPI</div>
+              <div className={`text-[11px] font-semibold ${Math.abs(game.inflation - game.inflationTarget) < 0.5 ? 'text-emerald-400' : Math.abs(game.inflation - game.inflationTarget) < 1.5 ? 'text-amber-400' : 'text-rose-400'}`}
+                   style={{fontFamily: 'IBM Plex Mono'}}>{game.inflation.toFixed(1)}%</div>
             </div>
             <div>
               <div className="text-[9px] uppercase tracking-wider text-stone-500">Gini</div>
@@ -270,6 +281,7 @@ export default function ChancellorSim() {
             {id: 'overview', label: 'Overview', icon: Users},
             {id: 'budget', label: 'Budget', icon: Receipt},
             {id: 'reforms', label: 'Reforms', icon: Hammer},
+            {id: 'markets', label: 'Markets', icon: LineChart},
             {id: 'risks', label: 'Risks', icon: AlertTriangle},
             {id: 'ledger', label: 'Ledger', icon: FileText},
             {id: 'about', label: 'About', icon: BookOpen},
@@ -294,6 +306,7 @@ export default function ChancellorSim() {
             reformCapacity={reformCapacity} reformLoadInFlight={reformLoadInFlight}
             onInspect={setInspectReform} />
         )}
+        {tab === 'markets' && <MarketsTab game={game} spending={spending} />}
         {tab === 'risks' && <RisksTab riskMods={riskMods} />}
         {tab === 'ledger' && (
           <LedgerTab game={game} revenue={revenue} spending={spending} balance={balance}

@@ -9,9 +9,21 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- New "Markets" tab. The Bank of England now sets interest rates independently of you, by Taylor-rule reaction to inflation (and, optionally, unemployment).
+- Inflation and unemployment finally evolve quarter-by-quarter — Phillips curve for inflation, Okun's law for unemployment, real-rate drag on growth.
+- Header strip shows Bank Rate and CPI alongside GDP, Growth, Gilts and Gini.
+- Two new state-branch reforms: "Amend BoE to Dual Mandate" (MPC weighs employment alongside inflation) and "Raise Inflation Target to 3%" (more room for the MPC, but markets re-price long rates immediately).
+- Three new monetary events: rate-hike shock, wage-price spiral, MPC out-of-step.
+- Quarter Summary now shows inflation, unemployment, and Bank Rate moves.
+
 ### Balance
+- Bond yields are now anchored to Bank Rate plus a term premium plus a deficit kicker, replacing the old pure deficit-band drift. Slamming taxes no longer self-finances — sudden VAT cuts stoke inflation, the MPC hikes, gilts re-price and debt service follows.
+- New cost-of-living bloc damage: when CPI runs above target, pensioners, working-class, ethnic-minority and northern blocs penalise the government. Above-NAIRU unemployment damages youth, working class, ethnic minority and northern blocs.
+- The "dominantCheese" exploit no longer dominates: cheese now lags the do-nothing baseline on coalition cohesion at game end, and wins fewer terms on average.
+
 ### Fixes
 ### Known Issues
+- Cheese strategy still survives the first term in most games (the inflation buildup takes 8–12 quarters and the term-1 honeymoon protects against early collapse). Subsequent terms reliably collapse.
 
 ---
 

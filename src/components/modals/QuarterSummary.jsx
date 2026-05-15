@@ -42,6 +42,24 @@ export function QuarterSummary({ summary, growth, population, onContinue }) {
                 {' / '}
                 <span className={summary.giniChange < 0 ? 'text-emerald-400' : summary.giniChange > 0 ? 'text-rose-400' : ''}>{summary.giniChange > 0 ? '+' : ''}{summary.giniChange.toFixed(2)}</span>
               </span></div>
+            {summary.inflationChange !== undefined && (
+              <div className="flex justify-between"><span className="text-stone-400">Inflation Δ</span>
+                <span className={Math.abs(summary.inflationChange) < 0.05 ? 'text-stone-300' : summary.inflationChange < 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {summary.inflationChange > 0 ? '+' : ''}{summary.inflationChange.toFixed(2)}pp
+                </span></div>
+            )}
+            {summary.unemploymentChange !== undefined && (
+              <div className="flex justify-between"><span className="text-stone-400">Unemployment Δ</span>
+                <span className={Math.abs(summary.unemploymentChange) < 0.05 ? 'text-stone-300' : summary.unemploymentChange < 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {summary.unemploymentChange > 0 ? '+' : ''}{summary.unemploymentChange.toFixed(2)}pp
+                </span></div>
+            )}
+            {summary.bankRateChange !== undefined && Math.abs(summary.bankRateChange) >= 0.02 && (
+              <div className="flex justify-between"><span className="text-stone-400">Bank Rate Δ</span>
+                <span className={summary.bankRateChange > 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                  {summary.bankRateChange > 0 ? '+' : ''}{summary.bankRateChange.toFixed(2)}pp
+                </span></div>
+            )}
           </div>
         </div>
 

@@ -190,6 +190,38 @@ export const EVENT_DEFINITIONS = {
       { label: 'Celebrate', effect: { growth: 0.2, blocs: { business: 6, professional: 4, middleClass: 3 }, log: 'Trade deal boosting confidence.' } },
     ],
   },
+  rateHikeShock: {
+    title: 'Rate Hike Hits Households',
+    body: 'Mortgage holders re-fixing at sharply higher rates. Repossession risk creeping up.',
+    tone: 'bad',
+    citationId: 'monetary_event_methodology',
+    choices: [
+      { label: 'Mortgage protection scheme', effect: { debt: 6, blocs: { middleClass: 6, workingClass: 4, business: -2 }, log: 'Mortgage protection scheme launched.' } },
+      { label: 'Counter with fiscal stimulus', effect: { debt: 12, growth: 0.2, bondYield: 0.2, blocs: { workingClass: 5, business: 3, professional: -3 }, log: 'Stimulus package announced. Markets twitchy.' } },
+      { label: 'Blame the Bank publicly', effect: { blocs: { workingClass: 3, professional: -5, business: -3 }, log: 'You picked a fight with the Governor. Markets noticed.' } },
+    ],
+  },
+  wagePriceSpiral: {
+    title: 'Wage-Price Spiral Warning',
+    body: 'Settlements running 6%+ across multiple sectors. BoE signals further hikes.',
+    tone: 'bad',
+    citationId: 'monetary_event_methodology',
+    choices: [
+      { label: 'Pay restraint guidance to public sector', effect: { inflation: -0.4, blocs: { publicSector: -6, business: 4 }, log: 'Public-sector pay anchored below private. Unions furious.' } },
+      { label: 'Accept higher settlements', effect: { inflation: 0.6, growth: -0.1, blocs: { workingClass: 5, publicSector: 6, business: -4 }, log: 'You let the wage round run. CPI ticked up.' } },
+      { label: 'Blame markets, change nothing', effect: { inflation: 0.3, blocs: { workingClass: -2, business: -2 }, log: 'You did nothing. Settlements continued.' } },
+    ],
+  },
+  monetaryPolicyError: {
+    title: 'MPC Out of Step',
+    body: 'Commentators argue the MPC is materially off the right rate path. Volatility rising.',
+    tone: 'bad',
+    citationId: 'monetary_event_methodology',
+    choices: [
+      { label: 'Issue supportive remit clarification', effect: { bondYield: -0.2, blocs: { professional: 3, business: 2 }, log: 'Clarification calmed markets.' } },
+      { label: 'Public Treasury critique', effect: { bondYield: 0.4, blocs: { workingClass: 2, professional: -4, business: -3 }, log: 'You broke convention and criticised the Bank publicly.' } },
+    ],
+  },
 };
 
 // Reform-driven risk modifiers that aren't expressible declaratively on a
