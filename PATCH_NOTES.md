@@ -9,9 +9,12 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- Playtest harness now runs four OBR/HMRC scenario strategies (EFO central, EFO downside, FRS long-run, HMRC frozen thresholds) and asserts mean outcomes land within ±25% of the published forecast figures. Catches drift in judgement-tier model parameters when balance is tuned.
+
 ### Balance
 ### Fixes
 ### Known Issues
+- The do-nothing fiscal path drives debt-to-GDP strongly negative across all OBR/HMRC benchmark scenarios (model produces persistent surpluses where OBR projects continued deficit). The `finalDebtToGDP` benchmark assertions are skipped pending revenue/spend baseline recalibration; other metrics (inflation, bond yield, unemployment, Bank Rate) converge inside the ±25% tolerance.
 
 ---
 
