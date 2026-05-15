@@ -9,7 +9,19 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- **The Chancellor's Red Box.** Multiple events can now fire in a single quarter and surface as a queue of briefing papers. Each briefing is its own modal with full multi-choice agency — no event auto-resolves. A "Brief X of Y" counter shows how many remain in the box.
+- **15 new events** spanning public health, supply chains, technology, markets and politics:
+  - Public health: Pandemic, Teacher & Civil-Service Strike, Reservoir Crisis.
+  - Supply / tech: Global Supply-Chain Shock, Cyber Attack on Critical Infrastructure, Severe Cold Snap, AI Displacement Shock, UK Scientific Breakthrough.
+  - Markets: Sterling Under Pressure, Commercial Property Crash, Pension Fund Crisis, Fintech IPO Boom, Inflation Surprise (Downside).
+  - Political: Cabinet Scandal, Devolution Funding Row.
+- **Pandemic-severity damper.** Completing Preventative Health and Social Care Systemic Reform compounds a multiplier on pandemic effect magnitudes — health, growth, debt and unemployment hits all shrink. Mirrors the existing energy-shock and equity-shock dampers.
+
 ### Balance
+- Event probabilities are now reform- and state-driven across all new events. Pandemics rise when NHS spend is below anchor; teacher strikes rise when education spend lags; cold snaps and droughts have seasonal kicks; sterling slides activate only when bond-yield + risk-premium stress crosses a threshold; AI displacement grows over time. Reform mitigations are wired through `REFORM_RISK_MODS`.
+- Per-quarter event cap of 3 to keep the Red Box manageable.
+- Playtest seed library shifts: the new shuffle consumes more Math.random() draws than the legacy single-pick. Existing seed-based tests still pass but headline numbers (event counts) will diverge from prior runs.
+
 ### Fixes
 ### Known Issues
 

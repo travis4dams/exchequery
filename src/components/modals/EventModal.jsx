@@ -37,14 +37,25 @@ function summarizeEffect(effect) {
   return rows;
 }
 
-export function EventModal({ event, onChoice }) {
+export function EventModal({ event, onChoice, briefIndex = 1, briefTotal = 1 }) {
   const [expandedIdx, setExpandedIdx] = useState(null);
   if (!event) return null;
   const tone = event.tone;
+  const showRedBox = briefTotal > 1;
   return (
     <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
       <div className="bg-stone-950 border-2 rounded-t-2xl sm:rounded-2xl max-w-md w-full p-5"
            style={{borderColor: tone === 'good' ? '#15803d' : tone === 'bad' ? '#9f1239' : '#78350f'}}>
+        {showRedBox && (
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-800">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-rose-400">
+              Chancellor's Red Box
+            </div>
+            <div className="ml-auto text-[10px] uppercase tracking-[0.2em] text-stone-400" style={{fontFamily: 'IBM Plex Mono'}}>
+              Brief {briefIndex} of {briefTotal}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 mb-3">
           <div className={`w-2 h-2 rounded-full animate-pulse ${
             tone === 'good' ? 'bg-emerald-500' : tone === 'bad' ? 'bg-rose-500' : 'bg-amber-500'

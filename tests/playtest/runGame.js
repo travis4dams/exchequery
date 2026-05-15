@@ -4,6 +4,7 @@
 import {
   INITIAL_BLOC_SUPPORT,
   INITIAL_BLOC_WEIGHTS,
+  EVENT_DEFINITIONS,
   makeInitialState,
   calcCoalitionCohesion,
   stepQuarter,
@@ -69,14 +70,18 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       // c. The same step the UI runs.
       g = stepQuarter(g);
 
-      // d. Resolve a pending event if one fired.
-      if (g.pendingEvent) {
+      // d. Drain the Red Box queue. Each briefing gets the same strategy.resolveEvent
+      //    treatment as the legacy single-event flow.
+      let queueGuard = 0;
+      while ((g.pendingEvents || []).length > 0 && queueGuard++ < 10) {
+        const eventId = g.pendingEvents[0];
+        const eventDef = EVENT_DEFINITIONS[eventId];
+        const event = { id: eventId, ...eventDef };
         triggeredEventCount += 1;
-        const event = g.pendingEvent;
-        if (event.id === 'recession') recessionFired = true;
+        if (eventId === 'recession') recessionFired = true;
         const idx = strategy.resolveEvent(g, event);
         const choice = event.choices[Math.max(0, Math.min(event.choices.length - 1, idx))];
-        g = resolveEvent(g, choice);
+        g = resolveEvent(g, choice, { eventDef });
       }
 
       if (g.growth < minGrowthSeen) minGrowthSeen = g.growth;
