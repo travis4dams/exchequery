@@ -114,11 +114,13 @@ export function calcRevenue(s) {
 
 export function calcSpending(s) {
   const debtInterest = s.debt * (s.effectiveServicingRate / 100);
-  const departmental = s.spendNHS + s.spendEdu + s.spendWelfare + s.spendDefence + s.spendInfra + s.spendLocal;
+  const departmental =
+    s.spendNHS + s.spendEdu + s.spendWelfare + s.spendDefence + s.spendInfra + s.spendLocal
+    + s.spendJustice + s.spendFCDO + s.spendDEFRA + s.spendRnD + s.spendDevolved;
 
   const popScale = s.population / v(PARAMS.spending.populationScaleAnchor);
   const F = PARAMS.spending.fixedCosts;
-  const fixed = (v(F.pensions) + v(F.justice) + v(F.otherDept)) * popScale;
+  const fixed = (v(F.pensions) + v(F.otherDept)) * popScale;
 
   return {
     debtInterest, departmental, fixed,
@@ -265,6 +267,70 @@ export function quarterlyBlocDelta(s) {
     const delta = s.spendInfra - infraBoostFloor;
     d.business += delta * v(B.infraAbove40.business);
     d.northern += delta * v(B.infraAbove40.northern);
+  }
+
+  // Justice & Home Affairs — cut below £50bn and boost above £65bn
+  const justiceCut = Math.max(0, v(T.justiceCutFloor) - s.spendJustice);
+  if (justiceCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.justiceCutBelowFloor)) {
+      d[bloc] -= justiceCut * v(leaf);
+    }
+  }
+  const justiceBoost = Math.max(0, s.spendJustice - v(T.justiceBoostFloor));
+  if (justiceBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.justiceBoostAboveFloor)) {
+      d[bloc] -= justiceBoost * v(leaf);  // these blocs are upset by the heavy-handed boost
+    }
+  }
+
+  // FCDO / Foreign Aid — symmetric cut/boost
+  const fcdoCut = Math.max(0, v(T.fcdoCutFloor) - s.spendFCDO);
+  if (fcdoCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.fcdoCutBelowFloor)) {
+      d[bloc] -= fcdoCut * v(leaf);
+    }
+  }
+  const fcdoBoost = Math.max(0, s.spendFCDO - v(T.fcdoBoostFloor));
+  if (fcdoBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.fcdoBoostAboveFloor)) {
+      d[bloc] += fcdoBoost * v(leaf);
+    }
+  }
+
+  // DEFRA — symmetric cut/boost
+  const defraCut = Math.max(0, v(T.defraCutFloor) - s.spendDEFRA);
+  if (defraCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.defraCutBelowFloor)) {
+      d[bloc] -= defraCut * v(leaf);
+    }
+  }
+  const defraBoost = Math.max(0, s.spendDEFRA - v(T.defraBoostFloor));
+  if (defraBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.defraBoostAboveFloor)) {
+      d[bloc] += defraBoost * v(leaf);
+    }
+  }
+
+  // R&D — symmetric cut/boost
+  const rndCut = Math.max(0, v(T.rndCutFloor) - s.spendRnD);
+  if (rndCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.rndCutBelowFloor)) {
+      d[bloc] -= rndCut * v(leaf);
+    }
+  }
+  const rndBoost = Math.max(0, s.spendRnD - v(T.rndBoostFloor));
+  if (rndBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.rndBoostAboveFloor)) {
+      d[bloc] += rndBoost * v(leaf);
+    }
+  }
+
+  // Devolved transfers — cut only
+  const devolvedCut = Math.max(0, v(T.devolvedCutFloor) - s.spendDevolved);
+  if (devolvedCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.devolvedCutBelowFloor)) {
+      d[bloc] -= devolvedCut * v(leaf);
+    }
   }
 
   // Cost-of-living: inflation above target hurts real-income-sensitive blocs.
@@ -521,6 +587,36 @@ export function wealthEffectOnGrowth(s) {
   return Math.max(-cap, Math.min(cap, raw));
 }
 
+// Current-quarter growth/inflation contributions from the new departmental
+// sliders. Returns deltas in pp; caller adds them before mean reversion.
+export function deptSliderHooks(s) {
+  const G = PARAMS.growthHooks;
+  const T = PARAMS.thresholds;
+  const I = PARAMS.initial;
+
+  let growth = 0;
+  let inflation = 0;
+
+  const rndDelta = s.spendRnD - v(I.spendRnD);
+  if (rndDelta >= 0) growth += rndDelta * v(G.rndPerBnAboveBaseline);
+  else growth += rndDelta * v(G.rndPerBnBelowBaseline);  // rndDelta is negative
+
+  const fcdoDelta = s.spendFCDO - v(I.spendFCDO);
+  if (fcdoDelta >= 0) growth += fcdoDelta * v(G.fcdoPerBnAboveBaseline);
+  else growth += fcdoDelta * v(G.fcdoPerBnBelowBaseline);
+
+  const defraCut = Math.max(0, v(I.spendDEFRA) - s.spendDEFRA);
+  inflation += defraCut * v(G.defraPerBnBelowBaseline);
+
+  const justiceCutForGrowth = Math.max(0, v(T.justiceCutFloor) - s.spendJustice);
+  growth -= justiceCutForGrowth * v(G.justicePerBnBelowCutFloor);
+
+  const devolvedCutForGrowth = Math.max(0, v(I.spendDevolved) - s.spendDevolved);
+  growth -= devolvedCutForGrowth * v(G.devolvedPerBnBelowBaseline);
+
+  return { growth, inflation };
+}
+
 // =============================================================================
 // Risk modifiers — applied to event base probabilities
 // =============================================================================
@@ -587,6 +683,9 @@ export function computeRiskMods(s) {
       + Math.max(0, s.growth - v(PARAMS.potentialGrowth))
       * Math.max(0, s.inflation - s.inflationTarget)
       * v(R.recession.overheatingCoef),
+    civilUnrest: v(R.civilUnrest.base),
+    diplomaticIsolation: v(R.diplomaticIsolation.base),
+    independenceMovement: v(R.independenceMovement.base),
 
     // Red Box expansion events
     pandemic: v(R.pandemic.base),
@@ -621,6 +720,20 @@ export function computeRiskMods(s) {
   if (s.taxIncomeBasic > basicStrikeFloor) m.generalStrike += v(R.generalStrike.basicRateRiseKick);
   if (s.taxVAT > vatStrikeFloor) m.generalStrike += v(R.generalStrike.vatRiseKick);
   if (s.spendInfra > infraSurgeFloor) m.investmentSurge += (s.spendInfra - infraSurgeFloor) * v(R.investmentSurge.perBnInfraOverbaseline);
+
+  // New departmental risk-mod hooks.
+  const justiceCutFloor = v(T.justiceCutFloor);
+  if (s.spendJustice < justiceCutFloor) {
+    m.civilUnrest += (justiceCutFloor - s.spendJustice) * v(R.civilUnrest.perBnJusticeUnderfunded);
+  }
+  const fcdoCutFloor = v(T.fcdoCutFloor);
+  if (s.spendFCDO < fcdoCutFloor) {
+    m.diplomaticIsolation += (fcdoCutFloor - s.spendFCDO) * v(R.diplomaticIsolation.perBnFcdoUnderfunded);
+  }
+  const devolvedCutFloor = v(T.devolvedCutFloor);
+  if (s.spendDevolved < devolvedCutFloor) {
+    m.independenceMovement += (devolvedCutFloor - s.spendDevolved) * v(R.independenceMovement.perBnDevolvedUnderfunded);
+  }
 
   // Red Box expansion: spending-driven probability bumps
   if (s.spendNHS < nhsAnchor) m.pandemic += (nhsAnchor - s.spendNHS) * v(R.pandemic.perBnNhsUnderfunded);
@@ -747,6 +860,8 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     taxIncomeBasic: v(I.taxIncomeBasic), taxCorp: v(I.taxCorp), taxVAT: v(I.taxVAT),
     spendNHS: v(I.spendNHS), spendEdu: v(I.spendEdu), spendWelfare: v(I.spendWelfare),
     spendDefence: v(I.spendDefence), spendInfra: v(I.spendInfra), spendLocal: v(I.spendLocal),
+    spendJustice: v(I.spendJustice), spendFCDO: v(I.spendFCDO), spendDEFRA: v(I.spendDEFRA),
+    spendRnD: v(I.spendRnD), spendDevolved: v(I.spendDevolved),
     blocSupport: initialBlocSupport,
     blocWeights: initialBlocWeights,
     reforms: {}, proposedReforms: [],

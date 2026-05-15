@@ -300,6 +300,39 @@ export const EVENT_DEFINITIONS = {
       { label: 'Public Treasury critique', effect: { bondYield: cited(0.4, 'event_monetary_policy_error'), blocs: blocs('event_monetary_policy_error', { workingClass: 2, professional: -4, business: -3 }), log: 'You broke convention and criticised the Bank publicly.' } },
     ],
   },
+  civilUnrest: {
+    title: 'Disorder on the Streets',
+    body: 'Underfunded courts and thinned police lines have flashed over. Cities report coordinated disorder over consecutive nights.',
+    tone: 'bad',
+    citationId: 'event_civil_unrest',
+    choices: [
+      { label: 'Emergency policing surge + mutual aid', effect: { debt: cited(2, 'event_civil_unrest'), blocs: blocs('event_civil_unrest', { workingClass: 4, pensioners: 5, northern: 3, business: 2 }), log: 'Reinforcements deployed. Streets quietened within a week.' } },
+      { label: 'Public inquiry + community spending', effect: { debt: cited(4, 'event_civil_unrest'), blocs: blocs('event_civil_unrest', { youth: 6, ethnicMinority: 7, publicSector: 3, business: -3 }), log: 'Inquiry announced; investment promised in worst-hit areas.' } },
+      { label: 'Iron-fist response', effect: { healthIndex: cited(-2, 'event_civil_unrest'), blocs: blocs('event_civil_unrest', { pensioners: 4, northern: 3, youth: -10, ethnicMinority: -12, professional: -5 }), log: 'Mass arrests, fast-track sentencing. Polarising response.' } },
+    ],
+  },
+  diplomaticIsolation: {
+    title: 'Allies Step Back',
+    body: 'The US State Department and EU EEAS have quietly downgraded UK engagement after sharp cuts to the FCDO. Trade partners are reassessing.',
+    tone: 'bad',
+    citationId: 'event_diplomatic_isolation',
+    choices: [
+      { label: 'Emergency ODA top-up + ministerial tour', effect: { debt: cited(5, 'event_diplomatic_isolation'), blocs: blocs('event_diplomatic_isolation', { business: 5, professional: 4, workingClass: -2 }), log: 'Top-up announced; allies thaw.' } },
+      { label: 'Bilateral trade-deal sprint', effect: { debt: cited(2, 'event_diplomatic_isolation'), blocs: blocs('event_diplomatic_isolation', { business: 4, northern: 2, professional: -1 }), log: 'Trade officials redeployed; some bilateral wins.' } },
+      { label: 'Wear the isolation', effect: { growth: cited(-0.3, 'event_diplomatic_isolation'), blocs: blocs('event_diplomatic_isolation', { business: -8, professional: -6, workingClass: 3, northern: 3 }), log: 'You doubled down on the cuts. Exporters furious.' } },
+    ],
+  },
+  independenceMovement: {
+    title: 'Devolution in Revolt',
+    body: 'After cuts to the block grant, Holyrood and Cardiff Bay are demanding emergency talks. Independence polling has ticked up sharply.',
+    tone: 'bad',
+    citationId: 'event_independence_movement',
+    choices: [
+      { label: 'Emergency Barnett top-up', effect: { debt: cited(5, 'event_independence_movement'), blocs: blocs('event_independence_movement', { northern: 5, publicSector: 4, ethnicMinority: 2 }), log: 'Top-up announced. Holyrood backed off.' } },
+      { label: 'Devolution settlement review', effect: { debt: cited(1, 'event_independence_movement'), blocs: blocs('event_independence_movement', { northern: 2, publicSector: 2, business: -1 }), log: 'Review commissioned; tempers cooled, fix deferred.' } },
+      { label: 'Refuse to negotiate', effect: { bondYield: cited(0.3, 'event_independence_movement'), blocs: blocs('event_independence_movement', { northern: -8, publicSector: -5, ethnicMinority: -3, business: -3 }), log: 'You held the line. Constitutional pressure now rising.' } },
+    ],
+  },
 
   // ===========================================================================
   // Red Box expansion: public health & social

@@ -65,6 +65,11 @@ export const PARAMS = {
     spendDefence: cited(39, 'obr_defence_baseline'),
     spendInfra: cited(90, 'obr_infra_baseline'),
     spendLocal: cited(140, 'obr_local_baseline'),
+    spendJustice: cited(55, 'moj_baseline'),                        // MoJ + Home Office + courts
+    spendFCDO: cited(15, 'fcdo_baseline'),                          // ODA + diplomatic
+    spendDEFRA: cited(8, 'defra_baseline'),                         // Environment, flood, rural
+    spendRnD: cited(18, 'rnd_baseline'),                            // UKRI + dept R&D + tax credits
+    spendDevolved: cited(71, 'devolved_block_grant_baseline'),      // Scotland + Wales + NI
     bankRate: cited(4.5, 'boe_current_bank_rate'),                  // %
     inflationTarget: cited(2.0, 'boe_inflation_target_remit'),       // % (mandated)
     naturalUnemployment: cited(4.0, 'boe_nairu_estimate'),           // % (NAIRU)
@@ -110,8 +115,7 @@ export const PARAMS = {
   spending: {
     fixedCosts: {
       pensions: cited(146, 'dwp_state_pensions'),
-      justice: cited(55, 'moj_baseline'),
-      otherDept: cited(302, 'whole_govt_residual'),
+      otherDept: cited(190, 'whole_govt_residual'),
     },
     populationScaleAnchor: cited(67.5, 'initial_population'),
     effectiveRateDriftPerQuarter: cited(0.05, 'effective_servicing_rate_baseline'), // fraction of (marketYield - effectiveRate) gap closed per quarter
@@ -274,6 +278,16 @@ export const PARAMS = {
     infraInvestmentSurgeFloor: cited(100, 'policy_threshold_judgement'), // risk modifier (£10bn over baseline)
     basicRateGeneralStrikeFloor: cited(22, 'policy_threshold_judgement'),
     vatGeneralStrikeFloor: cited(22, 'policy_threshold_judgement'),
+    // New departmental sliders — cut/boost floors. See policy_threshold_dept_judgement.
+    justiceCutFloor: cited(50, 'policy_threshold_dept_judgement'),
+    justiceBoostFloor: cited(65, 'policy_threshold_dept_judgement'),
+    fcdoCutFloor: cited(10, 'policy_threshold_dept_judgement'),
+    fcdoBoostFloor: cited(20, 'policy_threshold_dept_judgement'),
+    defraCutFloor: cited(6, 'policy_threshold_dept_judgement'),
+    defraBoostFloor: cited(12, 'policy_threshold_dept_judgement'),
+    rndCutFloor: cited(15, 'policy_threshold_dept_judgement'),
+    rndBoostFloor: cited(25, 'policy_threshold_dept_judgement'),
+    devolvedCutFloor: cited(65, 'policy_threshold_dept_judgement'),
   },
 
   // ===========================================================================
@@ -369,6 +383,63 @@ export const PARAMS = {
     infraAbove40: {
       business: cited(0.2, 'bloc_response_infra_spend'),
       northern: cited(0.15, 'bloc_response_infra_spend'),
+    },
+    // Justice & Home Affairs (£55bn baseline; cut floor 50, boost floor 65)
+    justiceCutBelowFloor: {
+      // Applied to (justiceCutFloor - spendJustice)
+      workingClass: cited(0.20, 'bloc_response_justice_spend'),
+      pensioners: cited(0.15, 'bloc_response_justice_spend'),
+      northern: cited(0.15, 'bloc_response_justice_spend'),
+      ethnicMinority: cited(-0.10, 'bloc_response_justice_spend'),  // negative = relief from Home Office cuts
+    },
+    justiceBoostAboveFloor: {
+      // Applied to (spendJustice - justiceBoostFloor)
+      youth: cited(0.10, 'bloc_response_justice_spend'),
+      ethnicMinority: cited(0.15, 'bloc_response_justice_spend'),
+      professional: cited(0.05, 'bloc_response_justice_spend'),
+    },
+    // FCDO / Foreign Aid (£15bn baseline; cut floor 10, boost floor 20)
+    fcdoCutBelowFloor: {
+      business: cited(0.40, 'bloc_response_fcdo_spend'),
+      professional: cited(0.30, 'bloc_response_fcdo_spend'),
+      workingClass: cited(-0.20, 'bloc_response_fcdo_spend'),
+      northern: cited(-0.20, 'bloc_response_fcdo_spend'),
+    },
+    fcdoBoostAboveFloor: {
+      business: cited(0.20, 'bloc_response_fcdo_spend'),
+      professional: cited(0.15, 'bloc_response_fcdo_spend'),
+      workingClass: cited(0.15, 'bloc_response_fcdo_spend'),
+      northern: cited(0.15, 'bloc_response_fcdo_spend'),
+    },
+    // DEFRA (£8bn baseline; cut floor 6, boost floor 12)
+    defraCutBelowFloor: {
+      youth: cited(0.40, 'bloc_response_defra_spend'),
+      professional: cited(0.30, 'bloc_response_defra_spend'),
+      northern: cited(-0.10, 'bloc_response_defra_spend'),
+      business: cited(-0.15, 'bloc_response_defra_spend'),
+    },
+    defraBoostAboveFloor: {
+      youth: cited(0.20, 'bloc_response_defra_spend'),
+      professional: cited(0.15, 'bloc_response_defra_spend'),
+      northern: cited(0.10, 'bloc_response_defra_spend'),
+    },
+    // R&D (£18bn baseline; cut floor 15, boost floor 25)
+    rndCutBelowFloor: {
+      professional: cited(0.50, 'bloc_response_rnd_spend'),
+      business: cited(0.40, 'bloc_response_rnd_spend'),
+      youth: cited(0.30, 'bloc_response_rnd_spend'),
+    },
+    rndBoostAboveFloor: {
+      professional: cited(0.30, 'bloc_response_rnd_spend'),
+      business: cited(0.25, 'bloc_response_rnd_spend'),
+      youth: cited(0.15, 'bloc_response_rnd_spend'),
+    },
+    // Devolved transfers (£71bn baseline; cut floor 65, no symmetric boost)
+    devolvedCutBelowFloor: {
+      northern: cited(0.30, 'bloc_response_devolved_spend'),
+      publicSector: cited(0.25, 'bloc_response_devolved_spend'),
+      ethnicMinority: cited(0.10, 'bloc_response_devolved_spend'),
+      workingClass: cited(0.20, 'bloc_response_devolved_spend'),
     },
     // Cost-of-living: per-pp coefficient applied to max(0, inflation − target).
     inflationAboveTarget: {
@@ -468,6 +539,18 @@ export const PARAMS = {
     recession: {
       base:            cited(1, 'recession_business_cycle_judgement'),  // % per quarter baseline
       overheatingCoef: cited(4, 'recession_business_cycle_judgement'),  // % per (growthGap × inflGap) pp-product
+    },
+    civilUnrest: {
+      base: cited(2, 'civil_unrest_base'),
+      perBnJusticeUnderfunded: cited(1.5, 'civil_unrest_justice_response'),  // per £bn below justiceCutFloor
+    },
+    diplomaticIsolation: {
+      base: cited(2, 'diplomatic_isolation_base'),
+      perBnFcdoUnderfunded: cited(2.0, 'diplomatic_isolation_fcdo_response'),  // per £bn below fcdoCutFloor
+    },
+    independenceMovement: {
+      base: cited(3, 'independence_movement_base'),
+      perBnDevolvedUnderfunded: cited(1.2, 'independence_movement_devolved_response'),  // per £bn below devolvedCutFloor
     },
 
     // Red Box expansion events
@@ -613,6 +696,73 @@ export const PARAMS = {
     taxCutBusinessDivisor: cited(6, 'surplus_allocation_judgement'),
     taxCutProfessionalDivisor: cited(10, 'surplus_allocation_judgement'),
     surplusAllocPromptThreshold: cited(10, 'surplus_allocation_judgement'),  // £bn
+  },
+
+  // ===========================================================================
+  // Slider ranges — UI affordance bounds for BudgetTab levers.
+  //   base:         default range available from quarter 1.
+  //   taxExtreme:   replaces base bounds for tax sliders once the
+  //                 taxCodeRewrite reform completes.
+  //   spendExtreme: replaces base bounds for spending sliders once the
+  //                 spendingReviewOverride reform completes.
+  // Baselines (PARAMS.initial.*) must sit inside every range here.
+  // ===========================================================================
+  sliderRanges: {
+    base: {
+      taxIncomeBasic: { min: cited(10, 'slider_range_judgement'), max: cited(30, 'slider_range_judgement') },   // baseline 20
+      taxIncomeHigh:  { min: cited(30, 'slider_range_judgement'), max: cited(55, 'slider_range_judgement') },   // baseline 40
+      taxIncomeAdd:   { min: cited(35, 'slider_range_judgement'), max: cited(65, 'slider_range_judgement') },   // baseline 45
+      taxCorp:        { min: cited(15, 'slider_range_judgement'), max: cited(40, 'slider_range_judgement') },   // baseline 25
+      taxVAT:         { min: cited(10, 'slider_range_judgement'), max: cited(30, 'slider_range_judgement') },   // baseline 20
+      spendNHS:       { min: cited(140, 'slider_range_judgement'), max: cited(280, 'slider_range_judgement') }, // baseline 204
+      spendWelfare:   { min: cited(120, 'slider_range_judgement'), max: cited(280, 'slider_range_judgement') }, // baseline 187
+      spendEdu:       { min: cited(60,  'slider_range_judgement'), max: cited(145, 'slider_range_judgement') }, // baseline 95
+      spendLocal:     { min: cited(90,  'slider_range_judgement'), max: cited(190, 'slider_range_judgement') }, // baseline 140
+      spendDefence:   { min: cited(20,  'slider_range_judgement'), max: cited(125, 'slider_range_judgement') }, // baseline 39
+      spendInfra:     { min: cited(40,  'slider_range_judgement'), max: cited(160, 'slider_range_judgement') }, // baseline 90
+      spendJustice:   { min: cited(25,  'slider_range_judgement'), max: cited(95,  'slider_range_judgement') }, // baseline 55
+      spendFCDO:      { min: cited(0,   'slider_range_judgement'), max: cited(30,  'slider_range_judgement') }, // baseline 15
+      spendDEFRA:     { min: cited(0,   'slider_range_judgement'), max: cited(25,  'slider_range_judgement') }, // baseline 8
+      spendRnD:       { min: cited(5,   'slider_range_judgement'), max: cited(40,  'slider_range_judgement') }, // baseline 18
+      spendDevolved:  { min: cited(50,  'slider_range_judgement'), max: cited(110, 'slider_range_judgement') }, // baseline 71
+    },
+    taxExtreme: {
+      taxIncomeBasic: { min: cited(0, 'slider_range_judgement'), max: cited(50, 'slider_range_judgement') },
+      taxIncomeHigh:  { min: cited(0, 'slider_range_judgement'), max: cited(80, 'slider_range_judgement') },
+      taxIncomeAdd:   { min: cited(0, 'slider_range_judgement'), max: cited(90, 'slider_range_judgement') },
+      taxCorp:        { min: cited(0, 'slider_range_judgement'), max: cited(60, 'slider_range_judgement') },
+      taxVAT:         { min: cited(0, 'slider_range_judgement'), max: cited(50, 'slider_range_judgement') },
+    },
+    spendExtreme: {
+      spendNHS:     { min: cited(50, 'slider_range_judgement'), max: cited(400, 'slider_range_judgement') },
+      spendWelfare: { min: cited(40, 'slider_range_judgement'), max: cited(400, 'slider_range_judgement') },
+      spendEdu:     { min: cited(20, 'slider_range_judgement'), max: cited(220, 'slider_range_judgement') },
+      spendLocal:   { min: cited(30, 'slider_range_judgement'), max: cited(280, 'slider_range_judgement') },
+      spendDefence: { min: cited(0,  'slider_range_judgement'), max: cited(200, 'slider_range_judgement') },
+      spendInfra:   { min: cited(0,  'slider_range_judgement'), max: cited(250, 'slider_range_judgement') },
+      spendJustice: { min: cited(0,  'slider_range_judgement'), max: cited(200, 'slider_range_judgement') },
+      spendFCDO:    { min: cited(0,  'slider_range_judgement'), max: cited(50,  'slider_range_judgement') },
+      spendDEFRA:   { min: cited(0,  'slider_range_judgement'), max: cited(50,  'slider_range_judgement') },
+      spendRnD:     { min: cited(0,  'slider_range_judgement'), max: cited(100, 'slider_range_judgement') },
+      spendDevolved:{ min: cited(0,  'slider_range_judgement'), max: cited(150, 'slider_range_judgement') },
+    },
+  },
+
+  // ===========================================================================
+  // Growth & inflation hooks for the new departmental sliders.
+  // All current-quarter only (no permanentGrowthShift contribution in this
+  // branch — that comes with the R&D/regional-investment reforms in a planned
+  // follow-up). Coefficients are deliberately small versus Laffer/real-rate
+  // drag so the hooks nudge rather than dominate.
+  // ===========================================================================
+  growthHooks: {
+    rndPerBnAboveBaseline: cited(0.005, 'rnd_growth_methodology'),       // +pp growth per £bn above baseline (symmetric: cuts subtract more)
+    rndPerBnBelowBaseline: cited(0.010, 'rnd_growth_methodology'),       // larger penalty per £bn below baseline
+    fcdoPerBnAboveBaseline: cited(0.002, 'fcdo_export_channel_judgement'),
+    fcdoPerBnBelowBaseline: cited(0.004, 'fcdo_export_channel_judgement'),
+    defraPerBnBelowBaseline: cited(0.010, 'defra_food_inflation_judgement'),  // +pp INFLATION per £bn below baseline
+    justicePerBnBelowCutFloor: cited(0.004, 'justice_growth_judgement'),     // -pp growth per £bn below cut floor
+    devolvedPerBnBelowBaseline: cited(0.003, 'devolved_growth_drag_judgement'),
   },
 };
 

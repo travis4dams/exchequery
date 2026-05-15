@@ -18,8 +18,14 @@ section accumulates on the `dev` branch between releases.
   - Political: Cabinet Scandal, Devolution Funding Row.
 - **Pandemic-severity damper.** Completing Preventative Health and Social Care Systemic Reform compounds a multiplier on pandemic effect magnitudes — health, growth, debt and unemployment hits all shrink. Mirrors the existing energy-shock and equity-shock dampers.
 - Playtest harness now runs four OBR/HMRC scenario strategies (EFO central, EFO downside, FRS long-run, HMRC frozen thresholds) and asserts mean outcomes land within ±25% of the published forecast figures. Catches drift in judgement-tier model parameters when balance is tuned.
+- Two new structural reforms: **Tax Code Rewrite** (revenue branch, follows HMRC Modernisation) unlocks extreme tax-rate ranges; **Spending Review Override** (state branch, follows Rebuild Civil Service) unlocks extreme departmental budget ranges. Both are heavyweight (6 quarters, capacity load 6, 20 PC, 40 coalition).
+- **Five new spending sliders** carved out of the previous "Other" residual: Justice & Home Affairs (£55bn), Foreign Aid / FCDO (£15bn), Environment / DEFRA (£8bn), Science & R&D (£18bn), and Devolved Transfers to Scotland/Wales/NI (£71bn). Each ships with bloc reactions calibrated to who actually cares, plus growth/inflation hooks (R&D nudges growth, DEFRA cuts nudge inflation, Justice/Devolved cuts drag growth, FCDO opens an export channel).
+- Three new events triggered by the new sliders: **Civil Unrest** (gutted Justice/Home Office), **Diplomatic Isolation** (gutted FCDO), **Independence Movement** (squeezed devolved transfers). Each with three choices and full citation coverage.
 
 ### Balance
+- Budget Levers sliders now have much more headroom from the jump — e.g. VAT goes 10-30% (was 15-25%), Defence £20-125bn (was £35-95bn). Existing strike/Laffer/Section 114 thresholds are unchanged, so pushing past them still hurts.
+- The two new reforms above push the ranges further still: VAT all the way down to 0%, NHS up to £400bn, etc. Baselines (and their citations) are unchanged.
+- "Other" residual line drops from £302bn to £190bn after the five carve-outs above. Total government spending baseline is unchanged.
 - Event probabilities are now reform- and state-driven across all new events. Pandemics rise when NHS spend is below anchor; teacher strikes rise when education spend lags; cold snaps and droughts have seasonal kicks; sterling slides activate only when bond-yield + risk-premium stress crosses a threshold; AI displacement grows over time. Reform mitigations are wired through `REFORM_RISK_MODS`.
 - Per-quarter event cap of 3 to keep the Red Box manageable.
 - Playtest seed library shifts: the new shuffle consumes more Math.random() draws than the legacy single-pick. Existing seed-based tests still pass but headline numbers (event counts) will diverge from prior runs.
