@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { runGame, aggregate } from './runGame.js';
 import { dominantCheese, doNothing, randomReforms } from './strategies.js';
 
-const TRIALS = 100;
+const TRIALS = Number(process.env.PLAYTEST_SEEDS) || 100;
 const MAX_TERMS = 4;
 const BASE_SEED = 1000;
 
@@ -32,7 +32,7 @@ function runBatch(strategy) {
   return results;
 }
 
-describe('dominant-strategy playtest (100 games)', () => {
+describe(`dominant-strategy playtest (${TRIALS} games)`, () => {
   it('cheese strategy currently wins ≥90% of games', () => {
     const results = runBatch(dominantCheese);
     const stats = aggregate(results);

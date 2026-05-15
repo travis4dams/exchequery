@@ -152,6 +152,10 @@ export function AboutTab() {
       <div className="mt-6 p-3 bg-stone-900/40 border border-stone-800 rounded text-[11px] text-stone-500 leading-relaxed">
         This is a game that tries to be informative, not a forecasting tool. If you want forecasts, the <a href="https://obr.uk/" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">OBR</a> is real and free.
       </div>
+
+      <div className="mt-3 text-center text-[10px] text-stone-600" style={{fontFamily: 'IBM Plex Mono'}}>
+        v{__APP_VERSION__}
+      </div>
     </div>
   );
 }

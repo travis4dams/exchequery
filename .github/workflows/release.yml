@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      - name: Bundle dist
+        run: |
+          cd dist
+          zip -r ../chancellor-sim-${{ github.ref_name }}.zip .
+
+      - name: Extract patch notes for this release
+        id: notes
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"  # e.g. v1.0.1
+          # Pull the section between '## [vX.Y.Z]' and the next '## [' heading.
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' PATCH_NOTES.md > release-body.md
+
+          if [ ! -s release-body.md ]; then
+            echo "No matching section in PATCH_NOTES.md for $VERSION — using fallback body." >&2
+            echo "Release $VERSION (no patch notes section found in PATCH_NOTES.md)" > release-body.md
+          fi
+
+          echo "body-file=release-body.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ steps.notes.outputs.body-file }}
+          files: chancellor-sim-${{ github.ref_name }}.zip
