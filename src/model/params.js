@@ -65,6 +65,10 @@ export const PARAMS = {
     spendDefence: cited(39, 'obr_defence_baseline'),
     spendInfra: cited(90, 'obr_infra_baseline'),
     spendLocal: cited(140, 'obr_local_baseline'),
+    politicalCapitalStart: cited(60, 'pc_regen_methodology'),       // honeymoon-but-not-full
+    pmRelationshipStart: cited(60, 'pm_relationship_methodology'),  // honeymoon
+    pmRelationshipReelectReset: cited(60, 'pm_relationship_methodology'),
+    politicalCapitalReelectReset: cited(70, 'pc_regen_methodology'),
   },
 
   // ===========================================================================
@@ -297,6 +301,58 @@ export const PARAMS = {
     deptBudgetPerSlot: cited(30, 'reform_capacity_judgement'),     // £bn of departmental spend per capacity point
     civilServiceBonus: cited(2, 'reform_capacity_judgement'),      // extra slots once civilService completes
     cancelBlocPenalty: cited(-3, 'reform_capacity_judgement'),     // applied to publicSector + professional on cancel
+  },
+
+  // ===========================================================================
+  // Political capital — single 0-100 currency. Spent on proposing reforms;
+  // regenerates each quarter from base + parliament mood + PM relationship.
+  // ===========================================================================
+  politicalCapital: {
+    max: cited(100, 'pc_regen_methodology'),
+    baseRegen: cited(8, 'pc_regen_methodology'),                  // per quarter at neutral mood + PM
+    parliamentAlpha: cited(6, 'pc_regen_methodology'),            // contribution scaled by (mood-50)/50
+    pmBeta: cited(4, 'pc_regen_methodology'),                     // contribution scaled by (pm-50)/50
+    softCap: cited(80, 'pc_regen_methodology'),                   // above this, decay applies
+    softCapDecay: cited(0.20, 'pc_regen_methodology'),            // fraction of (PC - softCap) lost per quarter
+    defaultReformCost: cited(10, 'political_capital_authoring_methodology'),
+    cancelPenalty: cited(10, 'pc_regen_methodology'),             // PC deducted on cancelReform
+  },
+
+  // ===========================================================================
+  // Parliament — 632 GB constituencies modelled from ralphascott Census +
+  // 2024 GE bundle. Each MP has a (econ, social) ideology vector anchored to
+  // their party (CHES 2024) and adjusted by Hanretty 2016 Brexit (social) and
+  // 2024 vote-share (econ) per-seat signals. Quarterly mood updates from
+  // bloc-weighted constituent opinion, with inertia + per-seat noise.
+  // ===========================================================================
+  parliament: {
+    inertia: cited(0.80, 'parliament_mood_methodology'),           // mood persistence per quarter
+    seatMoodNoise: cited(3.0, 'parliament_mood_methodology'),      // ± points uniform per seat
+    oppositionThreshold: cited(0.5, 'parliament_opposition_methodology'),  // free zone (dist - this = residual)
+    strongOppositionCutoff: cited(0.5, 'parliament_opposition_methodology'),  // residual above this = "opposed MP"
+    oppositionMult: cited(1.5, 'parliament_opposition_methodology'),
+    cohesionPenaltyMult: cited(1.5, 'parliament_opposition_methodology'),
+  },
+
+  // ===========================================================================
+  // PM relationship — 0-100 score. Modifies PC regen; gates a few reforms via
+  // optional reform.requiresPmTrust. Updated each quarter from completed
+  // reforms (ideological alignment with PM) and economic-stewardship events.
+  // ===========================================================================
+  pmRelationship: {
+    max: cited(100, 'pm_relationship_methodology'),
+    deltaAlignedScale: cited(4, 'pm_relationship_methodology'),    // multiplied by cosine alignment (signed)
+    deltaCancel: cited(-5, 'pm_relationship_methodology'),
+    cohesionLowThreshold: cited(30, 'pm_relationship_methodology'),
+    deltaCohesionLow: cited(-1, 'pm_relationship_methodology'),
+    yieldBreachThreshold: cited(5.5, 'pm_relationship_methodology'),
+    deltaYieldBreach: cited(-4, 'pm_relationship_methodology'),
+    surplusPayDownThreshold: cited(20, 'pm_relationship_methodology'),  // £bn
+    deltaSurplusPayDown: cited(2, 'pm_relationship_methodology'),
+    highParlMoodThreshold: cited(60, 'pm_relationship_methodology'),
+    deltaHighParlMood: cited(1, 'pm_relationship_methodology'),
+    meanReversionRate: cited(0.05, 'pm_relationship_methodology'),
+    meanReversionTarget: cited(50, 'pm_relationship_methodology'),
   },
 
   // ===========================================================================

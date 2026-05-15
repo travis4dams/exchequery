@@ -44,7 +44,16 @@ import {
   makeCommittedSnapshot,
   reformCapacityLoad,
   calcReformCapacity,
+  computePcRegen,
+  computePmRelationshipDelta,
+  clampPc,
+  clampPmRelationship,
 } from './engine.js';
+import {
+  updateSeatMoods,
+  aggregateParliamentMood,
+  effectivePcCost,
+} from './parliament.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
@@ -89,15 +98,23 @@ export function stepQuarter(game) {
   const preRealGDP = game.realGDP;
 
   let n = { ...game };
+  const prePoliticalCapital = n.politicalCapital;
+  const prePmRelationship = n.pmRelationship;
+  const preParliamentMood = n.parliamentMood;
 
-  // 1. Commit proposed reforms (engine-enforced capacity)
+  // 1. Commit proposed reforms.
+  //    Two gates: capacity (skipped → discarded) and political capital
+  //    (skipped → DEFERRED, retained in proposedReforms for next quarter).
   const startedReforms = [];
   const skippedReforms = [];
+  const deferredForPC = [];
   const capacity = calcReformCapacity(n);
   let inFlightLoad = 0;
   for (const r of Object.values(n.reforms)) {
     if (r.status === 'inProgress') inFlightLoad += reformCapacityLoad(r.reformDef);
   }
+  // Precompute cohesion once for the cost calculation.
+  const cohesionAtCommit = calcCoalitionCohesion(n.blocSupport, n.blocWeights);
   for (const id of n.proposedReforms) {
     const reform = REFORMS[id];
     if (!reform) continue;
@@ -105,6 +122,12 @@ export function stepQuarter(game) {
     if (inFlightLoad + load > capacity) {
       skippedReforms.push(reform.name);
       n.log = [...n.log, { q: n.quarter, text: `Deferred (no capacity): ${reform.name}` }];
+      continue;
+    }
+    const pcCost = effectivePcCost(reform, { ...n, coalitionCohesion: cohesionAtCommit });
+    if (pcCost > n.politicalCapital) {
+      deferredForPC.push(id);
+      n.log = [...n.log, { q: n.quarter, text: `Deferred (need ${pcCost.toFixed(0)} PC, have ${n.politicalCapital.toFixed(0)}): ${reform.name}` }];
       continue;
     }
     inFlightLoad += load;
@@ -119,10 +142,16 @@ export function stepQuarter(game) {
       },
     };
     n.debt = n.debt + cost;
+    n.politicalCapital = clampPc(n.politicalCapital - pcCost);
+    n.pcLog = [
+      { q: n.quarter, delta: -pcCost, reason: `Proposed: ${reform.name}` },
+      ...(n.pcLog || []),
+    ].slice(0, 32);
     startedReforms.push(reform.name);
-    n.log = [...n.log, { q: n.quarter, text: `Started: ${reform.name} (£${cost}bn, ${reform.quarters}Q)` }];
+    n.log = [...n.log, { q: n.quarter, text: `Started: ${reform.name} (£${cost}bn, ${reform.quarters}Q, ${pcCost.toFixed(0)} PC)` }];
   }
-  n.proposedReforms = [];
+  // Capacity-skipped items are discarded; PC-deferred items roll over.
+  n.proposedReforms = deferredForPC;
 
   // 2. Apply quarterly bloc support deltas
   const deltas = quarterlyBlocDelta(n);
@@ -131,6 +160,13 @@ export function stepQuarter(game) {
     newBlocSupport[id] = Math.max(0, Math.min(100, s + deltas[id]));
   }
   n.blocSupport = newBlocSupport;
+
+  // 2b. Update per-seat parliament moods from the new bloc support.
+  const newSeatMoods = updateSeatMoods(n.parliament, n.blocSupport);
+  n.parliament = { ...n.parliament, seatMoodById: newSeatMoods };
+  const moods = aggregateParliamentMood(newSeatMoods, n.parliament);
+  n.parliamentMood = moods.governingPartyMood;
+  n.chamberMood = moods.chamberMood;
 
   // 3. Population dynamics — bloc weights
   n.blocWeights = applyPopulationDynamics(n.blocWeights, n.reforms);
@@ -153,6 +189,7 @@ export function stepQuarter(game) {
 
   // 7. Reform completions — note the +1 (globalQuarter hasn't been bumped yet)
   const completedReforms = [];
+  const completedReformDefs = [];
   for (const [id, r] of Object.entries(n.reforms)) {
     if (r.status === 'inProgress' && r.completesQ <= n.globalQuarter + 1) {
       const reform = REFORMS[id];
@@ -176,21 +213,45 @@ export function stepQuarter(game) {
       if (reform.special === 'reduceForecastNoise') n.forecastNoise = v(PARAMS.forecastNoise.afterObr);
 
       completedReforms.push(reform.name);
+      completedReformDefs.push(reform);
       n.log = [...n.log, { q: n.quarter + 1, text: `✓ ${actual.log}` }];
     }
   }
 
   // 8. Bond yield (market) — drifts based on annual balance
+  const preBondYield = n.bondYield;
   const BY = PARAMS.bondYield;
   const balYr = calcBalance(n);
   if (balYr < v(BY.bigDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.bigDeficitDelta));
   else if (balYr < v(BY.midDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.midDeficitDelta));
   else if (balYr > 0) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.surplusDelta));
   else if (balYr > v(BY.smallDeficitThreshold)) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.smallDeficitDelta));
+  const yieldBreachThreshold = v(PARAMS.pmRelationship.yieldBreachThreshold);
+  const yieldBreachedNow = preBondYield <= yieldBreachThreshold && n.bondYield > yieldBreachThreshold;
 
   // 9. Effective rate drifts toward market (models refinancing).
   const drift = v(PARAMS.spending.effectiveRateDriftPerQuarter);
   n.effectiveServicingRate = n.effectiveServicingRate + drift * (n.bondYield - n.effectiveServicingRate);
+
+  // 9b. PM relationship dynamics (uses completed reforms + bond breach).
+  const cohesionForPm = calcCoalitionCohesion(n.blocSupport, n.blocWeights);
+  const pmDyn = computePmRelationshipDelta(n, {
+    completedReforms: completedReformDefs,
+    yieldBreached: yieldBreachedNow,
+    surplusPaidDown: 0,  // surplus-paydown signal comes from commitSurplusAllocation
+    cohesion: cohesionForPm,
+  });
+  n.pmRelationship = clampPmRelationship(n.pmRelationship + pmDyn.delta);
+
+  // 9c. Political capital regeneration.
+  const pcRegen = computePcRegen(n);
+  n.politicalCapital = clampPc(n.politicalCapital + pcRegen.delta);
+  if (Math.abs(pcRegen.delta) >= 0.1) {
+    n.pcLog = [
+      { q: n.quarter, delta: pcRegen.delta, reason: 'Quarterly regeneration' },
+      ...(n.pcLog || []),
+    ].slice(0, 32);
+  }
 
   // 10. Risk mods + event roll. rollEvents iterates Object.entries(mods),
   // which preserves insertion order (i.e. the order keys were added to `m`
@@ -235,10 +296,14 @@ export function stepQuarter(game) {
     weightChanges: Object.entries(weightChanges).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3),
     startedReforms,
     skippedReforms,
+    deferredForPC: deferredForPC.map((id) => REFORMS[id]?.name).filter(Boolean),
     completedReforms,
     eventPending: !!eventToShow,
     pendingSurplus: n.pendingSurplus,
     qBalance,
+    pcChange: n.politicalCapital - prePoliticalCapital,
+    pmRelationshipChange: n.pmRelationship - prePmRelationship,
+    parliamentMoodChange: n.parliamentMood - preParliamentMood,
   };
   n.pendingEvent = eventToShow;
 
@@ -278,6 +343,16 @@ export function resolveEvent(game, choice) {
     for (const [bloc, leaf] of Object.entries(eff.blocs)) {
       n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + v(leaf)));
     }
+  }
+  if (eff.politicalCapital) {
+    n.politicalCapital = clampPc(n.politicalCapital + eff.politicalCapital);
+    n.pcLog = [
+      { q: game.quarter, delta: eff.politicalCapital, reason: `Event: ${eff.log}` },
+      ...(n.pcLog || []),
+    ].slice(0, 32);
+  }
+  if (eff.pmRelationship) {
+    n.pmRelationship = clampPmRelationship(n.pmRelationship + eff.pmRelationship);
   }
   n.log = [...n.log, { q: game.quarter, text: `[Event] ${eff.log}` }];
   n.committed = makeCommittedSnapshot(n);
@@ -335,6 +410,9 @@ export function commitSurplusAllocation(game, allocation) {
   }
   if (allocation.debt > 0) {
     n.log = [...n.log, { q: game.quarter, text: `Paid down £${allocation.debt.toFixed(0)}bn of national debt.` }];
+    if (allocation.debt >= v(PARAMS.pmRelationship.surplusPayDownThreshold)) {
+      n.pmRelationship = clampPmRelationship(n.pmRelationship + v(PARAMS.pmRelationship.deltaSurplusPayDown));
+    }
   }
   n.pendingSurplus = 0;
   n.committed = makeCommittedSnapshot(n);
@@ -350,6 +428,14 @@ export function continueAfterElection(game) {
   for (const k of Object.keys(BLOCS)) {
     newBlocSupport[k] = newBlocSupport[k] * honeymoonW + BLOCS[k].base * (1 - honeymoonW);
   }
+  // Re-seed seat moods from the post-honeymoon bloc support so the new term
+  // starts from a fresh constituent-mood signal rather than carrying decades
+  // of accumulated noise.
+  const refreshedMoods = updateSeatMoods(
+    { ...game.parliament, seatMoodById: game.parliament.seatMoodById.map(() => 50) },
+    newBlocSupport,
+  );
+  const moods = aggregateParliamentMood(refreshedMoods, game.parliament);
   return {
     ...game,
     status: 'playing',
@@ -358,6 +444,12 @@ export function continueAfterElection(game) {
     termsWon: game.termsWon + 1,
     blocSupport: newBlocSupport,
     bondYield: Math.max(3.5, game.bondYield - 0.5),
+    politicalCapital: v(PARAMS.initial.politicalCapitalReelectReset),
+    pmRelationship: v(PARAMS.initial.pmRelationshipReelectReset),
+    parliament: { ...game.parliament, seatMoodById: refreshedMoods },
+    parliamentMood: moods.governingPartyMood,
+    chamberMood: moods.chamberMood,
+    pcLog: [],
     log: [...game.log, { q: 1, text: `🗳️ Re-elected for Term ${game.term + 1}.` }],
     committed: null,
   };
@@ -377,11 +469,19 @@ export function cancelReform(game, id) {
   const newBlocSupport = { ...game.blocSupport };
   newBlocSupport.publicSector = Math.max(0, Math.min(100, newBlocSupport.publicSector + penalty));
   newBlocSupport.professional = Math.max(0, Math.min(100, newBlocSupport.professional + penalty));
+  const pcCancel = v(PARAMS.politicalCapital.cancelPenalty);
+  const pmCancel = v(PARAMS.pmRelationship.deltaCancel);
   const n = {
     ...game,
     reforms: newReforms,
     blocSupport: newBlocSupport,
-    log: [...game.log, { q: game.quarter, text: `Cancelled: ${reform?.name || id}` }],
+    politicalCapital: clampPc(game.politicalCapital - pcCancel),
+    pmRelationship: clampPmRelationship(game.pmRelationship + pmCancel),
+    pcLog: [
+      { q: game.quarter, delta: -pcCancel, reason: `Cancelled: ${reform?.name || id}` },
+      ...(game.pcLog || []),
+    ].slice(0, 32),
+    log: [...game.log, { q: game.quarter, text: `Cancelled: ${reform?.name || id} (-${pcCancel} PC)` }],
   };
   n.committed = makeCommittedSnapshot(n);
   return n;

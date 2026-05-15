@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync-docs": "node scripts/sync-readme.mjs",
-    "check-docs": "node scripts/sync-readme.mjs --check"
+    "check-docs": "node scripts/sync-readme.mjs --check",
+    "build:data": "node scripts/buildConstituencies.js"
   },
   "dependencies": {
     "lucide-react": "^0.383.0",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "csv-parse": "^6.2.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "vite": "^5.3.1",

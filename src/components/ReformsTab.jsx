@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
-import { REFORMS, REFORM_BRANCHES, reformCapacityLoad } from '../model/index.js';
+import { REFORMS, REFORM_BRANCHES, reformCapacityLoad, pcCostBreakdown } from '../model/index.js';
 import { ReformCard } from './primitives/ReformCard.jsx';
 
 const unwrap = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
@@ -56,6 +56,8 @@ export function ReformsTab({
             {branchReforms.map(([id, r]) => {
               const prereqMet = r.prereq.every(p => game.reforms[p]?.status === 'complete');
               const fitsCapacity = reformLoadInFlight + reformCapacityLoad(r) <= reformCapacity;
+              const pcBreakdown = pcCostBreakdown(r, { ...game, coalitionCohesion });
+              const canAffordPc = pcBreakdown.total <= game.politicalCapital;
               return (
                 <ReformCard key={id} id={id} reform={r}
                             status={game.reforms[id]}
@@ -69,6 +71,9 @@ export function ReformsTab({
                             load={reformCapacityLoad(r)}
                             currentQ={game.globalQuarter}
                             coalitionCohesion={coalitionCohesion}
+                            pcBreakdown={pcBreakdown}
+                            canAffordPc={canAffordPc}
+                            availablePc={game.politicalCapital}
                             onInspect={() => onInspect(r)} />
               );
             })}
