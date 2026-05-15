@@ -53,6 +53,7 @@ import {
   updateEquityIndex,
   updateRiskPremium,
   wealthEffectOnGrowth,
+  deptSliderHooks,
   computePcRegen,
   computePmRelationshipDelta,
   clampPc,
@@ -218,6 +219,11 @@ export function stepQuarter(game) {
 
   n.growth = n.growth + wealthEffectOnGrowth(n);
 
+  // Departmental-slider growth hooks (R&D, FCDO, Justice, Devolved). Current
+  // quarter only — no permanentGrowthShift contribution in this branch.
+  const deptHooks = deptSliderHooks(n);
+  n.growth = n.growth + deptHooks.growth;
+
   // Mean reversion toward potential + accumulated permanent shifts from
   // supply-side reforms. Transient reform bonuses (and event shocks) fade
   // back to anchor over ~4 quarters at rate 0.15.
@@ -244,6 +250,8 @@ export function stepQuarter(game) {
   // 6d. Monetary block — strict order: unemployment, inflation, Bank Rate, yield.
   n.unemployment = updateUnemployment(n);
   n.inflation = updateInflation(n);
+  // DEFRA cut → food/energy inflation impulse, applied post-Phillips.
+  n.inflation = n.inflation + deptHooks.inflation;
   n.bankRate = updateBankRate(n);
   n.bankRatePath = [...((n.bankRatePath || []).slice(-7)), n.bankRate];
   n.bondYield = bondYieldFromBankRate(n);

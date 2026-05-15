@@ -28,6 +28,11 @@ export function BudgetTab({ game, committed, set }) {
     spendLocal:     pickRange(game, 'spendLocal'),
     spendDefence:   pickRange(game, 'spendDefence'),
     spendInfra:     pickRange(game, 'spendInfra'),
+    spendJustice:   pickRange(game, 'spendJustice'),
+    spendFCDO:      pickRange(game, 'spendFCDO'),
+    spendDEFRA:     pickRange(game, 'spendDEFRA'),
+    spendRnD:       pickRange(game, 'spendRnD'),
+    spendDevolved:  pickRange(game, 'spendDevolved'),
   };
   return (
     <div>
@@ -86,6 +91,29 @@ export function BudgetTab({ game, committed, set }) {
           baseline={90} committed={committed?.spendInfra} onChange={(v) => set({spendInfra: v})} unit="bn" format={(v)=>`£${v}`}
           tooltip="High multiplier (~1.4 per OBR). Includes transport DEL + capital investment."
           citationId="obr_infra_baseline" />
+      </div>
+      <div className="bg-stone-900/40 rounded-lg border border-stone-800 p-4 mt-4">
+        <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-3">Other Departments</div>
+        <Slider label="Justice & Home Affairs" value={game.spendJustice} min={r.spendJustice.min} max={r.spendJustice.max} step={1}
+          baseline={55} committed={committed?.spendJustice} onChange={(v) => set({spendJustice: v})} unit="bn" format={(v)=>`£${v}`}
+          tooltip="MoJ + Home Office + courts. Below £50bn: civil unrest risk + business-confidence growth drag. Boost above £65bn upsets youth & ethnic minorities."
+          citationId="moj_baseline" />
+        <Slider label="Foreign Aid (FCDO)" value={game.spendFCDO} min={r.spendFCDO.min} max={r.spendFCDO.max} step={1}
+          baseline={15} committed={committed?.spendFCDO} onChange={(v) => set({spendFCDO: v})} unit="bn" format={(v)=>`£${v}`}
+          tooltip="ODA + diplomatic. Below £10bn: diplomatic-isolation risk, exporters lose confidence. Symmetric bloc/growth response above & below baseline."
+          citationId="fcdo_baseline" />
+        <Slider label="Environment (DEFRA)" value={game.spendDEFRA} min={r.spendDEFRA.min} max={r.spendDEFRA.max} step={1}
+          baseline={8} committed={committed?.spendDEFRA} onChange={(v) => set({spendDEFRA: v})} unit="bn" format={(v)=>`£${v}`}
+          tooltip="Flood defence, ELM scheme, biosecurity. Cuts feed a small food/energy inflation impulse and upset youth/professional."
+          citationId="defra_baseline" />
+        <Slider label="Science & R&D" value={game.spendRnD} min={r.spendRnD.min} max={r.spendRnD.max} step={1}
+          baseline={18} committed={committed?.spendRnD} onChange={(v) => set({spendRnD: v})} unit="bn" format={(v)=>`£${v}`}
+          tooltip="UKRI + departmental R&D + R&D tax credits. Each £bn above baseline nudges growth by ~0.005pp current quarter (no permanent shift yet — coming with the R&D reform)."
+          citationId="rnd_baseline" />
+        <Slider label="Devolved Transfers" value={game.spendDevolved} min={r.spendDevolved.min} max={r.spendDevolved.max} step={1}
+          baseline={71} committed={committed?.spendDevolved} onChange={(v) => set({spendDevolved: v})} unit="bn" format={(v)=>`£${v}`}
+          tooltip="Scotland + Wales + NI block grants. Below £65bn: independence-movement risk rises, northern & public-sector blocs hostile, regional growth drag."
+          citationId="devolved_block_grant_baseline" />
       </div>
     </div>
   );
