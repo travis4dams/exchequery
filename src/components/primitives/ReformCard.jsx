@@ -78,12 +78,19 @@ export function ReformCard({
             <div className="text-[10px] text-stone-500">
               {reform.quarters - (currentQ - status.startedQ)}Q remaining of {reform.quarters}Q · Load {load}
             </div>
-            {onCancel && (
-              <button onClick={handleCancel}
-                className={`text-[10px] flex items-center gap-1 ${confirmCancel ? 'text-rose-300' : 'text-stone-500 hover:text-rose-400'}`}>
-                <XCircle size={9} /> {confirmCancel ? 'Tap to confirm' : 'Cancel'}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {onInspect && (
+                <button onClick={onInspect} className="text-stone-500 hover:text-stone-300" title="Inspect reform">
+                  <Eye size={12} />
+                </button>
+              )}
+              {onCancel && (
+                <button onClick={handleCancel}
+                  className={`text-[10px] flex items-center gap-1 ${confirmCancel ? 'text-rose-300' : 'text-stone-500 hover:text-rose-400'}`}>
+                  <XCircle size={9} /> {confirmCancel ? 'Tap to confirm' : 'Cancel'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

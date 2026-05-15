@@ -1,27 +1,40 @@
 import React, { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import {
+  BLOCS,
+  COALITION,
   CONSTITUENCIES,
   WINNER_BY_IDX,
   PARTY_COLORS,
   SEAT_COUNT,
   topSeatsByMood,
   partySeatCounts,
-  PARAMS,
 } from '../model/index.js';
+import { BlocBar } from './primitives/BlocBar.jsx';
 import { CitationLink } from './primitives/CitationLink.jsx';
+import { BlocInfoModal } from './modals/BlocInfoModal.jsx';
 
-const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
+// Palette for the bloc pie charts. Coalition blocs get warm hues; others
+// get cooler/neutral tones so the visual split lines up with the rest of
+// the UI's amber-for-allies convention.
+const BLOC_COLORS = {
+  pensioners:      '#d97706',
+  workingClass:    '#dc2626',
+  middleClass:     '#a16207',
+  professional:    '#2563eb',
+  business:        '#7c3aed',
+  publicSector:    '#059669',
+  youth:           '#0891b2',
+  northern:        '#b45309',
+  ethnicMinority:  '#be185d',
+};
 
 // =============================================================================
 // Hemicycle layout — 632 seats arranged in concentric arcs.
-// Precomputed once at module load.
 // =============================================================================
 const HEMICYCLE_GEOMETRY = (() => {
   const ROWS = 12;
   const seats = [];
-  // Distribute seats across rows roughly proportional to arc length.
-  // Total = 632; closer rows have fewer seats than outer rows.
   const seatsPerRow = [];
   let remaining = SEAT_COUNT;
   for (let i = 0; i < ROWS; i++) {
@@ -38,11 +51,10 @@ const HEMICYCLE_GEOMETRY = (() => {
     const n = seatsPerRow[row];
     for (let k = 0; k < n; k++) {
       const t = (k + 0.5) / n;
-      const theta = Math.PI - t * Math.PI;  // π (left) → 0 (right)
+      const theta = Math.PI - t * Math.PI;
       seats.push({ x: 120 + r * Math.cos(theta), y: 130 - r * Math.sin(theta) });
     }
   }
-  // We may have produced ≠ SEAT_COUNT due to rounding — truncate or pad.
   if (seats.length > SEAT_COUNT) seats.length = SEAT_COUNT;
   while (seats.length < SEAT_COUNT) seats.push({ x: 120, y: 130 });
   return seats;
@@ -54,7 +66,6 @@ function Hemicycle({ seatMoodById }) {
       {HEMICYCLE_GEOMETRY.map((p, i) => {
         const mood = seatMoodById[i];
         const color = PARTY_COLORS[WINNER_BY_IDX[i]] ?? PARTY_COLORS.Other;
-        // Alpha: 0.35 at neutral (50), 1.0 at extreme (0 or 100).
         const intensity = Math.abs(mood - 50) / 50;
         const opacity = 0.35 + 0.65 * intensity;
         return <circle key={i} cx={p.x} cy={p.y} r={1.2} fill={color} opacity={opacity} />;
@@ -126,6 +137,37 @@ function PoliticsCapitalCard({ pc, parliamentMood, pmRelationship, pcLog }) {
   );
 }
 
+// SVG pie chart. `slices` is [{ id, value, color }]. Values get normalised.
+function BlocPie({ slices, label }) {
+  const total = slices.reduce((s, x) => s + x.value, 0) || 1;
+  const R = 40, CX = 50, CY = 50;
+  let acc = 0;
+  return (
+    <div className="flex-1">
+      <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 text-center">{label}</div>
+      <svg viewBox="0 0 100 100" className="w-full" preserveAspectRatio="xMidYMid meet">
+        {slices.map((s) => {
+          if (s.value <= 0) return null;
+          const start = (acc / total) * Math.PI * 2;
+          acc += s.value;
+          const end = (acc / total) * Math.PI * 2;
+          const large = end - start > Math.PI ? 1 : 0;
+          const x1 = CX + R * Math.sin(start);
+          const y1 = CY - R * Math.cos(start);
+          const x2 = CX + R * Math.sin(end);
+          const y2 = CY - R * Math.cos(end);
+          // Handle a 100% single-slice case (avoid degenerate arc).
+          if (s.value >= total) {
+            return <circle key={s.id} cx={CX} cy={CY} r={R} fill={s.color} />;
+          }
+          const d = `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z`;
+          return <path key={s.id} d={d} fill={s.color} />;
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function TopSeats({ seats, label, color }) {
   if (seats.length === 0) return null;
   return (
@@ -153,9 +195,12 @@ function TopSeats({ seats, label, color }) {
 function PcLog({ entries }) {
   if (!entries || entries.length === 0) return null;
   return (
-    <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
-      <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2">PC Log</div>
-      <div className="space-y-1">
+    <details className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg group">
+      <summary className="text-[10px] uppercase tracking-wider text-stone-500 cursor-pointer flex items-center gap-1 list-none">
+        <ChevronDown size={11} className="transition-transform group-open:rotate-0 -rotate-90" />
+        PC Log
+      </summary>
+      <div className="space-y-1 mt-2">
         {entries.slice(0, 8).map((e, i) => (
           <div key={i} className="text-[11px] flex items-center gap-2">
             <span className="text-amber-500 text-[9px]" style={{ fontFamily: 'IBM Plex Mono' }}>Q{e.q}</span>
@@ -169,11 +214,11 @@ function PcLog({ entries }) {
           </div>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
-function SeatList({ parliament, seatMoodById }) {
+function SeatList({ seatMoodById }) {
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(0);
   const PAGE = 30;
@@ -187,64 +232,71 @@ function SeatList({ parliament, seatMoodById }) {
   const start = page * PAGE;
   const slice = filtered.slice(start, start + PAGE);
   return (
-    <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
-      <div className="flex items-center gap-2 mb-2">
-        <Search size={11} className="text-stone-500" />
-        <input
-          type="text"
-          placeholder="Filter by name, region, or party..."
-          value={filter}
-          onChange={(e) => { setFilter(e.target.value); setPage(0); }}
-          className="bg-stone-950 border border-stone-800 rounded px-2 py-1 text-[11px] flex-1 text-stone-300 outline-none focus:border-amber-600"
-        />
-        <span className="text-[10px] text-stone-500 tabular-nums" style={{ fontFamily: 'IBM Plex Mono' }}>{filtered.length}</span>
-      </div>
-      <div className="space-y-0.5">
-        {slice.map((c) => {
-          const i = CONSTITUENCIES.indexOf(c);
-          const mood = seatMoodById[i];
-          const winner = WINNER_BY_IDX[i];
-          const moodColor = mood >= 60 ? 'text-emerald-400' : mood >= 40 ? 'text-stone-300' : 'text-rose-400';
-          return (
-            <div key={c.id} className="flex items-center gap-2 text-[11px] py-0.5">
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: PARTY_COLORS[winner] }}
-                title={winner}
-              />
-              <span className="text-stone-300 flex-1 truncate">{c.name}</span>
-              <span className="text-stone-500 text-[10px] w-12 text-right truncate">{c.region.slice(0, 6)}</span>
-              <span className={`tabular-nums w-8 text-right ${moodColor}`} style={{ fontFamily: 'IBM Plex Mono' }}>
-                {mood.toFixed(0)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {filtered.length > PAGE && (
-        <div className="flex justify-between mt-2 text-[10px] text-stone-400">
-          <button
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="disabled:text-stone-700 hover:text-stone-100"
-          >
-            ‹ Prev
-          </button>
-          <span className="text-stone-500">{start + 1}–{Math.min(start + PAGE, filtered.length)} of {filtered.length}</span>
-          <button
-            disabled={start + PAGE >= filtered.length}
-            onClick={() => setPage((p) => p + 1)}
-            className="disabled:text-stone-700 hover:text-stone-100"
-          >
-            Next ›
-          </button>
+    <details className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg group">
+      <summary className="text-[10px] uppercase tracking-wider text-stone-500 cursor-pointer flex items-center gap-1 list-none">
+        <ChevronDown size={11} className="transition-transform group-open:rotate-0 -rotate-90" />
+        All Constituencies ({CONSTITUENCIES.length})
+      </summary>
+      <div className="mt-2">
+        <div className="flex items-center gap-2 mb-2">
+          <Search size={11} className="text-stone-500" />
+          <input
+            type="text"
+            placeholder="Filter by name, region, or party..."
+            value={filter}
+            onChange={(e) => { setFilter(e.target.value); setPage(0); }}
+            className="bg-stone-950 border border-stone-800 rounded px-2 py-1 text-[11px] flex-1 text-stone-300 outline-none focus:border-amber-600"
+          />
+          <span className="text-[10px] text-stone-500 tabular-nums" style={{ fontFamily: 'IBM Plex Mono' }}>{filtered.length}</span>
         </div>
-      )}
-    </div>
+        <div className="space-y-0.5">
+          {slice.map((c) => {
+            const i = CONSTITUENCIES.indexOf(c);
+            const mood = seatMoodById[i];
+            const winner = WINNER_BY_IDX[i];
+            const moodColor = mood >= 60 ? 'text-emerald-400' : mood >= 40 ? 'text-stone-300' : 'text-rose-400';
+            return (
+              <div key={c.id} className="flex items-center gap-2 text-[11px] py-0.5">
+                <span
+                  className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ background: PARTY_COLORS[winner] }}
+                  title={winner}
+                />
+                <span className="text-stone-300 flex-1 truncate">{c.name}</span>
+                <span className="text-stone-500 text-[10px] w-12 text-right truncate">{c.region.slice(0, 6)}</span>
+                <span className={`tabular-nums w-8 text-right ${moodColor}`} style={{ fontFamily: 'IBM Plex Mono' }}>
+                  {mood.toFixed(0)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {filtered.length > PAGE && (
+          <div className="flex justify-between mt-2 text-[10px] text-stone-400">
+            <button
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className="disabled:text-stone-700 hover:text-stone-100"
+            >
+              ‹ Prev
+            </button>
+            <span className="text-stone-500">{start + 1}–{Math.min(start + PAGE, filtered.length)} of {filtered.length}</span>
+            <button
+              disabled={start + PAGE >= filtered.length}
+              onClick={() => setPage((p) => p + 1)}
+              className="disabled:text-stone-700 hover:text-stone-100"
+            >
+              Next ›
+            </button>
+          </div>
+        )}
+      </div>
+    </details>
   );
 }
 
-export function ParliamentTab({ game }) {
+export function PoliticsTab({ game, projectedDeltas }) {
+  const [openBlocId, setOpenBlocId] = useState(null);
   const counts = useMemo(() => partySeatCounts(), []);
   const happiest = useMemo(
     () => topSeatsByMood(game.parliament.seatMoodById, game.parliament, 4, true),
@@ -254,6 +306,34 @@ export function ParliamentTab({ game }) {
     () => topSeatsByMood(game.parliament.seatMoodById, game.parliament, 4, false),
     [game.parliament.seatMoodById, game.parliament]
   );
+
+  // Population pie — just normalises blocWeights.
+  const populationSlices = useMemo(
+    () => Object.keys(BLOCS).map((id) => ({
+      id, value: game.blocWeights[id] ?? 0, color: BLOC_COLORS[id] ?? '#888',
+    })),
+    [game.blocWeights]
+  );
+
+  // Governing-party seat composition pie — for each governing-party seat,
+  // take its dominant bloc and tally. Static per governing party.
+  const seatBlocSlices = useMemo(() => {
+    const counts = Object.fromEntries(Object.keys(BLOCS).map((id) => [id, 0]));
+    const govParty = game.parliament.governingParty;
+    for (let i = 0; i < CONSTITUENCIES.length; i++) {
+      if (WINNER_BY_IDX[i] !== govParty) continue;
+      const seat = CONSTITUENCIES[i];
+      let bestBloc = null, bestWeight = -1;
+      for (const id of Object.keys(BLOCS)) {
+        const w = seat.blocShare?.[id] ?? 0;
+        if (w > bestWeight) { bestWeight = w; bestBloc = id; }
+      }
+      if (bestBloc) counts[bestBloc] += 1;
+    }
+    return Object.keys(BLOCS).map((id) => ({
+      id, value: counts[id], color: BLOC_COLORS[id] ?? '#888',
+    }));
+  }, [game.parliament.governingParty]);
 
   return (
     <div className="space-y-4">
@@ -276,7 +356,36 @@ export function ParliamentTab({ game }) {
         <div className="text-[10px] text-stone-500 mt-2 leading-relaxed">
           Dot saturation reflects MP mood vs neutral 50.
           GB only (632 seats); NI's 18 omitted per source data.
-          Ideology vectors via CHES 2024 party anchors + per-seat Brexit residuals.
+        </div>
+      </div>
+
+      <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
+        <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2">Bloc Composition</div>
+        <div className="flex gap-3">
+          <BlocPie slices={populationSlices} label="Population" />
+          <BlocPie slices={seatBlocSlices} label={`${game.parliament.governingParty} seats`} />
+        </div>
+        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-3 justify-center">
+          {Object.keys(BLOCS).map((id) => (
+            <div key={id} className="flex items-center gap-1 text-[9px] text-stone-400">
+              <span className="inline-block w-2 h-2 rounded-sm" style={{ background: BLOC_COLORS[id] }} />
+              <span>{BLOCS[id].name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="display-font text-xl font-medium italic text-stone-100 mb-1">Voter Blocs</h2>
+        <p className="text-[11px] text-stone-500 mb-2">Population share (small grey) shifts each quarter. Arrows show projected support drift. Tap a bloc name for details.</p>
+        <div className="space-y-1.5">
+          {Object.keys(BLOCS).map((id) => (
+            <BlocBar key={id} blocId={id} support={game.blocSupport[id]}
+                     weight={game.blocWeights[id]}
+                     isCoalition={COALITION.includes(id)}
+                     projectedDelta={projectedDeltas?.[id]}
+                     onInfo={() => setOpenBlocId(id)} />
+          ))}
         </div>
       </div>
 
@@ -287,7 +396,9 @@ export function ParliamentTab({ game }) {
 
       <PcLog entries={game.pcLog} />
 
-      <SeatList parliament={game.parliament} seatMoodById={game.parliament.seatMoodById} />
+      <SeatList seatMoodById={game.parliament.seatMoodById} />
+
+      {openBlocId && <BlocInfoModal blocId={openBlocId} onClose={() => setOpenBlocId(null)} />}
     </div>
   );
 }
