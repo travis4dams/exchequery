@@ -1,5 +1,5 @@
 import React from 'react';
-import { Landmark, TrendingUp, Briefcase, Banknote } from 'lucide-react';
+import { Landmark, TrendingUp, Briefcase, Banknote, Home, Flame } from 'lucide-react';
 import { CitationLink } from './primitives/CitationLink.jsx';
 
 // Inline SVG sparkline. Renders the path of `points` (numbers) within the
@@ -42,6 +42,11 @@ export function MarketsTab({ game, spending }) {
   const unempGap = game.unemployment - game.naturalUnemployment;
   const realRate = game.bankRate - game.inflation;
   const mandateLabel = game.boeMandate === 'dual' ? 'Dual mandate' : 'Inflation-only';
+  const hpi = game.housePriceIndex ?? 100;
+  const energy = game.energyPriceIndex ?? 100;
+  const housingCpiPp = 0.16 * (hpi / 100 - 1) * 10;
+  const energyCpiPp = 0.04 * (energy / 100 - 1) * 10;
+  const supplyKpa = Math.round(game.housingSupply ?? 220);
 
   return (
     <div>
@@ -125,6 +130,51 @@ export function MarketsTab({ game, spending }) {
           Above NAIRU and you have slack — inflation cools.{' '}
           <CitationLink id="okun_uk_estimate" label="Okun" />{' · '}
           <CitationLink id="boe_phillips_slope" label="Phillips" />
+        </div>
+      </Panel>
+
+      <Panel icon={Home} title="Housing Market">
+        <div className="flex items-end justify-between mb-2">
+          <div>
+            <div className={`display-font text-3xl font-medium tabular-nums leading-none ${
+              hpi > 130 ? 'text-rose-400' : hpi > 115 ? 'text-amber-400' : 'text-stone-100'
+            }`}>
+              {hpi.toFixed(1)}
+            </div>
+            <div className="text-[10px] text-stone-500 mt-1">
+              HPI · Supply {supplyKpa}k pa · CPI feed {housingCpiPp >= 0 ? '+' : ''}{housingCpiPp.toFixed(2)}pp
+            </div>
+          </div>
+          <Sparkline points={game.housePricePath || []} color="#a78bfa" />
+        </div>
+        <div className="text-[10px] text-stone-500 leading-snug">
+          House prices respond to wages, real rates, and supply. When HPI runs
+          hot it bleeds into CPI via the housing weight.{' '}
+          <CitationLink id="ons_cpih_weights" label="CPIH weights" />{' · '}
+          <CitationLink id="barker_review" label="Barker" />
+        </div>
+      </Panel>
+
+      <Panel icon={Flame} title="Energy Market">
+        <div className="flex items-end justify-between mb-2">
+          <div>
+            <div className={`display-font text-3xl font-medium tabular-nums leading-none ${
+              energy > 140 ? 'text-rose-400' : energy > 115 ? 'text-amber-400' : 'text-stone-100'
+            }`}>
+              {energy.toFixed(1)}
+            </div>
+            <div className="text-[10px] text-stone-500 mt-1">
+              Energy index · CPI feed {energyCpiPp >= 0 ? '+' : ''}{energyCpiPp.toFixed(2)}pp
+              {game.energyShockDamper && ' · Reform damper active'}
+            </div>
+          </div>
+          <Sparkline points={game.energyPricePath || []} color="#f97316" />
+        </div>
+        <div className="text-[10px] text-stone-500 leading-snug">
+          Energy shocks decay over ~6-8 quarters. Greener mix lowers the
+          baseline; reforms also damp incoming shocks.{' '}
+          <CitationLink id="imf_energy_shock_persistence" label="persistence" />{' · '}
+          <CitationLink id="ccc_seventh_carbon_budget" label="CCC" />
         </div>
       </Panel>
 

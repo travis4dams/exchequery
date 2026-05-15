@@ -337,7 +337,7 @@ export function quarterlyPopulationGrowth(reforms) {
 export function updateInflation(s) {
   const target = s.inflationTarget;
   const persistence = v(PARAMS.phillips.persistence);
-  const slope = v(PARAMS.phillips.slope);
+  const slope = v(PARAMS.phillips.slope) * (s.phillipsSlopeMultiplier ?? 1);
   const vatImpulseCoef = v(PARAMS.phillips.vatImpulseCoef);
   const basicImpulseCoef = v(PARAMS.phillips.basicImpulseCoef);
   const growthDriftCoef = v(PARAMS.phillips.growthDriftCoef);
@@ -349,9 +349,66 @@ export function updateInflation(s) {
   const demandImpulse = vatImpulseCoef * (s.taxVAT - vatAnchor)
                       + basicImpulseCoef * (s.taxIncomeBasic - basicAnchor);
   const growthDrift = growthDriftCoef * (s.growth - trendGrowth);
-  const forcing = target + phillipsTerm + demandImpulse + growthDrift;
+  const housingContribution = housingInflationContribution(s);
+  const energyContribution = energyInflationContribution(s);
+  const forcing = target + phillipsTerm + demandImpulse + growthDrift
+                + housingContribution + energyContribution;
 
   return Math.max(0, persistence * s.inflation + (1 - persistence) * forcing);
+}
+
+// =============================================================================
+// Housing & energy markets — index dynamics + CPI contributions
+//
+// HPI and the energy index evolve in their own functions and feed the CPI
+// forcing term in updateInflation. Both are smoothed and bounded to stop
+// pathological runaways. Math.random is NOT consumed here.
+// =============================================================================
+
+export function updateHousePriceIndex(s) {
+  const H = PARAMS.housing;
+  const persistence = v(H.persistence);
+  const wageElasticity = v(H.priceWageElasticity);
+  const rateElasticity = v(H.priceRateElasticity);
+  const supplyResp = v(H.supplyResponsePerKpa);
+  const baseSupply = v(H.baseSupplyKpa);
+  const neutralReal = v(PARAMS.okun.neutralRealRate);
+  const trendGrowth = v(PARAMS.okun.trendGrowth);
+
+  // Nominal income growth gap — housing tracks nominal incomes (it's a
+  // nominal asset and an inflation hedge). Uses (growth + inflation) above
+  // (trend + target) so high-inflation paths support HPI even when real
+  // growth is weak.
+  const wageSignal = (s.growth + s.inflation) - (trendGrowth + s.inflationTarget);
+  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  const supplyKick = supplyResp * (s.housingSupply - baseSupply);
+  const forcing = 100 + wageElasticity * wageSignal + rateElasticity * realRateGap + supplyKick;
+
+  const next = persistence * s.housePriceIndex + (1 - persistence) * forcing;
+  return Math.max(40, Math.min(250, next));
+}
+
+export function updateEnergyPriceIndex(s) {
+  const E = PARAMS.energy;
+  const decay = v(E.shockDecay);
+  const drift = v(E.baselineDrift);
+  const dampener = v(E.greenInvestDampener);
+
+  // Mean-revert toward 100 at decay rate; add baseline drift; apply green-policy dampener.
+  let next = decay * (s.energyPriceIndex - 100) + 100 + drift;
+  if (s.reforms?.greenInvest?.status === 'complete') next += dampener;
+  if (s.reforms?.insulationScheme?.status === 'complete') next += dampener;
+  return Math.max(50, Math.min(400, next));
+}
+
+export function housingInflationContribution(s) {
+  const H = PARAMS.housing;
+  return v(H.cpiWeight) * (s.housePriceIndex / 100 - 1) * v(H.cpiContributionScale);
+}
+
+export function energyInflationContribution(s) {
+  const E = PARAMS.energy;
+  return v(E.cpiWeight) * (s.energyPriceIndex / 100 - 1) * v(E.cpiContributionScale);
 }
 
 export function updateUnemployment(s) {
@@ -440,6 +497,11 @@ export function computeRiskMods(s) {
     rateHikeShock: v(R.rateHikeShock.base) + rateRiseRecent * v(R.rateHikeShock.perRateRise),
     wagePriceSpiral: v(R.wagePriceSpiral.base) + hotLabour * inflGap * v(R.wagePriceSpiral.perGapProduct),
     monetaryPolicyError: v(R.monetaryPolicyError.base) + Math.max(0, taylorDivergence - 1) * v(R.monetaryPolicyError.perDivergencePP),
+    housePriceCorrection: v(R.housePriceCorrection.base)
+      + Math.max(0, (s.housePriceIndex ?? 100) - 120) * v(R.housePriceCorrection.perHpiAboveThreshold),
+    planningRevolt: s.reforms?.housingSupplyTarget?.status === 'complete'
+      ? v(R.planningRevolt.postReformBase)
+      : v(R.planningRevolt.base),
   };
 
   // Spending-based modifiers
@@ -534,6 +596,8 @@ export function makeCommittedSnapshot(s) {
     debt: s.debt, gdp: s.gdp, realGDP: s.realGDP, population: s.population,
     inflation: s.inflation, unemployment: s.unemployment,
     bankRate: s.bankRate, inflationTarget: s.inflationTarget,
+    housePriceIndex: s.housePriceIndex, energyPriceIndex: s.energyPriceIndex,
+    housingSupply: s.housingSupply,
   };
 }
 
@@ -580,6 +644,12 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     naturalUnemployment: v(I.naturalUnemployment),
     boeMandate: 'inflation_only',
     bankRatePath: [],
+    housePriceIndex: v(I.housePriceIndex),
+    energyPriceIndex: v(I.energyPriceIndex),
+    housingSupply: v(I.housingSupply),
+    housePricePath: [],
+    energyPricePath: [],
+    phillipsSlopeMultiplier: 1,
     log: [], pendingEvent: null, pendingSummary: null,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,

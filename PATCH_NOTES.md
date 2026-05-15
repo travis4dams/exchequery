@@ -9,6 +9,14 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- **Housing market.** House Price Index now evolves quarter-by-quarter, driven by nominal-income growth, real rates, and supply. It feeds CPI via the CPIH housing weight.
+- **Energy market.** Energy Price Index with shock decay and baseline drift. Shocks now persist over 6–8 quarters before unwinding; reforms damp incoming shocks.
+- Markets tab gains Housing and Energy panels with sparklines and live CPI contributions.
+- New supply-side reform path: "Housing Supply Target (300k pa)" follows on from Planning Reform and pulls HPI down via 60k pa of extra supply.
+- New green reform: "Domestic Energy Mix Reform" — follow-on to GB Energy + Grid, halves gas-import exposure.
+- New controversial labour reform: "Labour Market Flexibility Package" — flattens the Phillips slope at heavy bloc cost.
+- Two new events: a house-price correction warning when HPI runs hot, and a planning revolt after housing-supply reform lands.
+- The legacy energy shock event now actually moves the energy index (used to only move CPI directly). Choice menu adds a fourth option: nationalising wholesale gas trading.
 - New "Markets" tab. The Bank of England now sets interest rates independently of you, by Taylor-rule reaction to inflation (and, optionally, unemployment).
 - Inflation and unemployment finally evolve quarter-by-quarter — Phillips curve for inflation, Okun's law for unemployment, real-rate drag on growth.
 - Header strip shows Bank Rate and CPI alongside GDP, Growth, Gilts and Gini.
@@ -23,6 +31,9 @@ section accumulates on the `dev` branch between releases.
 - About tab: new "Parliament methodology" section with citation links to CHES 2024, ONS Census 2021, Hanretty 2016 Brexit notionals, and the Ralph Scott constituency bundle.
 
 ### Balance
+- House prices feed CPI directly (housing weight ~0.16), so building (or failing to build) now bites at the inflation channel as well as the bloc channel.
+- Energy shocks stay around longer — wholesale gas spikes ripple through gilts and CPI for two years, not one quarter. GB Energy and Insulation reforms compound to keep the baseline lower.
+- New "planning revolt" risk only activates after Housing Supply Target completes — supply-side reform now has a coalition cost, not a free pass.
 - Bond yields are now anchored to Bank Rate plus a term premium plus a deficit kicker, replacing the old pure deficit-band drift. Slamming taxes no longer self-finances — sudden VAT cuts stoke inflation, the MPC hikes, gilts re-price and debt service follows.
 - New cost-of-living bloc damage: when CPI runs above target, pensioners, working-class, ethnic-minority and northern blocs penalise the government. Above-NAIRU unemployment damages youth, working class, ethnic minority and northern blocs.
 - The "dominantCheese" exploit no longer dominates: cheese now lags the do-nothing baseline on coalition cohesion at game end, and wins fewer terms on average.

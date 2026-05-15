@@ -72,6 +72,9 @@ export const PARAMS = {
     pmRelationshipStart: cited(60, 'pm_relationship_methodology'),  // honeymoon
     pmRelationshipReelectReset: cited(60, 'pm_relationship_methodology'),
     politicalCapitalReelectReset: cited(70, 'pc_regen_methodology'),
+    housePriceIndex: cited(100, 'housing_index_methodology'),       // index, baseline 100
+    energyPriceIndex: cited(100, 'energy_mix_methodology'),         // index, baseline 100
+    housingSupply: cited(220, 'mhclg_housing_starts'),              // k new dwellings pa (England net additions)
   },
 
   // ===========================================================================
@@ -166,6 +169,39 @@ export const PARAMS = {
   // ===========================================================================
   growthDrag: {
     realRateCoef: cited(0.05, 'growth_drag_real_rate'),             // pp growth per pp real rate above neutral, per quarter
+  },
+
+  // ===========================================================================
+  // Housing market — index dynamics + CPI feed-through
+  //   HPI evolves as: persistence × HPI_{t-1} + (1 − persistence) × forcing
+  //   forcing = 100 + priceWageElasticity × wageGrowthSignal
+  //                 + priceRateElasticity × realRateGap
+  //                 + supplyResponsePerKpa × (housingSupply − baseSupplyKpa)
+  //   housingInflationContribution = cpiWeight × (HPI/100 − 1) × 10  (pp into CPI forcing)
+  // ===========================================================================
+  housing: {
+    cpiWeight: cited(0.16, 'ons_cpih_weights'),                     // CPIH housing weight
+    priceWageElasticity: cited(0.4, 'ifs_housing_wages'),           // pp HPI per pp wage growth signal
+    priceRateElasticity: cited(-2.0, 'boe_housing_rates'),          // pp HPI per pp real-rate gap
+    supplyResponsePerKpa: cited(-0.1, 'barker_review'),             // pp HPI per k pa supply above baseline
+    baseSupplyKpa: cited(220, 'mhclg_housing_starts'),              // baseline net additions pa
+    supplyReformBoostKpa: cited(60, 'barker_review'),               // additional pa once housingSupplyTarget completes
+    persistence: cited(0.8, 'housing_index_methodology'),           // weight on prior-quarter HPI
+    cpiContributionScale: cited(10, 'housing_index_methodology'),   // scales (HPI/100 − 1) into pp-CPI; tunable
+  },
+
+  // ===========================================================================
+  // Energy market — index dynamics + CPI feed-through
+  //   energyPriceIndex evolves as: shockDecay × (index − 100) + 100 + drift terms
+  // ===========================================================================
+  energy: {
+    cpiWeight: cited(0.04, 'ons_cpih_weights'),                     // CPIH energy weight
+    shockDecay: cited(0.85, 'imf_energy_shock_persistence'),        // per-quarter decay of shock toward baseline
+    baselineDrift: cited(0.5, 'ofgem_cap_trend'),                   // pp on index per quarter
+    greenInvestDampener: cited(-0.3, 'gb_energy_grid'),             // pp on index per quarter once greenInvest complete
+    importDependenceFloor: cited(0.4, 'energy_mix_methodology'),    // floor after energyMixReform
+    cpiContributionScale: cited(10, 'energy_mix_methodology'),      // scales (idx/100 − 1) into pp-CPI; tunable
+    shockReformDamper: cited(0.5, 'ccc_seventh_carbon_budget'),     // multiplier applied to energyShock injections once energyMixReform complete
   },
 
   // ===========================================================================
@@ -351,6 +387,14 @@ export const PARAMS = {
     monetaryPolicyError: {
       base: cited(2, 'monetary_event_methodology'),
       perDivergencePP: cited(4, 'monetary_event_methodology'),      // per pp |actual Bank Rate − Taylor| above 1pp
+    },
+    housePriceCorrection: {
+      base: cited(2, 'housing_market_methodology'),
+      perHpiAboveThreshold: cited(5, 'housing_market_methodology'), // per pp HPI above 120
+    },
+    planningRevolt: {
+      base: cited(0, 'housing_supply_politics_judgement'),          // 0 until housingSupplyTarget completes
+      postReformBase: cited(15, 'housing_supply_politics_judgement'),
     },
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),

@@ -48,6 +48,8 @@ import {
   updateUnemployment,
   updateBankRate,
   bondYieldFromBankRate,
+  updateHousePriceIndex,
+  updateEnergyPriceIndex,
   computePcRegen,
   computePmRelationshipDelta,
   clampPc,
@@ -204,6 +206,13 @@ export function stepQuarter(game) {
   const realRateGap = n.bankRate - n.inflation - v(PARAMS.okun.neutralRealRate);
   n.growth = n.growth - v(PARAMS.growthDrag.realRateCoef) * realRateGap;
 
+  // 6a. Housing & energy markets — update before inflation so contributions
+  //     flow into the Phillips-curve forcing term in updateInflation.
+  n.housePriceIndex = updateHousePriceIndex(n);
+  n.housePricePath = [...((n.housePricePath || []).slice(-7)), n.housePriceIndex];
+  n.energyPriceIndex = updateEnergyPriceIndex(n);
+  n.energyPricePath = [...((n.energyPricePath || []).slice(-7)), n.energyPriceIndex];
+
   // 6b. Monetary block — strict order: unemployment, inflation, Bank Rate, yield.
   n.unemployment = updateUnemployment(n);
   n.inflation = updateInflation(n);
@@ -240,6 +249,16 @@ export function stepQuarter(game) {
         n.inflationTarget = v(PARAMS.monetary.raisedInflationTarget);
         n.bondYield = Math.min(v(PARAMS.bondYield.ceiling),
           n.bondYield + v(PARAMS.monetary.inflationTargetReviewYieldShock));
+      }
+      if (reform.special === 'boostHousingSupply') {
+        n.housingSupply = (n.housingSupply ?? v(PARAMS.initial.housingSupply))
+          + v(PARAMS.housing.supplyReformBoostKpa);
+      }
+      if (reform.special === 'reduceEnergyShockMagnitude') {
+        n.energyShockDamper = v(PARAMS.energy.shockReformDamper);
+      }
+      if (reform.special === 'flattenPhillipsSlope') {
+        n.phillipsSlopeMultiplier = (n.phillipsSlopeMultiplier ?? 1) * 0.6;
       }
 
       completedReforms.push(reform.name);
@@ -372,6 +391,14 @@ export function resolveEvent(game, choice) {
     Math.min(v(PARAMS.monetary.bankRateClampHigh), n.bankRate + bankRate)
   );
   if (unemployment) n.unemployment = Math.max(0, Math.min(20, n.unemployment + unemployment));
+  const hpi = v(eff.housePriceIndex);
+  if (hpi) n.housePriceIndex = Math.max(40, Math.min(250, (n.housePriceIndex ?? 100) + hpi));
+  let energyDelta = v(eff.energyPriceIndex);
+  if (energyDelta) {
+    // energyMixReform halves positive (shock) injections; reductions pass through unchanged.
+    if (energyDelta > 0 && n.energyShockDamper) energyDelta *= n.energyShockDamper;
+    n.energyPriceIndex = Math.max(50, Math.min(400, (n.energyPriceIndex ?? 100) + energyDelta));
+  }
   if (eff.blocs) {
     n.blocSupport = { ...n.blocSupport };
     for (const [bloc, leaf] of Object.entries(eff.blocs)) {

@@ -32,6 +32,8 @@ function snapshot(g) {
     inflation: g.inflation,
     unemployment: g.unemployment,
     bankRate: g.bankRate,
+    housePriceIndex: g.housePriceIndex,
+    energyPriceIndex: g.energyPriceIndex,
   };
 }
 
@@ -112,6 +114,8 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       finalInflation: g.inflation,
       finalUnemployment: g.unemployment,
       finalBankRate: g.bankRate,
+      finalHousePriceIndex: g.housePriceIndex,
+      finalEnergyPriceIndex: g.energyPriceIndex,
       completedReforms: Object.values(g.reforms).filter(r => r.status === 'complete').length,
       triggeredEventCount,
       history,
@@ -139,6 +143,8 @@ export function aggregate(results) {
     meanFinalInflation: mean(r => r.finalInflation),
     meanFinalUnemployment: mean(r => r.finalUnemployment),
     meanFinalBankRate: mean(r => r.finalBankRate),
+    meanFinalHousePriceIndex: mean(r => r.finalHousePriceIndex),
+    meanFinalEnergyPriceIndex: mean(r => r.finalEnergyPriceIndex),
     meanCompletedReforms: mean(r => r.completedReforms),
     meanEventsTriggered: mean(r => r.triggeredEventCount),
   };

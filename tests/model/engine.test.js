@@ -20,6 +20,10 @@ import {
   updateUnemployment,
   updateBankRate,
   bondYieldFromBankRate,
+  updateHousePriceIndex,
+  updateEnergyPriceIndex,
+  housingInflationContribution,
+  energyInflationContribution,
 } from '../../src/model/index.js';
 import { withSeededRandom } from '../playtest/rng.js';
 
@@ -201,5 +205,48 @@ describe('Bank of England — inflation, unemployment, smoothing', () => {
     const lo = { ...freshState(), bankRate: 3.0, bondYield: 5.0 };
     const hi = { ...freshState(), bankRate: 6.0, bondYield: 5.0 };
     expect(bondYieldFromBankRate(hi)).toBeGreaterThan(bondYieldFromBankRate(lo));
+  });
+});
+
+describe('Housing & energy markets', () => {
+  it('updateHousePriceIndex barely moves when all drivers are at anchor', () => {
+    // Nominal wage signal 0 (growth==trend, inflation==target), realRateGap 0, supply at base.
+    const s = { ...freshState(), growth: 1.5, inflationTarget: 2.0, inflation: 2.0, bankRate: v(PARAMS.okun.neutralRealRate) + 2.0, housingSupply: v(PARAMS.housing.baseSupplyKpa), housePriceIndex: 100 };
+    expect(updateHousePriceIndex(s)).toBeCloseTo(100, 6);
+  });
+
+  it('updateHousePriceIndex falls under high real rates', () => {
+    const hot = { ...freshState(), growth: 1.5, bankRate: 8.0, inflation: 2.0, housingSupply: 220, housePriceIndex: 100 };
+    expect(updateHousePriceIndex(hot)).toBeLessThan(100);
+  });
+
+  it('updateHousePriceIndex falls when supply rises above baseline', () => {
+    const baseSupply = { ...freshState(), growth: 1.5, bankRate: 3.5, inflation: 2.0, housingSupply: 220, housePriceIndex: 100 };
+    const extraSupply = { ...baseSupply, housingSupply: 280 };
+    expect(updateHousePriceIndex(extraSupply)).toBeLessThan(updateHousePriceIndex(baseSupply));
+  });
+
+  it('updateEnergyPriceIndex decays a shock toward baseline', () => {
+    const shocked = { ...freshState(), energyPriceIndex: 150 };
+    const next = updateEnergyPriceIndex(shocked);
+    expect(next).toBeLessThan(150);
+    expect(next).toBeGreaterThan(100);
+  });
+
+  it('updateEnergyPriceIndex drifts up at baseline (with no reforms)', () => {
+    const s = { ...freshState(), energyPriceIndex: 100, reforms: {} };
+    expect(updateEnergyPriceIndex(s)).toBeCloseTo(100.5, 6);
+  });
+
+  it('housingInflationContribution scales with HPI gap', () => {
+    expect(housingInflationContribution({ housePriceIndex: 100 })).toBeCloseTo(0, 6);
+    const hot = housingInflationContribution({ housePriceIndex: 130 });
+    expect(hot).toBeCloseTo(0.16 * 0.3 * 10, 6);
+  });
+
+  it('energyInflationContribution scales with energy index gap', () => {
+    expect(energyInflationContribution({ energyPriceIndex: 100 })).toBeCloseTo(0, 6);
+    const hot = energyInflationContribution({ energyPriceIndex: 150 });
+    expect(hot).toBeCloseTo(0.04 * 0.5 * 10, 6);
   });
 });

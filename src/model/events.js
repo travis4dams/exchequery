@@ -39,9 +39,10 @@ export const EVENT_DEFINITIONS = {
     tone: 'bad',
     citationId: 'event_energy_shock',
     choices: [
-      { label: 'Energy Price Guarantee (£12bn)', effect: { debt: cited(12, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 5, pensioners: 6, northern: 4 }), log: 'Bills capped through winter.' } },
-      { label: 'Targeted support + windfall tax', effect: { debt: cited(3, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 6, pensioners: 4, business: -5 }), log: 'Targeted help funded by windfall.' } },
-      { label: 'Let the market clear',           effect: { inflation: cited(1.5, 'event_energy_shock'), healthIndex: cited(-2, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: -10, pensioners: -8, northern: -6 }), log: 'Fuel poverty spiked.' } },
+      { label: 'Energy Price Guarantee (£12bn)', effect: { debt: cited(12, 'event_energy_shock'), energyPriceIndex: cited(20, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 5, pensioners: 6, northern: 4 }), log: 'Bills capped through winter.' } },
+      { label: 'Targeted support + windfall tax', effect: { debt: cited(3, 'event_energy_shock'), energyPriceIndex: cited(35, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 6, pensioners: 4, business: -5 }), log: 'Targeted help funded by windfall.' } },
+      { label: 'Let the market clear',           effect: { inflation: cited(1.5, 'event_energy_shock'), energyPriceIndex: cited(50, 'event_energy_shock'), healthIndex: cited(-2, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: -10, pensioners: -8, northern: -6 }), log: 'Fuel poverty spiked.' } },
+      { label: 'Nationalise wholesale gas trading', effect: { debt: cited(8, 'event_energy_shock'), energyPriceIndex: cited(15, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 8, pensioners: 5, business: -10, professional: -4 }), log: 'Wholesale gas brought into public hands. Markets aghast.' } },
     ],
   },
   fuelPoverty: {
@@ -221,6 +222,28 @@ export const EVENT_DEFINITIONS = {
       { label: 'Pay restraint guidance to public sector', effect: { inflation: cited(-0.4, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { publicSector: -6, business: 4 }), log: 'Public-sector pay anchored below private. Unions furious.' } },
       { label: 'Accept higher settlements', effect: { inflation: cited(0.6, 'event_wage_price_spiral'), growth: cited(-0.1, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { workingClass: 5, publicSector: 6, business: -4 }), log: 'You let the wage round run. CPI ticked up.' } },
       { label: 'Blame markets, change nothing', effect: { inflation: cited(0.3, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { workingClass: -2, business: -2 }), log: 'You did nothing. Settlements continued.' } },
+    ],
+  },
+  housePriceCorrection: {
+    title: 'House-Price Correction Warning',
+    body: 'Major lenders signal a sharp re-pricing. HPI has run hot; mortgage approvals tumbling.',
+    tone: 'bad',
+    citationId: 'event_house_price_correction',
+    choices: [
+      { label: 'Stamp-duty holiday', effect: { debt: cited(6, 'event_house_price_correction'), housePriceIndex: cited(-5, 'event_house_price_correction'), blocs: blocs('event_house_price_correction', { middleClass: 4, business: 3, youth: -2 }), log: 'Stamp duty suspended. Transactions revived.' } },
+      { label: 'Targeted FTB scheme', effect: { debt: cited(3, 'event_house_price_correction'), housePriceIndex: cited(-3, 'event_house_price_correction'), blocs: blocs('event_house_price_correction', { youth: 6, workingClass: 3 }), log: 'First-time buyer scheme launched.' } },
+      { label: 'Let it correct',     effect: { growth: cited(-0.4, 'event_house_price_correction'), housePriceIndex: cited(-10, 'event_house_price_correction'), blocs: blocs('event_house_price_correction', { business: -6, middleClass: -4, youth: 3 }), log: 'You let it correct. Negative equity for some.' } },
+    ],
+  },
+  planningRevolt: {
+    title: 'Planning Revolt',
+    body: 'Shire councils and pensioner groups protesting development imposed under the supply target.',
+    tone: 'bad',
+    citationId: 'event_planning_revolt',
+    choices: [
+      { label: 'Concede ground (slow programme)', effect: { housePriceIndex: cited(3, 'event_planning_revolt'), blocs: blocs('event_planning_revolt', { northern: 4, pensioners: 5, youth: -3 }), log: 'Programme slowed. Targets pushed back.' } },
+      { label: 'Hold the line',                    effect: { blocs: blocs('event_planning_revolt', { northern: -6, pensioners: -8, youth: 3, business: 3 }), log: 'You held the line. Pensioners furious.' } },
+      { label: 'Community infrastructure premium', effect: { debt: cited(2, 'event_planning_revolt'), blocs: blocs('event_planning_revolt', { northern: 2, pensioners: 2, workingClass: 3 }), log: 'Local areas bought off with new schools and surgeries.' } },
     ],
   },
   monetaryPolicyError: {
