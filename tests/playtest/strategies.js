@@ -64,10 +64,10 @@ function scoreEventChoice(state, choice) {
   let coalitionDelta = 0;
   if (eff.blocs) {
     for (const id of COALITION) {
-      if (eff.blocs[id]) coalitionDelta += eff.blocs[id];
+      if (eff.blocs[id]) coalitionDelta += v(eff.blocs[id]);
     }
   }
-  return { coalition: coalitionDelta, debt: eff.debt || 0 };
+  return { coalition: coalitionDelta, debt: v(eff.debt) || 0 };
 }
 
 function bestEventChoice(state, event) {

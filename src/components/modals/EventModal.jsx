@@ -1,29 +1,36 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { BLOCS } from '../../model/index.js';
+import { CitationLink } from '../primitives/CitationLink.jsx';
+
+const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
+const cid = (leaf) => (leaf && typeof leaf === 'object' && 'citationId' in leaf) ? leaf.citationId : null;
 
 const EFFECT_AXES = [
-  { key: 'debt',        label: 'Debt',       fmt: v => `${v > 0 ? '+' : ''}£${v}bn`, goodWhenPositive: false },
-  { key: 'growth',      label: 'Growth',     fmt: v => `${v > 0 ? '+' : ''}${v}pp`,  goodWhenPositive: true  },
-  { key: 'inflation',   label: 'Inflation',  fmt: v => `${v > 0 ? '+' : ''}${v}pp`,  goodWhenPositive: false },
-  { key: 'healthIndex', label: 'Health',     fmt: v => `${v > 0 ? '+' : ''}${v}`,    goodWhenPositive: true  },
-  { key: 'bondYield',   label: 'Bond Yield', fmt: v => `${v > 0 ? '+' : ''}${v}pp`,  goodWhenPositive: false },
+  { key: 'debt',        label: 'Debt',       fmt: n => `${n > 0 ? '+' : ''}£${n}bn`, goodWhenPositive: false },
+  { key: 'growth',      label: 'Growth',     fmt: n => `${n > 0 ? '+' : ''}${n}pp`,  goodWhenPositive: true  },
+  { key: 'inflation',   label: 'Inflation',  fmt: n => `${n > 0 ? '+' : ''}${n}pp`,  goodWhenPositive: false },
+  { key: 'healthIndex', label: 'Health',     fmt: n => `${n > 0 ? '+' : ''}${n}`,    goodWhenPositive: true  },
+  { key: 'bondYield',   label: 'Bond Yield', fmt: n => `${n > 0 ? '+' : ''}${n}pp`,  goodWhenPositive: false },
 ];
 
 function summarizeEffect(effect) {
   const rows = [];
   for (const { key, label, fmt, goodWhenPositive } of EFFECT_AXES) {
-    if (effect[key] == null) continue;
-    const v = effect[key];
-    rows.push({ label, value: fmt(v), good: goodWhenPositive ? v > 0 : v < 0 });
+    const leaf = effect[key];
+    if (leaf == null) continue;
+    const n = v(leaf);
+    rows.push({ label, value: fmt(n), good: goodWhenPositive ? n > 0 : n < 0, citationId: cid(leaf) });
   }
   if (effect.blocs) {
-    const sorted = Object.entries(effect.blocs).sort((a, b) => b[1] - a[1]);
-    for (const [bloc, delta] of sorted) {
+    const entries = Object.entries(effect.blocs).map(([bloc, leaf]) => [bloc, v(leaf), cid(leaf)]);
+    entries.sort((a, b) => b[1] - a[1]);
+    for (const [bloc, delta, citationId] of entries) {
       rows.push({
         label: BLOCS[bloc]?.name ?? bloc,
         value: `${delta > 0 ? '+' : ''}${delta}`,
         good: delta > 0,
+        citationId,
       });
     }
   }
@@ -47,6 +54,11 @@ export function EventModal({ event, onChoice }) {
           }}>
             {tone === 'good' ? 'Opportunity' : tone === 'bad' ? 'Crisis' : 'Dispatch'}
           </div>
+          {event.citationId && (
+            <div className="ml-auto" onClick={(e) => e.stopPropagation()}>
+              <CitationLink id={event.citationId} />
+            </div>
+          )}
         </div>
         <h2 className="display-font text-2xl font-medium leading-tight mb-3">{event.title}</h2>
         <p className="text-stone-300 text-[13px] leading-relaxed mb-5">{event.body}</p>
@@ -75,9 +87,12 @@ export function EventModal({ event, onChoice }) {
                     onClick={(e) => e.stopPropagation()}
                   >
                     {rows.map((r, j) => (
-                      <div key={j} className="flex justify-between text-[11px]" style={{fontFamily: 'IBM Plex Mono'}}>
+                      <div key={j} className="flex justify-between items-center text-[11px]" style={{fontFamily: 'IBM Plex Mono'}}>
                         <span className="text-stone-400">{r.label}</span>
-                        <span className={r.good ? 'text-emerald-400' : 'text-rose-400'}>{r.value}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className={r.good ? 'text-emerald-400' : 'text-rose-400'}>{r.value}</span>
+                          {r.citationId && <CitationLink id={r.citationId} />}
+                        </span>
                       </div>
                     ))}
                   </div>

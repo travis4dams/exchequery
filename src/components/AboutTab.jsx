@@ -25,6 +25,11 @@ export function AboutTab() {
   const confSummary = useMemo(() => confidenceSummary(), []);
   const COALITION_FLOOR = unwrap(PARAMS.coalitionFloor);
   const BOND_YIELD_CEILING = unwrap(PARAMS.bondYieldCeiling);
+  const INITIAL_DEFICIT = unwrap(PARAMS.initial.deficit);
+  const INITIAL_DEBT = unwrap(PARAMS.initial.debt);
+  const INITIAL_GDP = unwrap(PARAMS.initial.gdp);
+  const DEFICIT_PCT_GDP = (INITIAL_DEFICIT / INITIAL_GDP * 100).toFixed(1);
+  const DEBT_PCT_GDP = Math.round(INITIAL_DEBT / INITIAL_GDP * 100);
 
   return (
     <div>
@@ -51,7 +56,7 @@ export function AboutTab() {
           <div className="bg-stone-900/40 border border-stone-800 rounded-lg p-4 mb-4">
             <div className="text-[10px] uppercase tracking-wider text-amber-500 mb-2">The premise</div>
             <p className="text-[12px] text-stone-300 leading-relaxed mb-2">
-              You inherit the UK with a £132bn annual deficit (4.3% of GDP) and debt at 95% of GDP. Twenty quarters (five years) to the next election. Coalition cohesion is your binding constraint — fall below {COALITION_FLOOR}% and the government collapses. Bond yields above {BOND_YIELD_CEILING}% and the markets take the keys.
+              You inherit the UK with a £{INITIAL_DEFICIT}bn annual deficit ({DEFICIT_PCT_GDP}% of GDP) and debt at {DEBT_PCT_GDP}% of GDP. Twenty quarters (five years) to the next election. Coalition cohesion is your binding constraint — fall below {COALITION_FLOOR}% and the government collapses. Bond yields above {BOND_YIELD_CEILING}% and the markets take the keys.
             </p>
             <p className="text-[12px] text-stone-300 leading-relaxed">
               Three win conditions: an annual surplus, a deficit below 2% of GDP, or simply hold the coalition through the election. Re-elected Chancellors continue into a new term.
