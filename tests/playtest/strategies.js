@@ -142,6 +142,62 @@ export const doNothing = {
 };
 
 // =============================================================================
+// hawkishCheese — cheese, but also queues amendBoeMandate and
+// inflationTargetReview as soon as cohesion clears their passReq. Probes
+// that the BoE-mandate reform path is reachable from a cheese baseline and
+// that it doesn't accidentally rescue the exploit.
+// =============================================================================
+export const hawkishCheese = {
+  name: 'hawkishCheese',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const proposals = rankByBangPerBuck(availableNonControversialReforms(state, cohesion));
+    // Front-load the mandate / target reforms when reachable. They're
+    // controversial and 'not in the available list' filter, so check directly.
+    for (const id of ['amendBoeMandate', 'inflationTargetReview']) {
+      const r = REFORMS[id];
+      if (!r) continue;
+      if (state.reforms[id]) continue;
+      if (state.proposedReforms.includes(id)) continue;
+      const passReq = v(r.passReq?.coalition) ?? 0;
+      if (cohesion < passReq) continue;
+      proposals.unshift(id);
+    }
+    return proposals;
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// inflationDove — mostly does nothing but explicitly proposes
+// inflationTargetReview to verify that raising the target shifts the
+// long-run BoE rate path without catastrophic side-effects.
+// =============================================================================
+export const inflationDove = {
+  name: 'inflationDove',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const id = 'inflationTargetReview';
+    const r = REFORMS[id];
+    if (!r) return [];
+    if (state.reforms[id]) return [];
+    if (state.proposedReforms.includes(id)) return [];
+    const passReq = v(r.passReq?.coalition) ?? 0;
+    if (cohesion < passReq) return [];
+    return [id];
+  },
+  resolveEvent(_state, _event) { return 0; },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
 // randomReforms — picks a random available non-controversial reform per
 // quarter, random event choice. Uses Math.random which the harness seeds, so
 // per-seed reproducible.

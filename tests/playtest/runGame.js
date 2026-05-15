@@ -29,6 +29,9 @@ function snapshot(g) {
     debt: g.debt,
     debtToGDP: g.debt / g.gdp * 100,
     completedReforms: Object.values(g.reforms).filter(r => r.status === 'complete').length,
+    inflation: g.inflation,
+    unemployment: g.unemployment,
+    bankRate: g.bankRate,
   };
 }
 
@@ -106,6 +109,9 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       finalBondYield: g.bondYield,
       finalGini: g.gini,
       finalHealth: g.healthIndex,
+      finalInflation: g.inflation,
+      finalUnemployment: g.unemployment,
+      finalBankRate: g.bankRate,
       completedReforms: Object.values(g.reforms).filter(r => r.status === 'complete').length,
       triggeredEventCount,
       history,
@@ -130,6 +136,9 @@ export function aggregate(results) {
     meanFinalCohesion: mean(r => r.finalCohesion),
     meanFinalDebtToGDP: mean(r => r.finalDebtToGDP),
     meanFinalBondYield: mean(r => r.finalBondYield),
+    meanFinalInflation: mean(r => r.finalInflation),
+    meanFinalUnemployment: mean(r => r.finalUnemployment),
+    meanFinalBankRate: mean(r => r.finalBankRate),
     meanCompletedReforms: mean(r => r.completedReforms),
     meanEventsTriggered: mean(r => r.triggeredEventCount),
   };

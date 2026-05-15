@@ -859,6 +859,42 @@ export const REFORMS = {
       professional: cited(-3, 'bloc_methodology'),
     },
   },
+  amendBoeMandate: {
+    name: 'Amend BoE to Dual Mandate', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 4, prereq: [], capacityLoad: 3,
+    passReq: { coalition: cited(38, 'bloc_methodology') },
+    blurb: 'Statutory amendment: MPC weighs employment alongside inflation. Taylor rule shifts.',
+    citationId: 'boe_dual_mandate_judgement',
+    controversial: true,
+    special: 'setBoeMandateDual',
+    onComplete: {
+      log: 'BoE remit amended. MPC now responds to unemployment as well as prices.',
+    },
+    blocEffects: {
+      publicSector: cited(3, 'bloc_methodology'),
+      workingClass: cited(2, 'bloc_methodology'),
+      business: cited(-3, 'bloc_methodology'),
+      professional: cited(-2, 'bloc_methodology'),
+    },
+  },
+  inflationTargetReview: {
+    name: 'Raise Inflation Target to 3%', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 3,
+    passReq: { coalition: cited(36, 'bloc_methodology') },
+    blurb: 'Remit raises target from 2% to 3%. Long-rate expectations re-price immediately.',
+    citationId: 'inflation_target_review_judgement',
+    controversial: true,
+    special: 'raiseInflationTarget',
+    onComplete: {
+      log: 'Inflation target raised to 3%. Markets re-priced. MPC has more room.',
+    },
+    blocEffects: {
+      workingClass: cited(2, 'bloc_methodology'),
+      pensioners: cited(-4, 'bloc_methodology'),
+      business: cited(-3, 'bloc_methodology'),
+      professional: cited(-3, 'bloc_methodology'),
+    },
+  },
 };
 
 export const REFORM_BRANCHES = {

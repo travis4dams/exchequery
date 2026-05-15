@@ -6,6 +6,7 @@ import {
   INITIAL_BLOC_SUPPORT,
   INITIAL_BLOC_WEIGHTS,
   REFORMS,
+  PARAMS,
   makeInitialState,
   calcRevenue,
   calcSpending,
@@ -14,8 +15,15 @@ import {
   sampleReformOutcome,
   rollEvents,
   stepQuarter,
+  taylorRule,
+  updateInflation,
+  updateUnemployment,
+  updateBankRate,
+  bondYieldFromBankRate,
 } from '../../src/model/index.js';
 import { withSeededRandom } from '../playtest/rng.js';
+
+const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
 function freshState() {
   return makeInitialState({
@@ -50,11 +58,11 @@ describe('revenue/spending primitives', () => {
 });
 
 describe('bloc dynamics', () => {
-  it('quarterlyBlocDelta returns zero magnitude when all levers at anchor (modulo drift)', () => {
-    const s = freshState();
+  it('quarterlyBlocDelta returns zero magnitude when policy + macro are all at anchor', () => {
+    // Initial state has inflation 2.8 vs target 2.0 (a real CoL gap), so we
+    // explicitly zero the inflation/unemployment gaps for this anchor test.
+    const s = { ...freshState(), inflation: 2.0, unemployment: 4.0 };
     const d = quarterlyBlocDelta(s);
-    // All bloc supports start at BLOCS.base, so the drift-toward-baseline is
-    // zero, and no policy lever is off anchor. Every bloc delta should be ~0.
     for (const [id, delta] of Object.entries(d)) {
       expect(Math.abs(delta)).toBeLessThan(0.01);
     }
@@ -112,5 +120,86 @@ describe('stepQuarter', () => {
     expect(s.reforms.hmrcCapacity.status).toBe('inProgress');
     expect(s.debt).toBeGreaterThan(debtBefore);  // cost was added
     expect(s.proposedReforms).toEqual([]);
+  });
+
+  it('pushes Bank Rate onto bankRatePath each quarter (max 8)', () => {
+    let s = freshState();
+    for (let i = 0; i < 10; i++) {
+      s = withSeededRandom(i + 1, () => stepQuarter(s));
+    }
+    expect(s.bankRatePath.length).toBe(8);
+    expect(s.bankRatePath[s.bankRatePath.length - 1]).toBe(s.bankRate);
+  });
+});
+
+describe('Bank of England — Taylor rule', () => {
+  it('returns the neutral rate when inflation is at target and unemployment at NAIRU', () => {
+    const s = { ...freshState(), inflation: 2.0, unemployment: 4.0 };
+    expect(taylorRule(s)).toBeCloseTo(v(PARAMS.monetary.neutralRate), 6);
+  });
+
+  it('hikes 1.5pp per pp of inflation overshoot under inflation-only mandate', () => {
+    const s = { ...freshState(), inflation: 4.0, unemployment: 4.0, boeMandate: 'inflation_only' };
+    const expected = v(PARAMS.monetary.neutralRate) + 1.5 * 2.0;
+    expect(taylorRule(s)).toBeCloseTo(expected, 6);
+  });
+
+  it('responds to unemployment gap only under dual mandate', () => {
+    const base = { ...freshState(), inflation: 2.0, unemployment: 5.0 };
+    const inflOnly = { ...base, boeMandate: 'inflation_only' };
+    const dual = { ...base, boeMandate: 'dual' };
+    expect(taylorRule(inflOnly)).toBeCloseTo(v(PARAMS.monetary.neutralRate), 6);
+    // Dual: r* = neutral + 0.5 × (NAIRU − u) = neutral + 0.5 × (-1) = neutral − 0.5.
+    expect(taylorRule(dual)).toBeCloseTo(v(PARAMS.monetary.neutralRate) - 0.5, 6);
+  });
+
+  it('clamps to the policy-rate floor and ceiling', () => {
+    const lo = { ...freshState(), inflation: -10, unemployment: 4.0 };
+    const hi = { ...freshState(), inflation: 20, unemployment: 4.0 };
+    expect(taylorRule(lo)).toBe(v(PARAMS.monetary.bankRateClampLow));
+    expect(taylorRule(hi)).toBe(v(PARAMS.monetary.bankRateClampHigh));
+  });
+});
+
+describe('Bank of England — inflation, unemployment, smoothing', () => {
+  it('updateInflation moves toward target when at anchor', () => {
+    const s = { ...freshState(), inflation: 5.0, unemployment: 4.0, growth: 1.5, taxVAT: 20, taxIncomeBasic: 20 };
+    // forcing = target + 0 (unemp at NAIRU) + 0 (VAT/basic at anchor) + 0 (growth at trend) = 2.0
+    // new = 0.85 × 5.0 + 0.15 × 2.0 = 4.55
+    expect(updateInflation(s)).toBeCloseTo(0.85 * 5.0 + 0.15 * 2.0, 6);
+  });
+
+  it('updateInflation responds to a VAT cut as a positive forcing impulse', () => {
+    const baseline = { ...freshState(), inflation: 2.0, unemployment: 4.0, growth: 1.5, taxVAT: 20 };
+    const vatCut = { ...baseline, taxVAT: 15 };  // 5pp cut
+    expect(updateInflation(vatCut)).toBeGreaterThan(updateInflation(baseline));
+  });
+
+  it('updateUnemployment falls when growth exceeds trend', () => {
+    const fast = { ...freshState(), growth: 3.0, unemployment: 4.0, bankRate: 4.5, inflation: 2.0 };
+    const slow = { ...freshState(), growth: 0.5, unemployment: 4.0, bankRate: 4.5, inflation: 2.0 };
+    expect(updateUnemployment(fast)).toBeLessThan(4.0);
+    expect(updateUnemployment(slow)).toBeGreaterThan(4.0);
+  });
+
+  it('updateBankRate smooths halfway toward Taylor target', () => {
+    const s = { ...freshState(), bankRate: 4.5, inflation: 4.0, unemployment: 4.0 };
+    // taylor = 3.5 + 1.5 × 2 = 6.5; inertia 0.5 ⇒ new = 0.5 × 4.5 + 0.5 × 6.5 = 5.5
+    expect(updateBankRate(s)).toBeCloseTo(5.5, 6);
+  });
+
+  it('bondYieldFromBankRate matches bankRate + termPremium + deficitKick, smoothed 50/50', () => {
+    const s = { ...freshState(), bankRate: 4.5, bondYield: 5.0 };
+    const balance = calcBalance(s);
+    const deficitAdj = Math.max(0, -balance) * v(PARAMS.monetary.deficitYieldCoef);
+    const target = s.bankRate + v(PARAMS.monetary.termPremium) + deficitAdj;
+    const expected = 0.5 * s.bondYield + 0.5 * target;
+    expect(bondYieldFromBankRate(s)).toBeCloseTo(expected, 6);
+  });
+
+  it('bondYieldFromBankRate rises when bankRate rises (other things equal)', () => {
+    const lo = { ...freshState(), bankRate: 3.0, bondYield: 5.0 };
+    const hi = { ...freshState(), bankRate: 6.0, bondYield: 5.0 };
+    expect(bondYieldFromBankRate(hi)).toBeGreaterThan(bondYieldFromBankRate(lo));
   });
 });

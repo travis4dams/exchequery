@@ -201,6 +201,38 @@ export const EVENT_DEFINITIONS = {
       { label: 'Celebrate', effect: { growth: cited(0.2, 'event_trade_deal'), blocs: blocs('event_trade_deal', { business: 6, professional: 4, middleClass: 3 }), log: 'Trade deal boosting confidence.' } },
     ],
   },
+  rateHikeShock: {
+    title: 'Rate Hike Hits Households',
+    body: 'Mortgage holders re-fixing at sharply higher rates. Repossession risk creeping up.',
+    tone: 'bad',
+    citationId: 'event_rate_hike_shock',
+    choices: [
+      { label: 'Mortgage protection scheme', effect: { debt: cited(6, 'event_rate_hike_shock'), blocs: blocs('event_rate_hike_shock', { middleClass: 6, workingClass: 4, business: -2 }), log: 'Mortgage protection scheme launched.' } },
+      { label: 'Counter with fiscal stimulus', effect: { debt: cited(12, 'event_rate_hike_shock'), growth: cited(0.2, 'event_rate_hike_shock'), bondYield: cited(0.2, 'event_rate_hike_shock'), blocs: blocs('event_rate_hike_shock', { workingClass: 5, business: 3, professional: -3 }), log: 'Stimulus package announced. Markets twitchy.' } },
+      { label: 'Blame the Bank publicly',     effect: { blocs: blocs('event_rate_hike_shock', { workingClass: 3, professional: -5, business: -3 }), log: 'You picked a fight with the Governor. Markets noticed.' } },
+    ],
+  },
+  wagePriceSpiral: {
+    title: 'Wage-Price Spiral Warning',
+    body: 'Settlements running 6%+ across multiple sectors. BoE signals further hikes.',
+    tone: 'bad',
+    citationId: 'event_wage_price_spiral',
+    choices: [
+      { label: 'Pay restraint guidance to public sector', effect: { inflation: cited(-0.4, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { publicSector: -6, business: 4 }), log: 'Public-sector pay anchored below private. Unions furious.' } },
+      { label: 'Accept higher settlements', effect: { inflation: cited(0.6, 'event_wage_price_spiral'), growth: cited(-0.1, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { workingClass: 5, publicSector: 6, business: -4 }), log: 'You let the wage round run. CPI ticked up.' } },
+      { label: 'Blame markets, change nothing', effect: { inflation: cited(0.3, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { workingClass: -2, business: -2 }), log: 'You did nothing. Settlements continued.' } },
+    ],
+  },
+  monetaryPolicyError: {
+    title: 'MPC Out of Step',
+    body: 'Commentators argue the MPC is materially off the right rate path. Volatility rising.',
+    tone: 'bad',
+    citationId: 'event_monetary_policy_error',
+    choices: [
+      { label: 'Issue supportive remit clarification', effect: { bondYield: cited(-0.2, 'event_monetary_policy_error'), blocs: blocs('event_monetary_policy_error', { professional: 3, business: 2 }), log: 'Clarification calmed markets.' } },
+      { label: 'Public Treasury critique', effect: { bondYield: cited(0.4, 'event_monetary_policy_error'), blocs: blocs('event_monetary_policy_error', { workingClass: 2, professional: -4, business: -3 }), log: 'You broke convention and criticised the Bank publicly.' } },
+    ],
+  },
 };
 
 // Reform-driven risk modifiers that aren't expressible declaratively on a
