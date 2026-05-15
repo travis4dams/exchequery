@@ -67,3 +67,4 @@ export {
   continueAfterElection,
   cancelReform,
 } from './gameStep.js';
+export { projectNextQuarter } from './projection.js';
