@@ -3,10 +3,22 @@ import { CheckCircle2, Clock, ArrowRight, Lock, AlertCircle, Eye, Undo2, XCircle
 
 const unwrap = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
+function stanceTag(stance) {
+  if (!stance) return null;
+  const labels = [];
+  if (stance.econ <= -0.4) labels.push('econ-left');
+  else if (stance.econ >= 0.4) labels.push('econ-right');
+  if (stance.social <= -0.4) labels.push('liberal');
+  else if (stance.social >= 0.4) labels.push('conservative');
+  if (labels.length === 0) return null;
+  return labels.join(' · ');
+}
+
 export function ReformCard({
   id, reform, status, isProposed, onPropose, onUnpropose, onCancel,
   canStart, prereqMet = true, fitsCapacity = true, load = 1,
   currentQ, coalitionCohesion, onInspect,
+  pcBreakdown, canAffordPc = true, availablePc = 100,
 }) {
   const isInProgress = status?.status === 'inProgress';
   const isComplete = status?.status === 'complete';
@@ -84,29 +96,49 @@ export function ReformCard({
         </div>
       )}
       {!isComplete && !isInProgress && !isProposed && (
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-800">
-          <div className="text-[10px] text-stone-500">
-            £{cost}bn · {reform.quarters}Q
-            {passReqCoal > 0 && (
-              <span className={meetsCoal ? 'text-stone-500 ml-2' : 'text-rose-500 ml-2'}>
-                · {passReqCoal}% coal.
-              </span>
-            )}
-            <span className={capacityBlocked ? 'text-rose-400 ml-2' : 'text-stone-500 ml-2'}>· Load {load}</span>
+        <div className="mt-2 pt-2 border-t border-stone-800">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] text-stone-500">
+              £{cost}bn · {reform.quarters}Q
+              {passReqCoal > 0 && (
+                <span className={meetsCoal ? 'text-stone-500 ml-2' : 'text-amber-500 ml-2'}>
+                  · {passReqCoal}% coal.{!meetsCoal ? ' (×1.5)' : ''}
+                </span>
+              )}
+              <span className={capacityBlocked ? 'text-rose-400 ml-2' : 'text-stone-500 ml-2'}>· Load {load}</span>
+              {pcBreakdown && (
+                <span
+                  className={`ml-2 ${canAffordPc ? 'text-amber-400' : 'text-rose-400'}`}
+                  title={`Base ${pcBreakdown.base} × ${pcBreakdown.rebellionFactor.toFixed(2)} rebellion${pcBreakdown.cohesionTriggered ? ` × ${pcBreakdown.cohesionFactor.toFixed(2)} cohesion` : ''} (${pcBreakdown.opposed}/${pcBreakdown.govTotal} MPs opposed)`}
+                >
+                  · {pcBreakdown.total.toFixed(0)} PC
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button onClick={onInspect} className="text-stone-500 hover:text-stone-300">
+                <Eye size={12} />
+              </button>
+              <button onClick={onPropose} disabled={!canStart || !meetsCoal || !canAffordPc}
+                className="text-[11px] font-semibold px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 disabled:bg-stone-800 disabled:text-stone-600 text-stone-950">
+                Propose
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button onClick={onInspect} className="text-stone-500 hover:text-stone-300">
-              <Eye size={12} />
-            </button>
-            <button onClick={onPropose} disabled={!canStart || !meetsCoal}
-              className="text-[11px] font-semibold px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 disabled:bg-stone-800 disabled:text-stone-600 text-stone-950">
-              Propose
-            </button>
-          </div>
+          {reform.ideologyStance && stanceTag(reform.ideologyStance) && (
+            <div className="text-[9px] text-stone-600 mt-1 uppercase tracking-wider">
+              Stance: {stanceTag(reform.ideologyStance)}
+            </div>
+          )}
         </div>
       )}
       {capacityBlocked && (
         <div className="text-[10px] text-amber-400/80 mt-1.5">No capacity — too many reforms in flight.</div>
+      )}
+      {!canAffordPc && !isComplete && !isInProgress && !isProposed && (
+        <div className="text-[10px] text-rose-400/80 mt-1.5">
+          Insufficient political capital — need {pcBreakdown?.total.toFixed(0)}, have {availablePc.toFixed(0)}.
+        </div>
       )}
     </div>
   );

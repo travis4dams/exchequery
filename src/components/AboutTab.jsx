@@ -64,6 +64,27 @@ export function AboutTab() {
           </div>
 
           <div className="bg-stone-900/40 border border-stone-800 rounded-lg p-4 mb-4">
+            <div className="text-[10px] uppercase tracking-wider text-amber-500 mb-2">Parliament methodology</div>
+            <p className="text-[12px] text-stone-300 leading-relaxed mb-2">
+              The simulator models all 632 Great Britain Westminster constituencies (2024 boundaries). Each MP carries:
+            </p>
+            <ul className="text-[11px] text-stone-400 leading-relaxed mb-2 list-disc pl-4 space-y-1">
+              <li><strong className="text-stone-200">Demographics</strong> — 9 bloc-share percentages computed from ONS Census 2021 tables (NS-SEC, age bands, ethnic group, public-sector industry). <CitationLink id="ralphascott_constituency_bundle" /></li>
+              <li><strong className="text-stone-200">Ideology vector</strong> — 2-axis (econ, social), anchored by Chapel Hill Expert Survey 2024 party scores, adjusted per-seat using Hanretty's 2016 Brexit notionals (social) and 2024 vote shares (econ). <CitationLink id="ches_2024_party_ideology" /> <CitationLink id="parliament_ideology_blend_methodology" /></li>
+              <li><strong className="text-stone-200">Mood</strong> — refreshed each quarter from the bloc-weighted average of constituent support, with 0.8 inertia and ±3pp noise per seat. <CitationLink id="parliament_mood_methodology" /></li>
+            </ul>
+            <p className="text-[11px] text-stone-400 leading-relaxed mb-2">
+              <strong className="text-stone-200">Political Capital</strong> is a 0–100 currency the Chancellor spends to propose reforms. Regenerates each quarter from a base + parliament mood + PM relationship. Reform cost scales with intra-party opposition based on ideological distance. <CitationLink id="pc_regen_methodology" /> <CitationLink id="parliament_opposition_methodology" />
+            </p>
+            <p className="text-[11px] text-stone-400 leading-relaxed">
+              <strong className="text-stone-200">PM Relationship</strong> tracks how much the Prime Minister backs you. Modulates capital regeneration; can gate ideologically distant reforms. <CitationLink id="pm_relationship_methodology" />
+            </p>
+            <p className="text-[10px] text-stone-500 leading-relaxed mt-3">
+              Northern Ireland's 18 seats are excluded (the source data doesn't cover them; NI parties don't take Labour/Conservative whips, so the omission has no political-capital impact).
+            </p>
+          </div>
+
+          <div className="bg-stone-900/40 border border-stone-800 rounded-lg p-4 mb-4">
             <div className="text-[10px] uppercase tracking-wider text-amber-500 mb-2">Methodological note</div>
             <p className="text-[12px] text-stone-300 leading-relaxed mb-2">
               Reform revenue and cost estimates carry ±25% noise (reduced to ±10% after passing OBR Independence) to reflect genuine forecasting uncertainty. Bloc reactions and event probabilities are designer judgements calibrated to feel right, not estimated from data.

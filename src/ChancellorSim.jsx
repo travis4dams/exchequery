@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Users, Calendar, AlertTriangle, BookOpen, LineChart } from 'lucide-react';
+import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Users, Calendar, AlertTriangle, BookOpen, LineChart, Landmark } from 'lucide-react';
 
 import {
   PARAMS,
@@ -40,6 +40,7 @@ import { RisksTab } from './components/RisksTab.jsx';
 import { LedgerTab } from './components/LedgerTab.jsx';
 import { MarketsTab } from './components/MarketsTab.jsx';
 import { AboutTab } from './components/AboutTab.jsx';
+import { ParliamentTab } from './components/ParliamentTab.jsx';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
@@ -69,9 +70,9 @@ export default function ChancellorSim() {
 
   useEffect(() => {
     try {
-      // v7 added BoE/Phillips/Okun state. Drop older saves rather than try
-      // to migrate (the new fields would all be undefined and the model
-      // would NaN-cascade on the first quarter).
+      // v7 is the current save shape. v6 saves predate BoE + Parliament state
+      // and would NaN-cascade on the first quarter; drop them rather than
+      // attempt migration.
       localStorage.removeItem('chancellor_v6_save');
       const saved = localStorage.getItem('chancellor_v7_save');
       if (saved) {
@@ -274,6 +275,11 @@ export default function ChancellorSim() {
               <div className={`text-[11px] font-semibold ${game.gini < 34 ? 'text-emerald-400' : game.gini < 36 ? 'text-stone-200' : 'text-rose-400'}`}
                    style={{fontFamily: 'IBM Plex Mono'}}>{game.gini.toFixed(1)}</div>
             </div>
+            <div>
+              <div className="text-[9px] uppercase tracking-wider text-stone-500">PC</div>
+              <div className={`text-[11px] font-semibold ${game.politicalCapital >= 50 ? 'text-amber-400' : game.politicalCapital >= 25 ? 'text-stone-200' : 'text-rose-400'}`}
+                   style={{fontFamily: 'IBM Plex Mono'}}>{game.politicalCapital.toFixed(0)}</div>
+            </div>
           </div>
         </div>
         <div className="max-w-md mx-auto px-1 flex border-t border-stone-800/60 overflow-x-auto">
@@ -281,6 +287,7 @@ export default function ChancellorSim() {
             {id: 'overview', label: 'Overview', icon: Users},
             {id: 'budget', label: 'Budget', icon: Receipt},
             {id: 'reforms', label: 'Reforms', icon: Hammer},
+            {id: 'parliament', label: 'Parl.', icon: Landmark},
             {id: 'markets', label: 'Markets', icon: LineChart},
             {id: 'risks', label: 'Risks', icon: AlertTriangle},
             {id: 'ledger', label: 'Ledger', icon: FileText},
@@ -306,6 +313,7 @@ export default function ChancellorSim() {
             reformCapacity={reformCapacity} reformLoadInFlight={reformLoadInFlight}
             onInspect={setInspectReform} />
         )}
+        {tab === 'parliament' && <ParliamentTab game={game} />}
         {tab === 'markets' && <MarketsTab game={game} spending={spending} />}
         {tab === 'risks' && <RisksTab riskMods={riskMods} />}
         {tab === 'ledger' && (

@@ -15,15 +15,26 @@ section accumulates on the `dev` branch between releases.
 - Two new state-branch reforms: "Amend BoE to Dual Mandate" (MPC weighs employment alongside inflation) and "Raise Inflation Target to 3%" (more room for the MPC, but markets re-price long rates immediately).
 - Three new monetary events: rate-hike shock, wage-price spiral, MPC out-of-step.
 - Quarter Summary now shows inflation, unemployment, and Bank Rate moves.
+- **Parliament** — all 632 GB Westminster constituencies, real Census + 2024 election data. Each MP has demographics, a 2-axis ideology vector, and a mood that drifts with their constituents.
+- **Political Capital** — a 0–100 currency you spend to propose reforms. Regenerates each quarter; rises with happy MPs and a friendly PM, falls with backbench rebellion.
+- **PM relationship** — separate 0–100 score, tracks how much the Prime Minister backs you. Modulates capital regeneration; can gate ideologically distant reforms entirely.
+- **Parliament tab** — Westminster hemicycle showing all 632 seats, happiest/unhappiest government MPs, PC log, searchable seat list.
+- **Reform cards** show political-capital cost up front, with hover breakdown explaining base × rebellion × cohesion factors.
+- About tab: new "Parliament methodology" section with citation links to CHES 2024, ONS Census 2021, Hanretty 2016 Brexit notionals, and the Ralph Scott constituency bundle.
 
 ### Balance
 - Bond yields are now anchored to Bank Rate plus a term premium plus a deficit kicker, replacing the old pure deficit-band drift. Slamming taxes no longer self-finances — sudden VAT cuts stoke inflation, the MPC hikes, gilts re-price and debt service follows.
 - New cost-of-living bloc damage: when CPI runs above target, pensioners, working-class, ethnic-minority and northern blocs penalise the government. Above-NAIRU unemployment damages youth, working class, ethnic minority and northern blocs.
 - The "dominantCheese" exploit no longer dominates: cheese now lags the do-nothing baseline on coalition cohesion at game end, and wins fewer terms on average.
+- Coalition cohesion `passReq` is now a **soft** gate, not a wall: under-threshold reforms cost 1.5× political capital (backbench arm-twisting) but still pass.
+- Reforms with insufficient capital are **deferred** to next quarter (retained in the queue), not discarded. Capacity overflow still discards as before.
+- Cancelling a reform docks 10 PC and -5 PM relationship in addition to the existing bloc penalty.
 
 ### Fixes
 ### Known Issues
 - Cheese strategy still survives the first term in most games (the inflation buildup takes 8–12 quarters and the term-1 honeymoon protects against early collapse). Subsequent terms reliably collapse.
+- Northern Ireland's 18 seats are not modelled (source data is Great Britain only); none take the Labour or Conservative whip so it doesn't affect the political-capital mechanic.
+- Per-MP voting-record heterodoxy (TheyWorkForYou) is not yet folded in — the within-party spread comes from constituency demographics and Brexit signal only. Planned for a follow-up.
 
 ---
 

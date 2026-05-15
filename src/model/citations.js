@@ -1512,6 +1512,73 @@ export const CITATIONS = {
     title: 'Cost-of-living and unemployment bloc damage',
     note: 'When CPI inflation runs above the BoE target, blocs whose real incomes are most exposed to price rises (pensioners on fixed nominal incomes; working-class households with low buffers; ethnic-minority and northern blocs with above-average exposure to housing/energy bills) penalise the government. Similarly, unemployment above NAIRU damages youth (entry-level), working-class (less secure), ethnic-minority and northern blocs disproportionately. Coefficients are designer judgements calibrated to make sustained 2–3pp inflation overshoots or unemployment rises politically costly enough to constrain reckless fiscal stance changes — without the swing being so steep that a single bad quarter ends a government.',
   },
+
+  // ===========================================================================
+  // Parliament, political capital, and PM relationship (added in v0.2)
+  // ===========================================================================
+  ralphascott_constituency_bundle: {
+    parameter: 'Per-constituency Census 2021 + 2024 GE + Hanretty 2016 Brexit data',
+    confidence: 'sourced',
+    title: 'UKGE24 Westminster Parliamentary Constituency Census Summaries (v1.1)',
+    publisher: 'Ralph Scott, University of Manchester',
+    year: 2024,
+    url: 'https://github.com/ralphascott/UKGE24_wpc_census_summaries',
+    note: "All per-seat demographics (blocShare) are computed from this bundle, which itself integrates: ONS Census 2021 tables (England + Wales, OGL v3); Scotland's Census 2022 tables (OGL); House of Commons Library briefing CBP-10009 2024 GE results (OGL); and Hanretty 2016 EU referendum notionals remapped to 2024 boundaries. Great Britain only — 632 of 650 seats; Northern Ireland (18 seats) is excluded as the source data does not cover it. NI parties do not take the Labour or Conservative whip, so the omission does not affect the political-capital mechanic.",
+  },
+  ches_2024_party_ideology: {
+    parameter: 'Per-party (econ, social) ideology anchors',
+    confidence: 'sourced',
+    title: 'Chapel Hill Expert Survey 2024 (UK extract)',
+    publisher: 'Polk, Rovny, Bakker, et al. — University of North Carolina',
+    year: 2024,
+    url: 'https://www.chesdata.eu/2024-chapel-hill-expert-survey-ches',
+    note: "Party-level (econ, social) anchors are CHES 2024 UK extract values for lrecon and galtan (each scored 0-10 by an expert panel) rescaled to [-1, +1] via (x - 5) / 5. CHES is the canonical academic dataset for European party positioning; the UK panel has consistent coverage from 1999. Values for Lab/Con/LD/Reform/Green/SNP/PC are stored in src/data/partyIdeology.json.",
+  },
+  hanretty_brexit_notionals: {
+    parameter: 'Per-seat 2016 EU referendum Leave/Remain estimates (2024 boundaries)',
+    confidence: 'sourced',
+    title: 'Notional 2016 EU referendum results for new constituencies',
+    publisher: 'Chris Hanretty, Royal Holloway',
+    year: 2024,
+    url: 'https://docs.google.com/spreadsheets/d/1mtph-ml7CYVoeEUIc1g_IbOvbiZMa_ezRGQlHQoCpF4/',
+    note: "Hanretty's estimates of Leave/Remain shares by 2024 constituency boundary. Brexit vote is the single most data-rich per-seat signal on the social/cultural axis of UK politics. Used as the per-seat social-axis residual on top of the party anchor.",
+  },
+  parliament_ideology_blend_methodology: {
+    parameter: 'Weights combining party anchor + per-seat residuals into seat ideology',
+    confidence: 'judgement',
+    title: 'Ideology-vector blend weights',
+    note: "Final per-seat ideology = partyAnchor + (econResidualWeight=0.15) * (Con+RUK - Lab-LD-Green vote-share residual) + (socialResidualWeight=0.35) * Hanretty Brexit residual. The 0.15 / 0.35 weights are designer judgement; they're sized so that within-party heterodoxy stays bounded (residuals typically [-0.2, +0.2]) while still letting an unusual seat (e.g., a Lab MP in a strongly Leave constituency) shift visibly from the party centroid. All three signal sources are sourced; only the combining weights are judgement.",
+  },
+  parliament_mood_methodology: {
+    parameter: 'Per-quarter seat-mood inertia and noise',
+    confidence: 'judgement',
+    title: 'Parliament mood-update methodology',
+    note: "Per-seat mood evolves as: mood_t = inertia * mood_{t-1} + (1-inertia) * rawSignal + uniform_noise. Inertia 0.80 means a sustained bloc shift takes ~5 quarters to filter through, modelling that MPs sample constituent opinion via casework, conferences, and local-association feedback rather than instantly. Noise std ~3pp captures the residual fickleness from whip-soundings, by-election surprises, individual leadership ambitions, and constituency-level press cycles that aggregate bloc opinion can't reach. Designer-calibrated; not estimated from data.",
+  },
+  parliament_opposition_methodology: {
+    parameter: 'Reform opposition factor and cohesion penalty multiplier',
+    confidence: 'judgement',
+    title: 'Reform-opposition cost methodology',
+    note: "Per-MP opposition score is Euclidean distance from reform's ideology stance to MP's ideology vector, with a 'free zone' below threshold 0.5 (close ideological matches don't generate rebellion). Strong-opposition cutoff at distance 1.0 defines who counts as 'opposed'. PC cost multiplier 1 + 1.5 * (opposed/govTotal): full rebellion would 2.5× the cost. Soft cohesion penalty: if reform's passReq.coalition isn't met, cost is multiplied by an additional 1.5×, modelling the arm-twisting needed when the broader coalition is wobbly. All four numbers are designer judgement, calibrated to produce a visible but not crushing cost surface.",
+  },
+  pc_regen_methodology: {
+    parameter: 'Political-capital regeneration formula',
+    confidence: 'judgement',
+    title: 'Political-capital methodology',
+    note: "PC currency 0-100. Regenerates per quarter as: baseRegen=8 + alpha=6 * (governingPartyMood-50)/50 + beta=4 * (pmRelationship-50)/50, minus softCap decay (0.2 fraction of PC over 80 per quarter, modelling diminishing returns on political reputation). PC starts at 60 (post-election honeymoon). Reforms cost their politicalCapitalCost field (default 10) multiplied by opposition + cohesion factors (see parliament_opposition_methodology). Designer-set; calibrated so a stable, neutral player gets ~32 PC/year, enough for roughly one mid-cost reform per year.",
+  },
+  pm_relationship_methodology: {
+    parameter: 'PM relationship dynamics (0-100)',
+    confidence: 'judgement',
+    title: 'PM-relationship methodology',
+    note: "PM relationship is a 0-100 score representing how much the Prime Minister backs the Chancellor. Starts at 60 (honeymoon). Updated each quarter by: completed reforms (±4 × cosine alignment with PM's ideology); reform cancellations (-5); coalition cohesion below 30 (-1); bond yield breaching 5.5% (-4 one-shot per breach); surplus allocation ≥£20bn to debt paydown (+2); high parliament mood ≥60 (+1); mean reversion to 50 at 5%/qtr. Reforms can optionally require a minimum PM relationship via requiresPmTrust — gates them out of the menu when relations are poor.",
+  },
+  political_capital_authoring_methodology: {
+    parameter: 'Per-reform politicalCapitalCost values',
+    confidence: 'judgement',
+    title: 'Reform PC cost authoring',
+    note: "Each reform's base PC cost was authored according to: cheap statutory/admin changes 4-6 PC; mainstream fiscal levers 8-12 PC; controversial reforms (wealth tax, immigration cap, social care) 15-25 PC. Actual cost paid scales with parliamentary opposition (see parliament_opposition_methodology). Costs are calibrated for a player with ~8 PC/qtr neutral regeneration: a 12-cost reform is a quarter-and-a-half's worth of capital at neutral mood.",
+  },
 };
 
 // Helper: given a citationId, return the entry or throw.

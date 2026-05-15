@@ -7,12 +7,14 @@
 //   resolveEvent(state, event)         → number  (choice index)
 //   allocateSurplus(state, surplus)    → { debt, services, taxCut }
 
-import { REFORMS, COALITION } from '../../src/model/index.js';
+import { REFORMS, COALITION, effectivePcCost } from '../../src/model/index.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
 // Which non-controversial reforms can the player propose right now?
-// Mirrors the gate in ReformCard.jsx: prereqs complete AND coalition >= passReq.
+// Mirrors the gate in ReformCard.jsx: prereqs complete, coalition >= passReq
+// (soft — could pay PC surcharge, but for safety strategies we keep the
+// original gate), AND effective PC cost <= available PC.
 function availableNonControversialReforms(state, cohesion) {
   const out = [];
   for (const [id, r] of Object.entries(REFORMS)) {
@@ -23,6 +25,8 @@ function availableNonControversialReforms(state, cohesion) {
     if (!prereqsOk) continue;
     const passReq = v(r.passReq?.coalition) ?? 0;
     if (cohesion < passReq) continue;
+    const pcCost = effectivePcCost(r, { ...state, coalitionCohesion: cohesion });
+    if (pcCost > (state.politicalCapital ?? 100)) continue;
     out.push(id);
   }
   return out;

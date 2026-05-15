@@ -36,6 +36,24 @@ export function QuarterSummary({ summary, growth, population, onContinue }) {
               <span className={summary.cohesionChange > 0 ? 'text-emerald-400' : 'text-rose-400'}>
                 {summary.cohesionChange > 0 ? '+' : ''}{summary.cohesionChange.toFixed(1)}pp
               </span></div>
+            {summary.pcChange !== undefined && Math.abs(summary.pcChange) >= 0.5 && (
+              <div className="flex justify-between"><span className="text-stone-400">Political capital</span>
+                <span className={summary.pcChange > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {summary.pcChange > 0 ? '+' : ''}{summary.pcChange.toFixed(1)}
+                </span></div>
+            )}
+            {summary.pmRelationshipChange !== undefined && Math.abs(summary.pmRelationshipChange) >= 0.5 && (
+              <div className="flex justify-between"><span className="text-stone-400">PM relationship</span>
+                <span className={summary.pmRelationshipChange > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {summary.pmRelationshipChange > 0 ? '+' : ''}{summary.pmRelationshipChange.toFixed(1)}
+                </span></div>
+            )}
+            {summary.parliamentMoodChange !== undefined && Math.abs(summary.parliamentMoodChange) >= 0.5 && (
+              <div className="flex justify-between"><span className="text-stone-400">Parliament mood</span>
+                <span className={summary.parliamentMoodChange > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {summary.parliamentMoodChange > 0 ? '+' : ''}{summary.parliamentMoodChange.toFixed(1)}pp
+                </span></div>
+            )}
             <div className="flex justify-between"><span className="text-stone-400">Health / Gini</span>
               <span className="text-stone-300">
                 <span className={summary.healthChange > 0 ? 'text-emerald-400' : summary.healthChange < 0 ? 'text-rose-400' : ''}>{summary.healthChange > 0 ? '+' : ''}{summary.healthChange.toFixed(1)}</span>
@@ -107,6 +125,11 @@ export function QuarterSummary({ summary, growth, population, onContinue }) {
               {summary.startedReforms.map(name => (
                 <div key={name} className="flex items-center gap-1.5 text-[11px] text-sky-300">
                   <ArrowRight size={10} /> Started: {name}
+                </div>
+              ))}
+              {(summary.deferredForPC || []).map(name => (
+                <div key={`pc-${name}`} className="flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <AlertTriangle size={10} /> Deferred (insufficient PC): {name}
                 </div>
               ))}
             </div>
