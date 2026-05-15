@@ -7,12 +7,14 @@
 //   resolveEvent(state, event)         → number  (choice index)
 //   allocateSurplus(state, surplus)    → { debt, services, taxCut }
 
-import { REFORMS, COALITION } from '../../src/model/index.js';
+import { REFORMS, COALITION, effectivePcCost } from '../../src/model/index.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
 // Which non-controversial reforms can the player propose right now?
-// Mirrors the gate in ReformCard.jsx: prereqs complete AND coalition >= passReq.
+// Mirrors the gate in ReformCard.jsx: prereqs complete, coalition >= passReq
+// (soft — could pay PC surcharge, but for safety strategies we keep the
+// original gate), AND effective PC cost <= available PC.
 function availableNonControversialReforms(state, cohesion) {
   const out = [];
   for (const [id, r] of Object.entries(REFORMS)) {
@@ -23,6 +25,8 @@ function availableNonControversialReforms(state, cohesion) {
     if (!prereqsOk) continue;
     const passReq = v(r.passReq?.coalition) ?? 0;
     if (cohesion < passReq) continue;
+    const pcCost = effectivePcCost(r, { ...state, coalitionCohesion: cohesion });
+    if (pcCost > (state.politicalCapital ?? 100)) continue;
     out.push(id);
   }
   return out;
@@ -135,6 +139,155 @@ export const doNothing = {
   allocateSurplus(_state, surplus) {
     return { debt: surplus, services: 0, taxCut: 0 };
   },
+};
+
+// =============================================================================
+// hawkishCheese — cheese, but also queues amendBoeMandate and
+// inflationTargetReview as soon as cohesion clears their passReq. Probes
+// that the BoE-mandate reform path is reachable from a cheese baseline and
+// that it doesn't accidentally rescue the exploit.
+// =============================================================================
+export const hawkishCheese = {
+  name: 'hawkishCheese',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const proposals = rankByBangPerBuck(availableNonControversialReforms(state, cohesion));
+    // Front-load the mandate / target reforms when reachable. They're
+    // controversial and 'not in the available list' filter, so check directly.
+    for (const id of ['amendBoeMandate', 'inflationTargetReview']) {
+      const r = REFORMS[id];
+      if (!r) continue;
+      if (state.reforms[id]) continue;
+      if (state.proposedReforms.includes(id)) continue;
+      const passReq = v(r.passReq?.coalition) ?? 0;
+      if (cohesion < passReq) continue;
+      proposals.unshift(id);
+    }
+    return proposals;
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// inflationDove — mostly does nothing but explicitly proposes
+// inflationTargetReview to verify that raising the target shifts the
+// long-run BoE rate path without catastrophic side-effects.
+// =============================================================================
+export const inflationDove = {
+  name: 'inflationDove',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const id = 'inflationTargetReview';
+    const r = REFORMS[id];
+    if (!r) return [];
+    if (state.reforms[id]) return [];
+    if (state.proposedReforms.includes(id)) return [];
+    const passReq = v(r.passReq?.coalition) ?? 0;
+    if (cohesion < passReq) return [];
+    return [id];
+  },
+  resolveEvent(_state, _event) { return 0; },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// supplySideBuilder — proactively builds the housing + energy supply chain.
+//
+// Sequences planningReform → housingSupplyTarget → energyMixReform (after
+// greenInvest as prereq) and otherwise fills capacity with bang-per-buck
+// reforms. Cheese doesn't touch these reforms, so this strategy ends with
+// HPI capped and a damped energy market.
+// =============================================================================
+const SUPPLY_SIDE_PRIORITY = ['planningReform', 'greenInvest', 'housingSupplyTarget', 'energyMixReform'];
+
+export const supplySideBuilder = {
+  name: 'supplySideBuilder',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const proposals = [];
+    for (const id of SUPPLY_SIDE_PRIORITY) {
+      const r = REFORMS[id];
+      if (!r) continue;
+      if (state.reforms[id]) continue;
+      if (state.proposedReforms.includes(id)) continue;
+      const prereqsOk = r.prereq.every(p => state.reforms[p]?.status === 'complete');
+      if (!prereqsOk) continue;
+      const passReq = v(r.passReq?.coalition) ?? 0;
+      if (cohesion < passReq) continue;
+      const pcCost = effectivePcCost(r, { ...state, coalitionCohesion: cohesion });
+      if (pcCost > (state.politicalCapital ?? 100)) continue;
+      proposals.push(id);
+    }
+    // Fill remaining capacity with bang-per-buck reforms.
+    for (const id of rankByBangPerBuck(availableNonControversialReforms(state, cohesion))) {
+      if (proposals.includes(id)) continue;
+      proposals.push(id);
+    }
+    return proposals;
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// cheesePlusFlex — dominantCheese plus labourFlexibility queued the moment
+// it's reachable. Guards against the new reform rescuing the exploit by
+// flattening the Phillips slope.
+// =============================================================================
+export const cheesePlusFlex = {
+  name: 'cheesePlusFlex',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const proposals = rankByBangPerBuck(availableNonControversialReforms(state, cohesion));
+    const id = 'labourFlexibility';
+    const r = REFORMS[id];
+    if (r && !state.reforms[id] && !state.proposedReforms.includes(id)) {
+      const passReq = v(r.passReq?.coalition) ?? 0;
+      if (cohesion >= passReq) proposals.unshift(id);
+    }
+    return proposals;
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// dominantCheeseUltra — cheese variant that refuses every Phase 2/3 reform.
+// Used to show that the supply-side + risk-premium pressure now bites cheese
+// strategies even harder than baseline.
+// =============================================================================
+const PHASE_2_3_REFORMS = new Set([
+  'housingSupplyTarget', 'energyMixReform', 'labourFlexibility',
+  'pensionConsolidation', 'cityRegulation',
+]);
+
+export const dominantCheeseUltra = {
+  name: 'dominantCheeseUltra',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return rankByBangPerBuck(availableNonControversialReforms(state, cohesion))
+      .filter(id => !PHASE_2_3_REFORMS.has(id));
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
 };
 
 // =============================================================================

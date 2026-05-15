@@ -29,6 +29,13 @@ function snapshot(g) {
     debt: g.debt,
     debtToGDP: g.debt / g.gdp * 100,
     completedReforms: Object.values(g.reforms).filter(r => r.status === 'complete').length,
+    inflation: g.inflation,
+    unemployment: g.unemployment,
+    bankRate: g.bankRate,
+    housePriceIndex: g.housePriceIndex,
+    energyPriceIndex: g.energyPriceIndex,
+    equityIndex: g.equityIndex,
+    riskPremium: g.riskPremium,
   };
 }
 
@@ -45,6 +52,8 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
 
     const history = [];
     let triggeredEventCount = 0;
+    let recessionFired = false;
+    let minGrowthSeen = Infinity;
     let safety = 0;
 
     while (safety++ < HARD_QUARTER_CAP) {
@@ -64,10 +73,13 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       if (g.pendingEvent) {
         triggeredEventCount += 1;
         const event = g.pendingEvent;
+        if (event.id === 'recession') recessionFired = true;
         const idx = strategy.resolveEvent(g, event);
         const choice = event.choices[Math.max(0, Math.min(event.choices.length - 1, idx))];
         g = resolveEvent(g, choice);
       }
+
+      if (g.growth < minGrowthSeen) minGrowthSeen = g.growth;
 
       // e. Dismiss summary + maybe allocate surplus.
       if (g.pendingSummary) {
@@ -106,8 +118,17 @@ export function runGame({ strategy, seed, maxTerms = 4 }) {
       finalBondYield: g.bondYield,
       finalGini: g.gini,
       finalHealth: g.healthIndex,
+      finalInflation: g.inflation,
+      finalUnemployment: g.unemployment,
+      finalBankRate: g.bankRate,
+      finalHousePriceIndex: g.housePriceIndex,
+      finalEnergyPriceIndex: g.energyPriceIndex,
+      finalEquityIndex: g.equityIndex,
+      finalRiskPremium: g.riskPremium,
       completedReforms: Object.values(g.reforms).filter(r => r.status === 'complete').length,
       triggeredEventCount,
+      recessionFired,
+      minGrowthSeen: minGrowthSeen === Infinity ? null : minGrowthSeen,
       history,
     };
   });
@@ -130,7 +151,17 @@ export function aggregate(results) {
     meanFinalCohesion: mean(r => r.finalCohesion),
     meanFinalDebtToGDP: mean(r => r.finalDebtToGDP),
     meanFinalBondYield: mean(r => r.finalBondYield),
+    meanFinalInflation: mean(r => r.finalInflation),
+    meanFinalUnemployment: mean(r => r.finalUnemployment),
+    meanFinalBankRate: mean(r => r.finalBankRate),
+    meanFinalHousePriceIndex: mean(r => r.finalHousePriceIndex),
+    meanFinalEnergyPriceIndex: mean(r => r.finalEnergyPriceIndex),
+    meanFinalEquityIndex: mean(r => r.finalEquityIndex),
+    meanFinalRiskPremium: mean(r => r.finalRiskPremium),
     meanCompletedReforms: mean(r => r.completedReforms),
     meanEventsTriggered: mean(r => r.triggeredEventCount),
+    recessionFireRate: results.filter(r => r.recessionFired).length / n,
+    meanMinGrowthSeen: mean(r => r.minGrowthSeen ?? 0),
+    minGrowthEver: results.reduce((m, r) => Math.min(m, r.minGrowthSeen ?? Infinity), Infinity),
   };
 }

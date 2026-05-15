@@ -15,6 +15,59 @@ section accumulates on the `dev` branch between releases.
 
 ---
 
+## [v0.2.0] — 2026-05-15
+
+### New
+- **Equity market.** Aggregate equity index responds to growth, corp-tax stance, real rates, and business sentiment. A small wealth-effect feeds back into growth, capped at ±0.1pp/qtr.
+- **Risk premium on gilts.** Long yield now adds a sovereign risk premium that widens with debt-to-GDP above 100% and with coalition cohesion volatility. Markets tab gauges it.
+- Markets tab gains an Equity panel and the Bond panel now breaks out short rate, gilt yield, and risk premium separately.
+- New state-branch reforms: "Pension Consolidation (Mansion House)" damps equity-shock blowback; "City Regulation Tightening" lowers the cohesion-volatility coefficient on the risk premium (controversial).
+- Three new events: Equity Market Crash (fires when equity > 130); Gilt-Market Strike (fires when risk premium > 2.5pp); Sovereign Rating Downgrade (fires when debt > 110% AND risk premium > 1.5pp).
+- **Housing market.** House Price Index now evolves quarter-by-quarter, driven by nominal-income growth, real rates, and supply. It feeds CPI via the CPIH housing weight.
+- **Energy market.** Energy Price Index with shock decay and baseline drift. Shocks now persist over 6–8 quarters before unwinding; reforms damp incoming shocks.
+- Markets tab gains Housing and Energy panels with sparklines and live CPI contributions.
+- New supply-side reform path: "Housing Supply Target (300k pa)" follows on from Planning Reform and pulls HPI down via 60k pa of extra supply.
+- New green reform: "Domestic Energy Mix Reform" — follow-on to GB Energy + Grid, halves gas-import exposure.
+- New controversial labour reform: "Labour Market Flexibility Package" — flattens the Phillips slope at heavy bloc cost.
+- Two new events: a house-price correction warning when HPI runs hot, and a planning revolt after housing-supply reform lands.
+- The legacy energy shock event now actually moves the energy index (used to only move CPI directly). Choice menu adds a fourth option: nationalising wholesale gas trading.
+- New "Markets" tab. The Bank of England now sets interest rates independently of you, by Taylor-rule reaction to inflation (and, optionally, unemployment).
+- Inflation and unemployment finally evolve quarter-by-quarter — Phillips curve for inflation, Okun's law for unemployment, real-rate drag on growth.
+- Header strip shows Bank Rate and CPI alongside GDP, Growth, Gilts and Gini.
+- Two new state-branch reforms: "Amend BoE to Dual Mandate" (MPC weighs employment alongside inflation) and "Raise Inflation Target to 3%" (more room for the MPC, but markets re-price long rates immediately).
+- Three new monetary events: rate-hike shock, wage-price spiral, MPC out-of-step.
+- Quarter Summary now shows inflation, unemployment, and Bank Rate moves.
+- **Parliament** — all 632 GB Westminster constituencies, real Census + 2024 election data. Each MP has demographics, a 2-axis ideology vector, and a mood that drifts with their constituents.
+- **Political Capital** — a 0–100 currency you spend to propose reforms. Regenerates each quarter; rises with happy MPs and a friendly PM, falls with backbench rebellion.
+- **PM relationship** — separate 0–100 score, tracks how much the Prime Minister backs you. Modulates capital regeneration; can gate ideologically distant reforms entirely.
+- **Parliament tab** — Westminster hemicycle showing all 632 seats, happiest/unhappiest government MPs, PC log, searchable seat list.
+- **Reform cards** show political-capital cost up front, with hover breakdown explaining base × rebellion × cohesion factors.
+- About tab: new "Parliament methodology" section with citation links to CHES 2024, ONS Census 2021, Hanretty 2016 Brexit notionals, and the Ralph Scott constituency bundle.
+
+### Balance
+- **Growth realism.** Growth no longer ratchets upward indefinitely — each quarter it mean-reverts to potential (~1.5%) at ~15% of the gap, with a small Gaussian shock (±0.2pp). Transient reform bonuses (childcare, apprenticeships, FE funding, etc.) fade over about a year; supply-side reforms flagged `growthBonusPermanent` (NPR Rail, Social Housing, Green Investment, Planning Reform, Full Fibre, Housing Supply Target) raise the long-run anchor permanently. Immigration Cap and Rent Controls permanently lower it.
+- **Laffer drag.** Top income rate above 50% and corporation tax above 28% now directly slow growth (0.04 and 0.06pp per pp respectively). The cheese strategy no longer escapes a growth penalty.
+- **Recession event.** New `recession` event fires probabilistically when growth runs above potential AND inflation above target — base 1%/qtr plus an overheating coefficient. Three choices: stimulus, austerity to defend gilts, or ride it out.
+- Gilts now carry a sovereign risk premium that punishes volatile coalitions. Strategies that churn the coalition (including Labour Flexibility on a cheese baseline) frequently lose markets in the medium term.
+- Equity index consumes seeded RNG before the event roll. Existing playtest seeds remain stable.
+- House prices feed CPI directly (housing weight ~0.16), so building (or failing to build) now bites at the inflation channel as well as the bloc channel.
+- Energy shocks stay around longer — wholesale gas spikes ripple through gilts and CPI for two years, not one quarter. GB Energy and Insulation reforms compound to keep the baseline lower.
+- New "planning revolt" risk only activates after Housing Supply Target completes — supply-side reform now has a coalition cost, not a free pass.
+- Bond yields are now anchored to Bank Rate plus a term premium plus a deficit kicker, replacing the old pure deficit-band drift. Slamming taxes no longer self-finances — sudden VAT cuts stoke inflation, the MPC hikes, gilts re-price and debt service follows.
+- New cost-of-living bloc damage: when CPI runs above target, pensioners, working-class, ethnic-minority and northern blocs penalise the government. Above-NAIRU unemployment damages youth, working class, ethnic minority and northern blocs.
+- The "dominantCheese" exploit no longer dominates: cheese now lags the do-nothing baseline on coalition cohesion at game end, and wins fewer terms on average.
+- Coalition cohesion `passReq` is now a **soft** gate, not a wall: under-threshold reforms cost 1.5× political capital (backbench arm-twisting) but still pass.
+- Reforms with insufficient capital are **deferred** to next quarter (retained in the queue), not discarded. Capacity overflow still discards as before.
+- Cancelling a reform docks 10 PC and -5 PM relationship in addition to the existing bloc penalty.
+
+### Fixes
+### Known Issues
+- Cheese strategy still survives the first term in most games (the inflation buildup takes 8–12 quarters and the term-1 honeymoon protects against early collapse). Subsequent terms reliably collapse.
+- Northern Ireland's 18 seats are not modelled (source data is Great Britain only); none take the Labour or Conservative whip so it doesn't affect the political-capital mechanic.
+- Per-MP voting-record heterodoxy (TheyWorkForYou) is not yet folded in — the within-party spread comes from constituency demographics and Brexit signal only. Planned for a follow-up.
+
+---
+
 ## [v0.1.2] — 2026-05-15
 
 ### New

@@ -1,7 +1,8 @@
 import React from 'react';
+import { Info } from 'lucide-react';
 import { BLOCS } from '../../model/index.js';
 
-export function BlocBar({ blocId, support, isCoalition, weight, projectedDelta }) {
+export function BlocBar({ blocId, support, isCoalition, weight, projectedDelta, onInfo }) {
   const bloc = BLOCS[blocId];
   const color = support > 50 ? 'bg-emerald-500' : support > 35 ? 'bg-amber-500' : 'bg-rose-500';
   return (
@@ -9,7 +10,19 @@ export function BlocBar({ blocId, support, isCoalition, weight, projectedDelta }
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1.5 min-w-0">
           {isCoalition && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />}
-          <span className="text-[11px] text-stone-300 truncate">{bloc.name}</span>
+          {onInfo ? (
+            <button
+              type="button"
+              onClick={onInfo}
+              className="text-[11px] text-stone-300 truncate hover:text-amber-400 flex items-center gap-1"
+              title={`About ${bloc.name}`}
+            >
+              {bloc.name}
+              <Info size={9} className="text-stone-500" />
+            </button>
+          ) : (
+            <span className="text-[11px] text-stone-300 truncate">{bloc.name}</span>
+          )}
           <span className="text-[9px] text-stone-600" style={{fontFamily: 'IBM Plex Mono'}}>{(weight*100).toFixed(0)}%</span>
         </div>
         <div className="flex items-baseline gap-1.5 flex-shrink-0">

@@ -12,6 +12,12 @@ import { PARAMS } from './params.js';
 import { BLOCS, COALITION } from './blocs.js';
 import { REFORMS, REFORM_BRANCHES } from './reforms.js';
 import { EVENT_DEFINITIONS, REFORM_RISK_MODS } from './events.js';
+import {
+  makeInitialParliament,
+  updateSeatMoods,
+  aggregateParliamentMood,
+  reformPmAlignment,
+} from './parliament.js';
 
 // Convenience: unwrap a { value, citationId } leaf to its scalar.
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
@@ -261,6 +267,22 @@ export function quarterlyBlocDelta(s) {
     d.northern += delta * v(B.infraAbove40.northern);
   }
 
+  // Cost-of-living: inflation above target hurts real-income-sensitive blocs.
+  const inflationGap = Math.max(0, (s.inflation ?? 0) - (s.inflationTarget ?? 0));
+  if (inflationGap > 0 && B.inflationAboveTarget) {
+    for (const [bloc, leaf] of Object.entries(B.inflationAboveTarget)) {
+      d[bloc] -= inflationGap * v(leaf);
+    }
+  }
+
+  // Jobs damage: unemployment above NAIRU hurts jobs-sensitive blocs.
+  const unempGap = Math.max(0, (s.unemployment ?? 0) - (s.naturalUnemployment ?? 0));
+  if (unempGap > 0 && B.unemploymentAboveNAIRU) {
+    for (const [bloc, leaf] of Object.entries(B.unemploymentAboveNAIRU)) {
+      d[bloc] -= unempGap * v(leaf);
+    }
+  }
+
   // Mean-reverting drift back to baseline, then per-quarter normalisation.
   const drift = v(PARAMS.blocDriftToBaseline);
   for (const k of Object.keys(d)) {
@@ -301,6 +323,205 @@ export function quarterlyPopulationGrowth(reforms) {
 }
 
 // =============================================================================
+// Bank of England — Phillips, Okun, Taylor rule
+//
+// All four updaters are state-in/scalar-out so callers in stepQuarter can
+// compose them in a deterministic order. None mutate `s`. The intentional
+// order in stepQuarter is: GDP grows → unemployment (uses fresh growth) →
+// inflation (uses fresh unemployment) → Bank Rate (uses fresh inflation +
+// unemployment) → bond yield (uses fresh Bank Rate). Math.random is not
+// consumed here — the existing event-roll randomness remains the only RNG
+// in the per-quarter loop.
+// =============================================================================
+
+export function updateInflation(s) {
+  const target = s.inflationTarget;
+  const persistence = v(PARAMS.phillips.persistence);
+  const slope = v(PARAMS.phillips.slope) * (s.phillipsSlopeMultiplier ?? 1);
+  const vatImpulseCoef = v(PARAMS.phillips.vatImpulseCoef);
+  const basicImpulseCoef = v(PARAMS.phillips.basicImpulseCoef);
+  const growthDriftCoef = v(PARAMS.phillips.growthDriftCoef);
+  const trendGrowth = v(PARAMS.okun.trendGrowth);
+  const vatAnchor = v(PARAMS.initial.taxVAT);
+  const basicAnchor = v(PARAMS.initial.taxIncomeBasic);
+
+  const phillipsTerm = slope * (s.naturalUnemployment - s.unemployment);
+  const demandImpulse = vatImpulseCoef * (s.taxVAT - vatAnchor)
+                      + basicImpulseCoef * (s.taxIncomeBasic - basicAnchor);
+  const growthDrift = growthDriftCoef * (s.growth - trendGrowth);
+  const housingContribution = housingInflationContribution(s);
+  const energyContribution = energyInflationContribution(s);
+  const forcing = target + phillipsTerm + demandImpulse + growthDrift
+                + housingContribution + energyContribution;
+
+  return Math.max(0, persistence * s.inflation + (1 - persistence) * forcing);
+}
+
+// =============================================================================
+// Housing & energy markets — index dynamics + CPI contributions
+//
+// HPI and the energy index evolve in their own functions and feed the CPI
+// forcing term in updateInflation. Both are smoothed and bounded to stop
+// pathological runaways. Math.random is NOT consumed here.
+// =============================================================================
+
+export function updateHousePriceIndex(s) {
+  const H = PARAMS.housing;
+  const persistence = v(H.persistence);
+  const wageElasticity = v(H.priceWageElasticity);
+  const rateElasticity = v(H.priceRateElasticity);
+  const supplyResp = v(H.supplyResponsePerKpa);
+  const baseSupply = v(H.baseSupplyKpa);
+  const neutralReal = v(PARAMS.okun.neutralRealRate);
+  const trendGrowth = v(PARAMS.okun.trendGrowth);
+
+  // Nominal income growth gap — housing tracks nominal incomes (it's a
+  // nominal asset and an inflation hedge). Uses (growth + inflation) above
+  // (trend + target) so high-inflation paths support HPI even when real
+  // growth is weak.
+  const wageSignal = (s.growth + s.inflation) - (trendGrowth + s.inflationTarget);
+  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  const supplyKick = supplyResp * (s.housingSupply - baseSupply);
+  const forcing = 100 + wageElasticity * wageSignal + rateElasticity * realRateGap + supplyKick;
+
+  const next = persistence * s.housePriceIndex + (1 - persistence) * forcing;
+  return Math.max(40, Math.min(250, next));
+}
+
+export function updateEnergyPriceIndex(s) {
+  const E = PARAMS.energy;
+  const decay = v(E.shockDecay);
+  const drift = v(E.baselineDrift);
+  const dampener = v(E.greenInvestDampener);
+
+  // Mean-revert toward 100 at decay rate; add baseline drift; apply green-policy dampener.
+  let next = decay * (s.energyPriceIndex - 100) + 100 + drift;
+  if (s.reforms?.greenInvest?.status === 'complete') next += dampener;
+  if (s.reforms?.insulationScheme?.status === 'complete') next += dampener;
+  return Math.max(50, Math.min(400, next));
+}
+
+export function housingInflationContribution(s) {
+  const H = PARAMS.housing;
+  return v(H.cpiWeight) * (s.housePriceIndex / 100 - 1) * v(H.cpiContributionScale);
+}
+
+export function energyInflationContribution(s) {
+  const E = PARAMS.energy;
+  return v(E.cpiWeight) * (s.energyPriceIndex / 100 - 1) * v(E.cpiContributionScale);
+}
+
+export function updateUnemployment(s) {
+  const trend = v(PARAMS.okun.trendGrowth);
+  const neutralReal = v(PARAMS.okun.neutralRealRate);
+  const okunCoef = v(PARAMS.okun.coefficient);
+  const rateChannel = v(PARAMS.okun.rateChannel);
+  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  // Annual deltas / 4 to convert to per-quarter step.
+  const delta = (-okunCoef * (s.growth - trend) + rateChannel * realRateGap) / 4;
+  return Math.max(0, Math.min(20, s.unemployment + delta));
+}
+
+export function taylorRule(s) {
+  const neutral = v(PARAMS.monetary.neutralRate);
+  const inflCoef = v(PARAMS.monetary.taylorInflationCoef);
+  const unempCoef = s.boeMandate === 'dual' ? v(PARAMS.monetary.taylorUnempCoefDual) : 0;
+  const rStar = neutral
+    + inflCoef * (s.inflation - s.inflationTarget)
+    + unempCoef * (s.naturalUnemployment - s.unemployment);
+  const lo = v(PARAMS.monetary.bankRateClampLow);
+  const hi = v(PARAMS.monetary.bankRateClampHigh);
+  return Math.max(lo, Math.min(hi, rStar));
+}
+
+export function updateBankRate(s) {
+  const inertia = v(PARAMS.monetary.bankRateInertia);
+  const target = taylorRule(s);
+  return inertia * s.bankRate + (1 - inertia) * target;
+}
+
+export function bondYieldFromBankRate(s) {
+  const termPremium = v(PARAMS.monetary.termPremium);
+  const deficitCoef = v(PARAMS.monetary.deficitYieldCoef);
+  const yieldSmooth = v(PARAMS.monetary.yieldSmooth);
+  const balYr = calcBalance(s);
+  const deficitAdj = Math.max(0, -balYr) * deficitCoef;
+  const riskPremium = s.riskPremium ?? 0;
+  const target = s.bankRate + termPremium + deficitAdj + riskPremium;
+  const lo = v(PARAMS.bondYield.floor);
+  const hi = v(PARAMS.bondYield.ceiling);
+  return Math.max(lo, Math.min(hi, yieldSmooth * s.bondYield + (1 - yieldSmooth) * target));
+}
+
+// =============================================================================
+// Equity market + risk premium (Phase 3)
+//
+// updateEquityIndex consumes Math.random ONCE per call (sentiment noise). It
+// must be called BEFORE rollEvents in stepQuarter to preserve seed stability
+// for the existing event roll.
+// updateRiskPremium reads s.cohesionHistory (stdev) and inline-computes
+// debt-to-GDP rather than reading a stored field.
+// =============================================================================
+
+export function updateEquityIndex(s) {
+  const E = PARAMS.equity;
+  const persistence = v(E.persistence);
+  const earningsCoef = v(E.earningsCoef);
+  const taxCorpDrag = v(E.taxCorpDrag);
+  const rateSensitivity = v(E.rateSensitivity);
+  const businessSentimentScale = v(E.businessSentimentScale);
+  const noiseScale = v(E.sentimentNoiseScale);
+  const trendGrowth = v(PARAMS.okun.trendGrowth);
+  const neutralReal = v(PARAMS.okun.neutralRealRate);
+  const corpAnchor = v(PARAMS.initial.taxCorp);
+
+  const growthGap = s.growth - trendGrowth;
+  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  const businessLean = ((s.blocSupport?.business ?? 50) - 50) / 50;
+  const noise = (Math.random() * 2 - 1) * noiseScale;
+
+  const forcing = 100
+    + earningsCoef * growthGap
+    - taxCorpDrag * (s.taxCorp - corpAnchor)
+    - rateSensitivity * realRateGap
+    + businessSentimentScale * businessLean
+    + noise;
+
+  const next = persistence * (s.equityIndex ?? 100) + (1 - persistence) * forcing;
+  return Math.max(30, Math.min(300, next));
+}
+
+function cohesionVolatility(history) {
+  if (!history || history.length < 2) return 0;
+  const mean = history.reduce((a, b) => a + b, 0) / history.length;
+  const variance = history.reduce((a, x) => a + (x - mean) ** 2, 0) / history.length;
+  return Math.sqrt(variance);
+}
+
+export function updateRiskPremium(s) {
+  const R = PARAMS.riskPremium;
+  const threshold = v(R.debtThreshold);
+  const debtCoef = v(R.debtCoef);
+  let volCoef = v(R.volatilityCoef);
+  if (s.reforms?.cityRegulation?.status === 'complete') {
+    volCoef *= v(PARAMS.equity.cityRegulationDamper);
+  }
+  const debtToGDP = s.debt / s.gdp * 100;
+  const debtKick = debtCoef * Math.max(0, debtToGDP - threshold);
+  const volKick = volCoef * cohesionVolatility(s.cohesionHistory);
+  const lo = v(R.floor);
+  const hi = v(R.ceiling);
+  return Math.max(lo, Math.min(hi, debtKick + volKick));
+}
+
+export function wealthEffectOnGrowth(s) {
+  const coef = v(PARAMS.equity.wealthEffectCoef);
+  const cap = v(PARAMS.equity.wealthEffectCap);
+  const raw = coef * ((s.equityIndex ?? 100) / 100 - 1);
+  return Math.max(-cap, Math.min(cap, raw));
+}
+
+// =============================================================================
 // Risk modifiers — applied to event base probabilities
 // =============================================================================
 
@@ -313,6 +534,15 @@ export function computeRiskMods(s) {
   const basicStrikeFloor = v(T.basicRateGeneralStrikeFloor);
   const vatStrikeFloor = v(T.vatGeneralStrikeFloor);
   const infraSurgeFloor = v(T.infraInvestmentSurgeFloor);
+
+  // Rolling 4Q rise in Bank Rate, for rateHikeShock.
+  const path = s.bankRatePath || [];
+  const rateRiseRecent = path.length >= 4
+    ? Math.max(0, path[path.length - 1] - path[path.length - 4])
+    : 0;
+  const hotLabour = Math.max(0, s.naturalUnemployment - s.unemployment);
+  const inflGap = Math.max(0, s.inflation - s.inflationTarget);
+  const taylorDivergence = Math.abs(s.bankRate - taylorRule(s));
 
   const m = {
     nhsStrike: v(R.nhsStrike.base),
@@ -333,6 +563,27 @@ export function computeRiskMods(s) {
     taxBeats: v(R.taxBeats.base),
     demographicDividend: v(R.demographicDividend.base),
     labourShortage: v(R.labourShortage.base),
+    rateHikeShock: v(R.rateHikeShock.base) + rateRiseRecent * v(R.rateHikeShock.perRateRise),
+    wagePriceSpiral: v(R.wagePriceSpiral.base) + hotLabour * inflGap * v(R.wagePriceSpiral.perGapProduct),
+    monetaryPolicyError: v(R.monetaryPolicyError.base) + Math.max(0, taylorDivergence - 1) * v(R.monetaryPolicyError.perDivergencePP),
+    housePriceCorrection: v(R.housePriceCorrection.base)
+      + Math.max(0, (s.housePriceIndex ?? 100) - 120) * v(R.housePriceCorrection.perHpiAboveThreshold),
+    planningRevolt: s.reforms?.housingSupplyTarget?.status === 'complete'
+      ? v(R.planningRevolt.postReformBase)
+      : v(R.planningRevolt.base),
+    equityCrash: v(R.equityCrash.base)
+      + Math.max(0, (s.equityIndex ?? 100) - 130) * v(R.equityCrash.perEquityAboveThreshold),
+    giltStrike: (s.riskPremium ?? 0) > v(R.giltStrike.whenPremiumAbove)
+      ? v(R.giltStrike.activeBase)
+      : v(R.giltStrike.base),
+    sovereignRatingAction: ((s.debt / s.gdp * 100) > v(R.sovereignRatingAction.whenDebtAbove)
+      && (s.riskPremium ?? 0) > v(R.sovereignRatingAction.whenPremiumAbove))
+      ? v(R.sovereignRatingAction.activeBase)
+      : v(R.sovereignRatingAction.base),
+    recession: v(R.recession.base)
+      + Math.max(0, s.growth - v(PARAMS.potentialGrowth))
+      * Math.max(0, s.inflation - s.inflationTarget)
+      * v(R.recession.overheatingCoef),
   };
 
   // Spending-based modifiers
@@ -425,6 +676,11 @@ export function makeCommittedSnapshot(s) {
     growth: s.growth, gini: s.gini, healthIndex: s.healthIndex,
     bondYield: s.bondYield, effectiveServicingRate: s.effectiveServicingRate,
     debt: s.debt, gdp: s.gdp, realGDP: s.realGDP, population: s.population,
+    inflation: s.inflation, unemployment: s.unemployment,
+    bankRate: s.bankRate, inflationTarget: s.inflationTarget,
+    housePriceIndex: s.housePriceIndex, energyPriceIndex: s.energyPriceIndex,
+    housingSupply: s.housingSupply,
+    equityIndex: s.equityIndex, riskPremium: s.riskPremium,
   };
 }
 
@@ -448,6 +704,8 @@ export function rollEvents(s, mods) {
 
 export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
   const I = PARAMS.initial;
+  const parliament = makeInitialParliament({ blocSupport: initialBlocSupport });
+  const { governingPartyMood, chamberMood } = aggregateParliamentMood(parliament.seatMoodById, parliament);
   return {
     quarter: 1, term: 1, globalQuarter: 1,
     gdp: v(I.gdp), realGDP: v(I.realGDP),
@@ -464,11 +722,112 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     reforms: {}, proposedReforms: [],
     revBonusFromReforms: 0, ongoingCostFromReforms: 0, ongoingRevFromReforms: 0,
     healthIndex: v(I.healthIndex), gini: v(I.gini),
+    bankRate: v(I.bankRate),
+    inflationTarget: v(I.inflationTarget),
+    naturalUnemployment: v(I.naturalUnemployment),
+    boeMandate: 'inflation_only',
+    bankRatePath: [],
+    housePriceIndex: v(I.housePriceIndex),
+    energyPriceIndex: v(I.energyPriceIndex),
+    housingSupply: v(I.housingSupply),
+    housePricePath: [],
+    energyPricePath: [],
+    phillipsSlopeMultiplier: 1,
+    equityIndex: v(I.equityIndex),
+    equityPath: [],
+    riskPremium: v(I.riskPremium),
+    permanentGrowthShift: 0,
+    cohesionHistory: [],
     log: [], pendingEvent: null, pendingSummary: null,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,
     forecastNoise: v(PARAMS.forecastNoise.base),
+    politicalCapital: v(I.politicalCapitalStart),
+    pmRelationship: v(I.pmRelationshipStart),
+    parliament,
+    parliamentMood: governingPartyMood,
+    chamberMood,
+    pcLog: [],
+    yieldBreachedLastQuarter: false,
   };
+}
+
+// =============================================================================
+// Political-capital and PM-relationship dynamics
+// =============================================================================
+
+// One-quarter PC regeneration. Returns { delta, breakdown } so the engine can
+// log it and the UI can show the tooltip.
+export function computePcRegen(state) {
+  const PC = PARAMS.politicalCapital;
+  const base = v(PC.baseRegen);
+  const alpha = v(PC.parliamentAlpha);
+  const beta = v(PC.pmBeta);
+  const softCap = v(PC.softCap);
+  const decay = v(PC.softCapDecay);
+
+  const parlContribution = alpha * (state.parliamentMood - 50) / 50;
+  const pmContribution   = beta  * (state.pmRelationship - 50) / 50;
+  const overCap = Math.max(0, state.politicalCapital - softCap);
+  const decayAmount = decay * overCap;
+
+  const delta = base + parlContribution + pmContribution - decayAmount;
+  return {
+    delta,
+    breakdown: {
+      base,
+      parliament: parlContribution,
+      pm: pmContribution,
+      decay: -decayAmount,
+    },
+  };
+}
+
+// PM-relationship adjustments for one quarter. Returns { delta, reasons[] }.
+// Called after reform completions + bond-yield update in stepQuarter.
+export function computePmRelationshipDelta(state, { completedReforms = [], yieldBreached = false, surplusPaidDown = 0, cohesion = null } = {}) {
+  const PMR = PARAMS.pmRelationship;
+  let delta = 0;
+  const reasons = [];
+
+  for (const r of completedReforms) {
+    const align = reformPmAlignment(r, state.parliament.pmIdeology);
+    if (Math.abs(align) > 0.01) {
+      const d = align * v(PMR.deltaAlignedScale);
+      delta += d;
+      reasons.push({ d, reason: align > 0 ? `aligned reform: ${r.name}` : `opposed reform: ${r.name}` });
+    }
+  }
+  if (cohesion !== null && cohesion < v(PMR.cohesionLowThreshold)) {
+    delta += v(PMR.deltaCohesionLow);
+    reasons.push({ d: v(PMR.deltaCohesionLow), reason: 'coalition cohesion low' });
+  }
+  if (yieldBreached) {
+    delta += v(PMR.deltaYieldBreach);
+    reasons.push({ d: v(PMR.deltaYieldBreach), reason: 'bond yield breached threshold' });
+  }
+  if (surplusPaidDown >= v(PMR.surplusPayDownThreshold)) {
+    delta += v(PMR.deltaSurplusPayDown);
+    reasons.push({ d: v(PMR.deltaSurplusPayDown), reason: 'surplus to debt paydown' });
+  }
+  if (state.parliamentMood >= v(PMR.highParlMoodThreshold)) {
+    delta += v(PMR.deltaHighParlMood);
+    reasons.push({ d: v(PMR.deltaHighParlMood), reason: 'parliament mood high' });
+  }
+  // Mean reversion toward target.
+  const target = v(PMR.meanReversionTarget);
+  const rate = v(PMR.meanReversionRate);
+  delta += rate * (target - state.pmRelationship);
+
+  return { delta, reasons };
+}
+
+export function clampPc(pc) {
+  return Math.max(0, Math.min(v(PARAMS.politicalCapital.max), pc));
+}
+
+export function clampPmRelationship(pmr) {
+  return Math.max(0, Math.min(v(PARAMS.pmRelationship.max), pmr));
 }
 
 // Re-export ancillary references the UI needs to render reforms/events.

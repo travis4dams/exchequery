@@ -39,9 +39,10 @@ export const EVENT_DEFINITIONS = {
     tone: 'bad',
     citationId: 'event_energy_shock',
     choices: [
-      { label: 'Energy Price Guarantee (£12bn)', effect: { debt: cited(12, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 5, pensioners: 6, northern: 4 }), log: 'Bills capped through winter.' } },
-      { label: 'Targeted support + windfall tax', effect: { debt: cited(3, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 6, pensioners: 4, business: -5 }), log: 'Targeted help funded by windfall.' } },
-      { label: 'Let the market clear',           effect: { inflation: cited(1.5, 'event_energy_shock'), healthIndex: cited(-2, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: -10, pensioners: -8, northern: -6 }), log: 'Fuel poverty spiked.' } },
+      { label: 'Energy Price Guarantee (£12bn)', effect: { debt: cited(12, 'event_energy_shock'), energyPriceIndex: cited(20, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 5, pensioners: 6, northern: 4 }), log: 'Bills capped through winter.' } },
+      { label: 'Targeted support + windfall tax', effect: { debt: cited(3, 'event_energy_shock'), energyPriceIndex: cited(35, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 6, pensioners: 4, business: -5 }), log: 'Targeted help funded by windfall.' } },
+      { label: 'Let the market clear',           effect: { inflation: cited(1.5, 'event_energy_shock'), energyPriceIndex: cited(50, 'event_energy_shock'), healthIndex: cited(-2, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: -10, pensioners: -8, northern: -6 }), log: 'Fuel poverty spiked.' } },
+      { label: 'Nationalise wholesale gas trading', effect: { debt: cited(8, 'event_energy_shock'), energyPriceIndex: cited(15, 'event_energy_shock'), blocs: blocs('event_energy_shock', { workingClass: 8, pensioners: 5, business: -10, professional: -4 }), log: 'Wholesale gas brought into public hands. Markets aghast.' } },
     ],
   },
   fuelPoverty: {
@@ -199,6 +200,104 @@ export const EVENT_DEFINITIONS = {
     citationId: 'event_trade_deal',
     choices: [
       { label: 'Celebrate', effect: { growth: cited(0.2, 'event_trade_deal'), blocs: blocs('event_trade_deal', { business: 6, professional: 4, middleClass: 3 }), log: 'Trade deal boosting confidence.' } },
+    ],
+  },
+  rateHikeShock: {
+    title: 'Rate Hike Hits Households',
+    body: 'Mortgage holders re-fixing at sharply higher rates. Repossession risk creeping up.',
+    tone: 'bad',
+    citationId: 'event_rate_hike_shock',
+    choices: [
+      { label: 'Mortgage protection scheme', effect: { debt: cited(6, 'event_rate_hike_shock'), blocs: blocs('event_rate_hike_shock', { middleClass: 6, workingClass: 4, business: -2 }), log: 'Mortgage protection scheme launched.' } },
+      { label: 'Counter with fiscal stimulus', effect: { debt: cited(12, 'event_rate_hike_shock'), growth: cited(0.2, 'event_rate_hike_shock'), bondYield: cited(0.2, 'event_rate_hike_shock'), blocs: blocs('event_rate_hike_shock', { workingClass: 5, business: 3, professional: -3 }), log: 'Stimulus package announced. Markets twitchy.' } },
+      { label: 'Blame the Bank publicly',     effect: { blocs: blocs('event_rate_hike_shock', { workingClass: 3, professional: -5, business: -3 }), log: 'You picked a fight with the Governor. Markets noticed.' } },
+    ],
+  },
+  wagePriceSpiral: {
+    title: 'Wage-Price Spiral Warning',
+    body: 'Settlements running 6%+ across multiple sectors. BoE signals further hikes.',
+    tone: 'bad',
+    citationId: 'event_wage_price_spiral',
+    choices: [
+      { label: 'Pay restraint guidance to public sector', effect: { inflation: cited(-0.4, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { publicSector: -6, business: 4 }), log: 'Public-sector pay anchored below private. Unions furious.' } },
+      { label: 'Accept higher settlements', effect: { inflation: cited(0.6, 'event_wage_price_spiral'), growth: cited(-0.1, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { workingClass: 5, publicSector: 6, business: -4 }), log: 'You let the wage round run. CPI ticked up.' } },
+      { label: 'Blame markets, change nothing', effect: { inflation: cited(0.3, 'event_wage_price_spiral'), blocs: blocs('event_wage_price_spiral', { workingClass: -2, business: -2 }), log: 'You did nothing. Settlements continued.' } },
+    ],
+  },
+  housePriceCorrection: {
+    title: 'House-Price Correction Warning',
+    body: 'Major lenders signal a sharp re-pricing. HPI has run hot; mortgage approvals tumbling.',
+    tone: 'bad',
+    citationId: 'event_house_price_correction',
+    choices: [
+      { label: 'Stamp-duty holiday', effect: { debt: cited(6, 'event_house_price_correction'), housePriceIndex: cited(-5, 'event_house_price_correction'), blocs: blocs('event_house_price_correction', { middleClass: 4, business: 3, youth: -2 }), log: 'Stamp duty suspended. Transactions revived.' } },
+      { label: 'Targeted FTB scheme', effect: { debt: cited(3, 'event_house_price_correction'), housePriceIndex: cited(-3, 'event_house_price_correction'), blocs: blocs('event_house_price_correction', { youth: 6, workingClass: 3 }), log: 'First-time buyer scheme launched.' } },
+      { label: 'Let it correct',     effect: { growth: cited(-0.4, 'event_house_price_correction'), housePriceIndex: cited(-10, 'event_house_price_correction'), blocs: blocs('event_house_price_correction', { business: -6, middleClass: -4, youth: 3 }), log: 'You let it correct. Negative equity for some.' } },
+    ],
+  },
+  equityCrash: {
+    title: 'Equity Market Crash',
+    body: 'FTSE down 18% in three sessions. Pension funds taking a haircut.',
+    tone: 'bad',
+    citationId: 'event_equity_crash',
+    choices: [
+      { label: 'Targeted asset purchases', effect: { debt: cited(8, 'event_equity_crash'), equityIndex: cited(-12, 'event_equity_crash'), blocs: blocs('event_equity_crash', { business: 4, professional: 3, workingClass: -2 }), log: 'Coordinated purchases calmed markets.' } },
+      { label: 'Let the market clear',     effect: { growth: cited(-0.3, 'event_equity_crash'), equityIndex: cited(-25, 'event_equity_crash'), blocs: blocs('event_equity_crash', { business: -6, professional: -4 }), log: 'You stood back. Pension hits flowed through to consumption.' } },
+      { label: 'Interest-rate jawboning',  effect: { bondYield: cited(-0.2, 'event_equity_crash'), equityIndex: cited(-18, 'event_equity_crash'), blocs: blocs('event_equity_crash', { professional: -5, workingClass: 2 }), log: 'You leaned on the Governor publicly. Markets stabilised; bond market noted.' } },
+    ],
+  },
+  giltStrike: {
+    title: 'Gilt-Market Strike',
+    body: 'Auction undersubscribed. DMO struggling to place tomorrow\'s tranche. Pound under pressure.',
+    tone: 'bad',
+    citationId: 'event_gilt_strike',
+    choices: [
+      { label: 'Emergency budget',    effect: { debt: cited(-8, 'event_gilt_strike'), growth: cited(-0.4, 'event_gilt_strike'), riskPremium: cited(-0.8, 'event_gilt_strike'), blocs: blocs('event_gilt_strike', { workingClass: -4, professional: 5, business: 3 }), log: 'Emergency budget signed. Spending cut to placate markets.' } },
+      { label: 'IMF precautionary facility', effect: { debt: cited(4, 'event_gilt_strike'), riskPremium: cited(-1.2, 'event_gilt_strike'), blocs: blocs('event_gilt_strike', { workingClass: -3, professional: -3, business: 2 }), log: 'IMF backstop announced. Sovereignty optics ugly; spreads tightened.' } },
+      { label: 'Stand pat',           effect: { bondYield: cited(0.5, 'event_gilt_strike'), riskPremium: cited(0.4, 'event_gilt_strike'), blocs: blocs('event_gilt_strike', { professional: -8, business: -5, workingClass: 2 }), log: 'You stood pat. Spreads widened further.' } },
+    ],
+  },
+  sovereignRatingAction: {
+    title: 'Sovereign Rating Downgrade',
+    body: 'Moody\'s cut UK by one notch. S&P signalled it would follow if no consolidation in the next budget.',
+    tone: 'bad',
+    citationId: 'event_sovereign_rating_action',
+    choices: [
+      { label: 'Defy the agencies',    effect: { bondYield: cited(0.5, 'event_sovereign_rating_action'), riskPremium: cited(0.3, 'event_sovereign_rating_action'), blocs: blocs('event_sovereign_rating_action', { workingClass: 3, professional: -6, business: -4 }), log: 'You called the downgrade unjust. Yields widened.' } },
+      { label: 'Statement of intent to consolidate', effect: { bondYield: cited(0.2, 'event_sovereign_rating_action'), riskPremium: cited(0.1, 'event_sovereign_rating_action'), blocs: blocs('event_sovereign_rating_action', { professional: 2 }), log: 'Statement of intent issued. Markets sceptical but calmer.' } },
+      { label: 'Consolidation package', effect: { debt: cited(-6, 'event_sovereign_rating_action'), growth: cited(-0.2, 'event_sovereign_rating_action'), riskPremium: cited(-0.4, 'event_sovereign_rating_action'), blocs: blocs('event_sovereign_rating_action', { workingClass: -5, professional: 4, business: 3 }), log: 'Spending cuts unveiled. Yields tightened; coalition wobbled.' } },
+    ],
+  },
+  planningRevolt: {
+    title: 'Planning Revolt',
+    body: 'Shire councils and pensioner groups protesting development imposed under the supply target.',
+    tone: 'bad',
+    citationId: 'event_planning_revolt',
+    choices: [
+      { label: 'Concede ground (slow programme)', effect: { housePriceIndex: cited(3, 'event_planning_revolt'), blocs: blocs('event_planning_revolt', { northern: 4, pensioners: 5, youth: -3 }), log: 'Programme slowed. Targets pushed back.' } },
+      { label: 'Hold the line',                    effect: { blocs: blocs('event_planning_revolt', { northern: -6, pensioners: -8, youth: 3, business: 3 }), log: 'You held the line. Pensioners furious.' } },
+      { label: 'Community infrastructure premium', effect: { debt: cited(2, 'event_planning_revolt'), blocs: blocs('event_planning_revolt', { northern: 2, pensioners: 2, workingClass: 3 }), log: 'Local areas bought off with new schools and surgeries.' } },
+    ],
+  },
+  recession: {
+    title: 'Recession Hits',
+    body: 'Overheated economy tipping into contraction. Quarterly output forecast to fall sharply; jobless claims rising.',
+    tone: 'bad',
+    citationId: 'recession_business_cycle_judgement',
+    choices: [
+      { label: 'Fiscal stimulus package', effect: { debt: cited(15, 'recession_business_cycle_judgement'), growth: cited(0.6, 'recession_business_cycle_judgement'), bondYield: cited(0.2, 'recession_business_cycle_judgement'), blocs: blocs('recession_business_cycle_judgement', { workingClass: 5, business: 3, professional: -3 }), log: 'Stimulus announced. Markets digesting wider deficit.' } },
+      { label: 'Austerity to defend gilts', effect: { debt: cited(-8, 'recession_business_cycle_judgement'), growth: cited(-1.0, 'recession_business_cycle_judgement'), riskPremium: cited(-0.3, 'recession_business_cycle_judgement'), blocs: blocs('recession_business_cycle_judgement', { workingClass: -6, professional: 4, business: 2 }), log: 'Spending cuts to reassure markets. Coalition strained.' } },
+      { label: 'Ride it out', effect: { growth: cited(-1.5, 'recession_business_cycle_judgement'), unemployment: cited(0.5, 'recession_business_cycle_judgement'), blocs: blocs('recession_business_cycle_judgement', { workingClass: -3, business: -2 }), log: 'You stood back. Output contracted; unemployment ticked up.' } },
+    ],
+  },
+  monetaryPolicyError: {
+    title: 'MPC Out of Step',
+    body: 'Commentators argue the MPC is materially off the right rate path. Volatility rising.',
+    tone: 'bad',
+    citationId: 'event_monetary_policy_error',
+    choices: [
+      { label: 'Issue supportive remit clarification', effect: { bondYield: cited(-0.2, 'event_monetary_policy_error'), blocs: blocs('event_monetary_policy_error', { professional: 3, business: 2 }), log: 'Clarification calmed markets.' } },
+      { label: 'Public Treasury critique', effect: { bondYield: cited(0.4, 'event_monetary_policy_error'), blocs: blocs('event_monetary_policy_error', { workingClass: 2, professional: -4, business: -3 }), log: 'You broke convention and criticised the Bank publicly.' } },
     ],
   },
 };

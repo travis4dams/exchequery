@@ -65,6 +65,18 @@ export const PARAMS = {
     spendDefence: cited(39, 'obr_defence_baseline'),
     spendInfra: cited(90, 'obr_infra_baseline'),
     spendLocal: cited(140, 'obr_local_baseline'),
+    bankRate: cited(4.5, 'boe_current_bank_rate'),                  // %
+    inflationTarget: cited(2.0, 'boe_inflation_target_remit'),       // % (mandated)
+    naturalUnemployment: cited(4.0, 'boe_nairu_estimate'),           // % (NAIRU)
+    politicalCapitalStart: cited(60, 'pc_regen_methodology'),       // honeymoon-but-not-full
+    pmRelationshipStart: cited(60, 'pm_relationship_methodology'),  // honeymoon
+    pmRelationshipReelectReset: cited(60, 'pm_relationship_methodology'),
+    politicalCapitalReelectReset: cited(70, 'pc_regen_methodology'),
+    housePriceIndex: cited(100, 'housing_index_methodology'),       // index, baseline 100
+    energyPriceIndex: cited(100, 'energy_mix_methodology'),         // index, baseline 100
+    housingSupply: cited(220, 'mhclg_housing_starts'),              // k new dwellings pa (England net additions)
+    equityIndex: cited(100, 'equity_index_methodology'),            // FTSE-style aggregate, baseline 100
+    riskPremium: cited(0, 'reinhart_rogoff_sovereign_premium'),     // pp on bondYield
   },
 
   // ===========================================================================
@@ -106,19 +118,135 @@ export const PARAMS = {
   },
 
   // ===========================================================================
-  // Bond-yield response per quarter (calcBalance → bondYield update)
-  // Thresholds are £bn ANNUAL balance; adjustments are pp on yield.
+  // Bond yield — anchored to Bank Rate plus a deficit kicker. Replaces the
+  // pure-band model that drove yields independently of monetary policy.
+  // bondYield = bankRate + termPremium + deficitYieldCoef × max(0, -annualBalance)
+  // smoothed by yieldSmooth toward last quarter's value.
   // ===========================================================================
   bondYield: {
     floor: cited(2, 'bond_yield_response_judgement'),
     ceiling: cited(10, 'bond_yield_response_judgement'),
-    bigDeficitThreshold: cited(-200, 'bond_yield_response_judgement'),
-    bigDeficitDelta: cited(0.08, 'bond_yield_response_judgement'),
-    midDeficitThreshold: cited(-100, 'bond_yield_response_judgement'),
-    midDeficitDelta: cited(0.02, 'bond_yield_response_judgement'),
-    surplusDelta: cited(-0.06, 'bond_yield_response_judgement'),    // applied when balance > 0
-    smallDeficitThreshold: cited(-50, 'bond_yield_response_judgement'),
-    smallDeficitDelta: cited(-0.03, 'bond_yield_response_judgement'),
+  },
+
+  // ===========================================================================
+  // Monetary policy — Bank of England reaction function (Taylor rule)
+  // ===========================================================================
+  monetary: {
+    neutralRate: cited(3.5, 'boe_neutral_rate'),                   // % nominal anchor
+    taylorInflationCoef: cited(1.5, 'taylor_rule_classic'),         // pp Bank Rate per pp inflation gap
+    taylorUnempCoefDual: cited(0.5, 'taylor_rule_classic'),         // pp Bank Rate per pp unemployment gap (only under dual mandate)
+    bankRateInertia: cited(0.5, 'boe_smoothing_methodology'),       // weight on prior-quarter Bank Rate
+    bankRateClampLow: cited(0, 'boe_rate_history'),                 // % floor
+    bankRateClampHigh: cited(12, 'boe_rate_history'),               // % ceiling
+    termPremium: cited(0.3, 'boe_term_premium'),                    // pp added to Bank Rate to derive base bond yield
+    deficitYieldCoef: cited(0.003, 'monetary_deficit_yield_judgement'), // pp on yield per £bn annual deficit
+    yieldSmooth: cited(0.5, 'boe_smoothing_methodology'),           // weight on prior-quarter yield
+    raisedInflationTarget: cited(3.0, 'inflation_target_review_judgement'), // value used by inflationTargetReview reform
+    inflationTargetReviewYieldShock: cited(0.3, 'inflation_target_review_judgement'), // pp on bondYield on commit
+  },
+
+  // ===========================================================================
+  // Phillips curve — inflation reaction to slack and demand
+  // ===========================================================================
+  phillips: {
+    persistence: cited(0.85, 'obr_inflation_persistence'),          // weight on prior-quarter inflation
+    slope: cited(0.3, 'boe_phillips_slope'),                        // pp inflation per pp (NAIRU − unemployment)
+    vatImpulseCoef: cited(-0.6, 'phillips_demand_judgement'),       // pp inflation per pp VAT (negative = cut adds inflation)
+    basicImpulseCoef: cited(-0.05, 'phillips_demand_judgement'),    // pp inflation per pp basic-rate
+    growthDriftCoef: cited(0.05, 'phillips_demand_judgement'),      // pp inflation per pp (growth − trend)
+  },
+
+  // ===========================================================================
+  // Okun's law — unemployment reaction to growth and real rates
+  // ===========================================================================
+  okun: {
+    coefficient: cited(0.4, 'okun_uk_estimate'),                    // pp unemployment per pp growth gap (annual)
+    trendGrowth: cited(1.5, 'okun_uk_estimate'),                    // %, anchor for output gap
+    rateChannel: cited(0.1, 'okun_rate_channel_judgement'),         // pp unemployment per pp real-rate gap (annual)
+    neutralRealRate: cited(1.5, 'okun_rate_channel_judgement'),     // %, anchor for real rate
+  },
+
+  // ===========================================================================
+  // Growth dynamics — real-rate drag, Laffer drag, mean reversion, noise
+  // ===========================================================================
+  growthDrag: {
+    realRateCoef:        cited(0.05, 'growth_drag_real_rate'),       // pp growth per pp real rate above neutral, per quarter
+    topIncomeLafferCoef: cited(0.04, 'diamond_saez_top_rate'),       // pp growth per pp top-rate above topIncomeLafferRate, per quarter
+    corpLafferCoef:      cited(0.06, 'corp_elasticity_curve'),       // pp growth per pp corp tax above corpHighRate, per quarter
+  },
+  potentialGrowth: cited(1.5, 'obr_growth_baseline'),                // % pa anchor for mean reversion
+  growthReversion: {
+    rate: cited(0.15, 'growth_mean_reversion_judgement'),            // fraction of gap to anchor closed per quarter
+  },
+  growthNoise: {
+    sigma: cited(0.2, 'growth_noise_judgement'),                     // pp stdev per quarter (Box-Muller)
+  },
+
+  // ===========================================================================
+  // Housing market — index dynamics + CPI feed-through
+  //   HPI evolves as: persistence × HPI_{t-1} + (1 − persistence) × forcing
+  //   forcing = 100 + priceWageElasticity × wageGrowthSignal
+  //                 + priceRateElasticity × realRateGap
+  //                 + supplyResponsePerKpa × (housingSupply − baseSupplyKpa)
+  //   housingInflationContribution = cpiWeight × (HPI/100 − 1) × 10  (pp into CPI forcing)
+  // ===========================================================================
+  housing: {
+    cpiWeight: cited(0.16, 'ons_cpih_weights'),                     // CPIH housing weight
+    priceWageElasticity: cited(0.4, 'ifs_housing_wages'),           // pp HPI per pp wage growth signal
+    priceRateElasticity: cited(-2.0, 'boe_housing_rates'),          // pp HPI per pp real-rate gap
+    supplyResponsePerKpa: cited(-0.1, 'barker_review'),             // pp HPI per k pa supply above baseline
+    baseSupplyKpa: cited(220, 'mhclg_housing_starts'),              // baseline net additions pa
+    supplyReformBoostKpa: cited(60, 'barker_review'),               // additional pa once housingSupplyTarget completes
+    persistence: cited(0.8, 'housing_index_methodology'),           // weight on prior-quarter HPI
+    cpiContributionScale: cited(10, 'housing_index_methodology'),   // scales (HPI/100 − 1) into pp-CPI; tunable
+  },
+
+  // ===========================================================================
+  // Energy market — index dynamics + CPI feed-through
+  //   energyPriceIndex evolves as: shockDecay × (index − 100) + 100 + drift terms
+  // ===========================================================================
+  energy: {
+    cpiWeight: cited(0.04, 'ons_cpih_weights'),                     // CPIH energy weight
+    shockDecay: cited(0.85, 'imf_energy_shock_persistence'),        // per-quarter decay of shock toward baseline
+    baselineDrift: cited(0.5, 'ofgem_cap_trend'),                   // pp on index per quarter
+    greenInvestDampener: cited(-0.3, 'gb_energy_grid'),             // pp on index per quarter once greenInvest complete
+    importDependenceFloor: cited(0.4, 'energy_mix_methodology'),    // floor after energyMixReform
+    cpiContributionScale: cited(10, 'energy_mix_methodology'),      // scales (idx/100 − 1) into pp-CPI; tunable
+    shockReformDamper: cited(0.5, 'ccc_seventh_carbon_budget'),     // multiplier applied to energyShock injections once energyMixReform complete
+  },
+
+  // ===========================================================================
+  // Equity market — index dynamics + wealth effect on growth
+  //   equityIndex evolves toward forcing = 100 + earningsCoef*growth_gap
+  //                  − taxCorpDrag*(taxCorp − corpAnchor)
+  //                  − rateSensitivity*realRateGap
+  //                  + businessSentiment*(blocSupport.business − 50)/50 * scale
+  //                  − regulationDrag*regulationIndex
+  //                  + sentimentNoise*Math.random()
+  //   wealthEffectOnGrowth = 0.05 × (equityIndex/100 − 1), capped ±0.1pp
+  // ===========================================================================
+  equity: {
+    persistence: cited(0.7, 'equity_index_methodology'),            // weight on prior-quarter equity index
+    earningsCoef: cited(3.0, 'ofs_buyback_methodology'),            // pp index per pp growth gap
+    taxCorpDrag: cited(1.2, 'ofs_buyback_methodology'),             // pp index per pp corp tax above anchor
+    rateSensitivity: cited(3.0, 'equity_index_methodology'),        // pp index per pp real rate above neutral
+    businessSentimentScale: cited(8.0, 'equity_index_methodology'), // pp index per unit (business bloc - 50)/50
+    sentimentNoiseScale: cited(3.0, 'ofs_buyback_methodology'),     // ± pp uniform per quarter
+    wealthEffectCoef: cited(0.05, 'damodaran_equity_risk_premium'), // pp growth per pp index above 100
+    wealthEffectCap: cited(0.1, 'damodaran_equity_risk_premium'),   // pp growth cap per quarter
+    pensionDamper: cited(0.7, 'pensions_dashboards_methodology'),   // multiplier on equity-shock injections once pensionConsolidation completes
+    cityRegulationDamper: cited(0.6, 'bcbs_macroprudential_capital'), // multiplier on cohesion-volatility coef once cityRegulation completes
+  },
+
+  // ===========================================================================
+  // Risk premium — sovereign spread above the term-premium-anchored target
+  // ===========================================================================
+  riskPremium: {
+    debtThreshold: cited(100, 'reinhart_rogoff_sovereign_premium'), // % debt-to-GDP above which spread starts widening
+    debtCoef: cited(0.01, 'reinhart_rogoff_sovereign_premium'),     // pp premium per pp debt-to-GDP above threshold
+    volatilityCoef: cited(0.1, 'imf_cohesion_volatility_premium'),  // pp premium per pp stdev of cohesion history
+    floor: cited(0, 'reinhart_rogoff_sovereign_premium'),
+    ceiling: cited(4, 'reinhart_rogoff_sovereign_premium'),
   },
 
   // ===========================================================================
@@ -127,6 +255,7 @@ export const PARAMS = {
   // independently of the anchor for game-design reasons.
   // ===========================================================================
   thresholds: {
+    topIncomeLafferRate: cited(50, 'diamond_saez_top_rate'),       // > → growth drag (Laffer)
     corpHighRate: cited(28, 'policy_threshold_judgement'),         // > → business hostile
     corpLowRate: cited(22, 'policy_threshold_judgement'),          // < → working-class/public-sector hostile
     nhsBoostFloor: cited(214, 'policy_threshold_judgement'),       // > → bloc rewards (£10bn over £204 baseline)
@@ -233,6 +362,23 @@ export const PARAMS = {
       business: cited(0.2, 'bloc_response_infra_spend'),
       northern: cited(0.15, 'bloc_response_infra_spend'),
     },
+    // Cost-of-living: per-pp coefficient applied to max(0, inflation − target).
+    inflationAboveTarget: {
+      pensioners: cited(6.0, 'cost_of_living_bloc_judgement'),
+      workingClass: cited(4.5, 'cost_of_living_bloc_judgement'),
+      ethnicMinority: cited(3.5, 'cost_of_living_bloc_judgement'),
+      northern: cited(3.5, 'cost_of_living_bloc_judgement'),
+      middleClass: cited(2.5, 'cost_of_living_bloc_judgement'),
+      youth: cited(3.0, 'cost_of_living_bloc_judgement'),
+      publicSector: cited(2.0, 'cost_of_living_bloc_judgement'),
+    },
+    // Jobs damage: per-pp coefficient applied to max(0, unemployment − NAIRU).
+    unemploymentAboveNAIRU: {
+      youth: cited(3.0, 'cost_of_living_bloc_judgement'),
+      workingClass: cited(2.5, 'cost_of_living_bloc_judgement'),
+      ethnicMinority: cited(2.0, 'cost_of_living_bloc_judgement'),
+      northern: cited(2.0, 'cost_of_living_bloc_judgement'),
+    },
   },
 
   // ===========================================================================
@@ -276,6 +422,45 @@ export const PARAMS = {
     taxBeats: { base: cited(7, 'tax_beats_base') },
     demographicDividend: { base: cited(4, 'demographic_dividend_base') },
     labourShortage: { base: cited(0, 'labour_shortage_base') },     // triggered only by reforms
+    rateHikeShock: {
+      base: cited(4, 'monetary_event_methodology'),
+      perRateRise: cited(8, 'monetary_event_methodology'),          // per pp 4Q rise in Bank Rate
+    },
+    wagePriceSpiral: {
+      base: cited(3, 'monetary_event_methodology'),
+      perGapProduct: cited(6, 'monetary_event_methodology'),        // per (pp hot labour × pp inflation gap)
+    },
+    monetaryPolicyError: {
+      base: cited(2, 'monetary_event_methodology'),
+      perDivergencePP: cited(4, 'monetary_event_methodology'),      // per pp |actual Bank Rate − Taylor| above 1pp
+    },
+    housePriceCorrection: {
+      base: cited(2, 'housing_market_methodology'),
+      perHpiAboveThreshold: cited(5, 'housing_market_methodology'), // per pp HPI above 120
+    },
+    planningRevolt: {
+      base: cited(0, 'housing_supply_politics_judgement'),          // 0 until housingSupplyTarget completes
+      postReformBase: cited(15, 'housing_supply_politics_judgement'),
+    },
+    equityCrash: {
+      base: cited(2, 'equity_index_methodology'),
+      perEquityAboveThreshold: cited(4, 'equity_index_methodology'), // per pp equity index above 130
+    },
+    giltStrike: {
+      base: cited(0, 'event_gilt_strike'),                          // gated on riskPremium > 2.5
+      whenPremiumAbove: cited(2.5, 'event_gilt_strike'),
+      activeBase: cited(40, 'event_gilt_strike'),
+    },
+    sovereignRatingAction: {
+      base: cited(0, 'event_sovereign_rating_action'),              // gated on debt > 110 + premium > 1.5
+      whenPremiumAbove: cited(1.5, 'event_sovereign_rating_action'),
+      whenDebtAbove: cited(110, 'event_sovereign_rating_action'),
+      activeBase: cited(25, 'event_sovereign_rating_action'),
+    },
+    recession: {
+      base:            cited(1, 'recession_business_cycle_judgement'),  // % per quarter baseline
+      overheatingCoef: cited(4, 'recession_business_cycle_judgement'),  // % per (growthGap × inflGap) pp-product
+    },
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),
   },
@@ -297,6 +482,58 @@ export const PARAMS = {
     deptBudgetPerSlot: cited(30, 'reform_capacity_judgement'),     // £bn of departmental spend per capacity point
     civilServiceBonus: cited(2, 'reform_capacity_judgement'),      // extra slots once civilService completes
     cancelBlocPenalty: cited(-3, 'reform_capacity_judgement'),     // applied to publicSector + professional on cancel
+  },
+
+  // ===========================================================================
+  // Political capital — single 0-100 currency. Spent on proposing reforms;
+  // regenerates each quarter from base + parliament mood + PM relationship.
+  // ===========================================================================
+  politicalCapital: {
+    max: cited(100, 'pc_regen_methodology'),
+    baseRegen: cited(8, 'pc_regen_methodology'),                  // per quarter at neutral mood + PM
+    parliamentAlpha: cited(6, 'pc_regen_methodology'),            // contribution scaled by (mood-50)/50
+    pmBeta: cited(4, 'pc_regen_methodology'),                     // contribution scaled by (pm-50)/50
+    softCap: cited(80, 'pc_regen_methodology'),                   // above this, decay applies
+    softCapDecay: cited(0.20, 'pc_regen_methodology'),            // fraction of (PC - softCap) lost per quarter
+    defaultReformCost: cited(10, 'political_capital_authoring_methodology'),
+    cancelPenalty: cited(10, 'pc_regen_methodology'),             // PC deducted on cancelReform
+  },
+
+  // ===========================================================================
+  // Parliament — 632 GB constituencies modelled from ralphascott Census +
+  // 2024 GE bundle. Each MP has a (econ, social) ideology vector anchored to
+  // their party (CHES 2024) and adjusted by Hanretty 2016 Brexit (social) and
+  // 2024 vote-share (econ) per-seat signals. Quarterly mood updates from
+  // bloc-weighted constituent opinion, with inertia + per-seat noise.
+  // ===========================================================================
+  parliament: {
+    inertia: cited(0.80, 'parliament_mood_methodology'),           // mood persistence per quarter
+    seatMoodNoise: cited(3.0, 'parliament_mood_methodology'),      // ± points uniform per seat
+    oppositionThreshold: cited(0.5, 'parliament_opposition_methodology'),  // free zone (dist - this = residual)
+    strongOppositionCutoff: cited(0.5, 'parliament_opposition_methodology'),  // residual above this = "opposed MP"
+    oppositionMult: cited(1.5, 'parliament_opposition_methodology'),
+    cohesionPenaltyMult: cited(1.5, 'parliament_opposition_methodology'),
+  },
+
+  // ===========================================================================
+  // PM relationship — 0-100 score. Modifies PC regen; gates a few reforms via
+  // optional reform.requiresPmTrust. Updated each quarter from completed
+  // reforms (ideological alignment with PM) and economic-stewardship events.
+  // ===========================================================================
+  pmRelationship: {
+    max: cited(100, 'pm_relationship_methodology'),
+    deltaAlignedScale: cited(4, 'pm_relationship_methodology'),    // multiplied by cosine alignment (signed)
+    deltaCancel: cited(-5, 'pm_relationship_methodology'),
+    cohesionLowThreshold: cited(30, 'pm_relationship_methodology'),
+    deltaCohesionLow: cited(-1, 'pm_relationship_methodology'),
+    yieldBreachThreshold: cited(5.5, 'pm_relationship_methodology'),
+    deltaYieldBreach: cited(-4, 'pm_relationship_methodology'),
+    surplusPayDownThreshold: cited(20, 'pm_relationship_methodology'),  // £bn
+    deltaSurplusPayDown: cited(2, 'pm_relationship_methodology'),
+    highParlMoodThreshold: cited(60, 'pm_relationship_methodology'),
+    deltaHighParlMood: cited(1, 'pm_relationship_methodology'),
+    meanReversionRate: cited(0.05, 'pm_relationship_methodology'),
+    meanReversionTarget: cited(50, 'pm_relationship_methodology'),
   },
 
   // ===========================================================================
