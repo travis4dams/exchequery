@@ -203,12 +203,26 @@ export function stepQuarter(game) {
     n.debt = n.debt - qBalance;
   }
 
-  // 6. GDP grows; then real-rate drag and equity-wealth effect on growth state.
+  // 6. GDP grows; then real-rate drag, Laffer drag, equity-wealth, mean reversion.
   n.gdp = n.gdp * (1 + (n.growth + n.inflation) / 100 / 4);
   n.realGDP = n.realGDP * (1 + n.growth / 100 / 4);
+
   const realRateGap = n.bankRate - n.inflation - v(PARAMS.okun.neutralRealRate);
   n.growth = n.growth - v(PARAMS.growthDrag.realRateCoef) * realRateGap;
+
+  // Laffer drag — top income tax above 50% and corp tax above 28% slow growth.
+  const topGap  = Math.max(0, n.taxIncomeHigh - v(PARAMS.thresholds.topIncomeLafferRate));
+  const corpGap = Math.max(0, n.taxCorp       - v(PARAMS.thresholds.corpHighRate));
+  n.growth -= v(PARAMS.growthDrag.topIncomeLafferCoef) * topGap;
+  n.growth -= v(PARAMS.growthDrag.corpLafferCoef)      * corpGap;
+
   n.growth = n.growth + wealthEffectOnGrowth(n);
+
+  // Mean reversion toward potential + accumulated permanent shifts from
+  // supply-side reforms. Transient reform bonuses (and event shocks) fade
+  // back to anchor over ~4 quarters at rate 0.15.
+  const reversionAnchor = v(PARAMS.potentialGrowth) + (n.permanentGrowthShift || 0);
+  n.growth = n.growth + v(PARAMS.growthReversion.rate) * (reversionAnchor - n.growth);
 
   // 6a. Housing & energy markets — update before inflation so contributions
   //     flow into the Phillips-curve forcing term in updateInflation.
@@ -247,7 +261,12 @@ export function stepQuarter(game) {
       if (actual.ongoingCost) n.ongoingCostFromReforms = (n.ongoingCostFromReforms || 0) + actual.ongoingCost;
       if (actual.ongoingRev) n.ongoingRevFromReforms = (n.ongoingRevFromReforms || 0) + actual.ongoingRev;
       if (actual.healthBoost) n.healthIndex = Math.max(0, Math.min(100, n.healthIndex + actual.healthBoost));
-      if (actual.growthBonus) n.growth = n.growth + actual.growthBonus;
+      if (actual.growthBonus) {
+        n.growth = n.growth + actual.growthBonus;
+        if (reform.growthBonusPermanent) {
+          n.permanentGrowthShift = (n.permanentGrowthShift || 0) + actual.growthBonus;
+        }
+      }
       if (actual.gini) n.gini = n.gini + actual.gini;
 
       if (reform.blocEffects) {
@@ -324,6 +343,15 @@ export function stepQuarter(game) {
     const eventId = triggered[Math.floor(Math.random() * triggered.length)];
     eventToShow = { id: eventId, ...EVENT_DEFINITIONS[eventId] };
   }
+
+  // 9b. Gaussian growth noise — Box-Muller. Placed AFTER the event roll so
+  //     the existing playtest seed library (equity sentiment + risk draws +
+  //     event-pick) stays stable. Any future Math.random consumer MUST be
+  //     inserted before this block to preserve seeds.
+  const u1 = Math.max(1e-12, Math.random());
+  const u2 = Math.random();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  n.growth = n.growth + v(PARAMS.growthNoise.sigma) * z;
 
   // 10. Build summary
   const blocChanges = {};

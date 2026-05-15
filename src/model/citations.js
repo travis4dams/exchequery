@@ -1773,6 +1773,27 @@ export const CITATIONS = {
     title: 'Sovereign rating action — choice payouts',
     note: 'Rating-agency downgrade scenario when debt-to-GDP > 110% AND risk premium > 1.5pp. One-shot +0.5pp on bond yields plus choices that signal the policy posture (defiance, statement of intent to consolidate, or actual consolidation). Magnitudes match the historical scale of UK rating-action spreads (S&P 2013 / Fitch 2020).',
   },
+  growth_mean_reversion_judgement: {
+    parameter: 'potentialGrowth (1.5), growthReversion.rate (0.15)',
+    confidence: 'judgement',
+    title: 'Growth mean reversion toward potential',
+    publisher: 'OBR Fiscal Sustainability Report; OECD potential-output methodology',
+    note: "Each quarter, the growth state mean-reverts toward potentialGrowth + state.permanentGrowthShift at rate 0.15 (half-life ~4 quarters). Anchor mirrors OBR's medium-term potential-output assumption (~1.5% pa). Permanent shifts come from supply-side reforms flagged growthBonusPermanent; transient bonuses (demand stimulus, behavioural reforms) decay back to anchor. Replaces the previous one-way ratchet where reform bonuses stacked permanently with no mean reversion.",
+  },
+  growth_noise_judgement: {
+    parameter: 'growthNoise.sigma (0.2)',
+    confidence: 'judgement',
+    title: 'Quarterly growth shock — Gaussian noise',
+    publisher: 'OECD growth-dispersion analyses; UK quarterly GDP variance',
+    note: 'A small Gaussian shock N(0, 0.2pp) is added to growth each quarter via Box-Muller. Calibrated loosely to UK quarterly GDP growth dispersion (~0.3-0.5pp stdev across post-2010 data, scaled down to avoid one-shot dominance over policy signal). Drawn AFTER rollEvents to preserve the playtest seed library; future Math.random consumers MUST be inserted before this block.',
+  },
+  recession_business_cycle_judgement: {
+    parameter: 'risks.recession base/coef + event choice effects',
+    confidence: 'judgement',
+    title: 'Recession event — overheating-driven probability',
+    publisher: 'IMF WEO recession-frequency dataset; OBR business-cycle methodology',
+    note: "Recession probability per quarter = base (1%) + overheatingCoef (4) × max(0, growth − potential) × max(0, inflation − target). With growth 2pp above potential and inflation 2pp above target, probability is ~17%/qtr. The event delivers a one-shot growth hit (-0.6 to -1.5pp depending on choice); mean reversion then pulls growth back to potential over ~4 quarters, mimicking the persistence of real recessions. Choice payouts mirror conventional stimulus/austerity/inaction trade-offs.",
+  },
 };
 
 // Helper: given a citationId, return the entry or throw.

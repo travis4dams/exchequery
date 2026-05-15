@@ -36,6 +36,9 @@ section accumulates on the `dev` branch between releases.
 - About tab: new "Parliament methodology" section with citation links to CHES 2024, ONS Census 2021, Hanretty 2016 Brexit notionals, and the Ralph Scott constituency bundle.
 
 ### Balance
+- **Growth realism.** Growth no longer ratchets upward indefinitely — each quarter it mean-reverts to potential (~1.5%) at ~15% of the gap, with a small Gaussian shock (±0.2pp). Transient reform bonuses (childcare, apprenticeships, FE funding, etc.) fade over about a year; supply-side reforms flagged `growthBonusPermanent` (NPR Rail, Social Housing, Green Investment, Planning Reform, Full Fibre, Housing Supply Target) raise the long-run anchor permanently. Immigration Cap and Rent Controls permanently lower it.
+- **Laffer drag.** Top income rate above 50% and corporation tax above 28% now directly slow growth (0.04 and 0.06pp per pp respectively). The cheese strategy no longer escapes a growth penalty.
+- **Recession event.** New `recession` event fires probabilistically when growth runs above potential AND inflation above target — base 1%/qtr plus an overheating coefficient. Three choices: stimulus, austerity to defend gilts, or ride it out.
 - Gilts now carry a sovereign risk premium that punishes volatile coalitions. Strategies that churn the coalition (including Labour Flexibility on a cheese baseline) frequently lose markets in the medium term.
 - Equity index consumes seeded RNG before the event roll. Existing playtest seeds remain stable.
 - House prices feed CPI directly (housing weight ~0.16), so building (or failing to build) now bites at the inflation channel as well as the bloc channel.

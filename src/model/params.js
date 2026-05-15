@@ -167,10 +167,19 @@ export const PARAMS = {
   },
 
   // ===========================================================================
-  // Growth drag from real interest rates
+  // Growth dynamics — real-rate drag, Laffer drag, mean reversion, noise
   // ===========================================================================
   growthDrag: {
-    realRateCoef: cited(0.05, 'growth_drag_real_rate'),             // pp growth per pp real rate above neutral, per quarter
+    realRateCoef:        cited(0.05, 'growth_drag_real_rate'),       // pp growth per pp real rate above neutral, per quarter
+    topIncomeLafferCoef: cited(0.04, 'diamond_saez_top_rate'),       // pp growth per pp top-rate above topIncomeLafferRate, per quarter
+    corpLafferCoef:      cited(0.06, 'corp_elasticity_curve'),       // pp growth per pp corp tax above corpHighRate, per quarter
+  },
+  potentialGrowth: cited(1.5, 'obr_growth_baseline'),                // % pa anchor for mean reversion
+  growthReversion: {
+    rate: cited(0.15, 'growth_mean_reversion_judgement'),            // fraction of gap to anchor closed per quarter
+  },
+  growthNoise: {
+    sigma: cited(0.2, 'growth_noise_judgement'),                     // pp stdev per quarter (Box-Muller)
   },
 
   // ===========================================================================
@@ -246,6 +255,7 @@ export const PARAMS = {
   // independently of the anchor for game-design reasons.
   // ===========================================================================
   thresholds: {
+    topIncomeLafferRate: cited(50, 'diamond_saez_top_rate'),       // > → growth drag (Laffer)
     corpHighRate: cited(28, 'policy_threshold_judgement'),         // > → business hostile
     corpLowRate: cited(22, 'policy_threshold_judgement'),          // < → working-class/public-sector hostile
     nhsBoostFloor: cited(214, 'policy_threshold_judgement'),       // > → bloc rewards (£10bn over £204 baseline)
@@ -446,6 +456,10 @@ export const PARAMS = {
       whenPremiumAbove: cited(1.5, 'event_sovereign_rating_action'),
       whenDebtAbove: cited(110, 'event_sovereign_rating_action'),
       activeBase: cited(25, 'event_sovereign_rating_action'),
+    },
+    recession: {
+      base:            cited(1, 'recession_business_cycle_judgement'),  // % per quarter baseline
+      overheatingCoef: cited(4, 'recession_business_cycle_judgement'),  // % per (growthGap × inflGap) pp-product
     },
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),

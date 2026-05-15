@@ -35,7 +35,27 @@
 //     },
 //     blocEffects?: { [blocId]: { value, citationId } },
 //     riskMods?: { [eventId]: { value, citationId } },
+//     growthBonusPermanent?: boolean, // see "Growth bonus semantics" below
 //   }
+//
+// Growth bonus semantics:
+//   onComplete.growthBonus is applied as a one-shot kick to state.growth on
+//   completion. Mean reversion (gameStep.js step 6) pulls growth back toward
+//   PARAMS.potentialGrowth + state.permanentGrowthShift each quarter, so
+//   growthBonus is TRANSIENT by default and fades over ~4 quarters.
+//
+//   Set `growthBonusPermanent: true` for reforms that shift the production
+//   frontier (supply-side, institutional). Their growthBonus is added to
+//   state.permanentGrowthShift on completion, raising the long-run anchor
+//   for mean reversion. Negative permanent values lower the anchor.
+//
+// FUTURE WORK (out of scope here): split reforms vs policies. Some passed
+// reforms are really *policies* and should appear in a policy menu where
+// they can be amended or repealed (e.g. wealth tax → tax-menu line item;
+// rent controls → repealable policy). Others (e.g. setting the BoE
+// inflation target) are once-a-generation and stay one-shot. Tax rates
+// eventually become editable tables with custom bands. The
+// growthBonusPermanent flag here is the seed of that distinction.
 //
 // To add a reform: append one entry here AND ensure citationId resolves in
 // citations.js. No other code changes needed — the UI iterates this map.
@@ -387,6 +407,7 @@ export const REFORMS = {
     ideologyStance: { econ: -0.5, social: -0.1 },
     blurb: '300,000 council homes over 8Q. Lowers Housing Benefit long-term.',
     citationId: 'shelter_social_housing',
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(0.3, 'shelter_social_housing'),
       gini: cited(-0.4, 'shelter_social_housing'),
@@ -412,6 +433,7 @@ export const REFORMS = {
     ideologyStance: { econ: 0.1, social: 0.0 },
     blurb: 'Presumption in favour of development; restrict NIMBY blocks.',
     citationId: 'planning_friction',
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(0.2, 'planning_friction'),
       log: 'Planning reform unblocking 80k homes/year.',
@@ -433,6 +455,7 @@ export const REFORMS = {
     blurb: 'Annual rent rises capped at CPI.',
     citationId: 'diamond_mcquade_qian_rent_control',
     controversial: true,
+    growthBonusPermanent: true,
     onComplete: {
       gini: cited(-0.2, 'diamond_mcquade_qian_rent_control'),
       growthBonus: cited(-0.05, 'diamond_mcquade_qian_rent_control'),
@@ -455,6 +478,7 @@ export const REFORMS = {
     blurb: 'Underwrite local authorities to deliver 300k homes annually. Stops HPI runaway.',
     citationId: 'barker_review',
     special: 'boostHousingSupply',
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(0.2, 'barker_review'),
       populationEffects: { youth: cited(0.05, 'barker_review') },
@@ -543,6 +567,7 @@ export const REFORMS = {
     ideologyStance: { econ: -0.3, social: -0.3 },
     blurb: 'Public energy company + grid upgrade. Lower bills mid-term.',
     citationId: 'gb_energy_grid',
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(0.3, 'gb_energy_grid'),
       ongoingRev: cited(2, 'gb_energy_grid'),
@@ -582,6 +607,7 @@ export const REFORMS = {
     ideologyStance: { econ: -0.4, social: 0.0 },
     blurb: 'Connecting Northern cities. Long lead time.',
     citationId: 'npr_rail',
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(0.5, 'npr_rail'),
       populationEffects: {
@@ -603,6 +629,7 @@ export const REFORMS = {
     ideologyStance: { econ: 0.0, social: 0.0 },
     blurb: 'Universal full-fibre by 2030.',
     citationId: 'cebr_full_fibre',
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(0.2, 'cebr_full_fibre'),
       log: 'Full-fibre near-universal.',
@@ -900,6 +927,7 @@ export const REFORMS = {
     blurb: 'Hard cap on visa routes. Reduces growth and population in working-age blocs.',
     citationId: 'obr_migration_cap',
     controversial: true,
+    growthBonusPermanent: true,
     onComplete: {
       growthBonus: cited(-0.4, 'obr_migration_cap'),
       ongoingRev: cited(-3, 'obr_migration_cap'),
