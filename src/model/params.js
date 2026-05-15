@@ -289,6 +289,16 @@ export const PARAMS = {
   },
 
   // ===========================================================================
+  // Reform capacity — limits how many reforms can run simultaneously
+  // ===========================================================================
+  reformCapacity: {
+    deptBudgetAnchor: cited(605, 'reform_capacity_judgement'),     // £bn; baseline departmental total minus 5 slots' worth (755 − 150 = 605)
+    deptBudgetPerSlot: cited(30, 'reform_capacity_judgement'),     // £bn of departmental spend per capacity point
+    civilServiceBonus: cited(2, 'reform_capacity_judgement'),      // extra slots once civilService completes
+    cancelBlocPenalty: cited(-3, 'reform_capacity_judgement'),     // applied to publicSector + professional on cancel
+  },
+
+  // ===========================================================================
   // Surplus allocation effects (designer-set ratios)
   // ===========================================================================
   surplusAllocation: {

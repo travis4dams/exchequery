@@ -28,6 +28,35 @@ function availableNonControversialReforms(state, cohesion) {
   return out;
 }
 
+// Bang-per-buck score for ordering proposals: coalition-support gain per
+// unit of capacity load. Higher = more attractive. Reforms with no positive
+// coalition signal score zero/negative and sort to the back, but stay in
+// the queue so the engine picks them up once the high-value ones complete.
+function bangPerBuck(reform) {
+  let coalitionImpact = 0;
+  if (reform.blocEffects) {
+    for (const id of COALITION) {
+      const leaf = reform.blocEffects[id];
+      if (leaf) coalitionImpact += v(leaf);
+    }
+  }
+  const load = reform.capacityLoad || 1;
+  return coalitionImpact / load;
+}
+
+// Sort an id list by bang-per-buck desc. Tie-breakers: smaller capacityLoad
+// (frees the slot sooner), then smaller upfront cost.
+function rankByBangPerBuck(ids) {
+  return [...ids].sort((a, b) => {
+    const ra = REFORMS[a], rb = REFORMS[b];
+    const diff = bangPerBuck(rb) - bangPerBuck(ra);
+    if (diff !== 0) return diff;
+    const ld = (ra.capacityLoad || 1) - (rb.capacityLoad || 1);
+    if (ld !== 0) return ld;
+    return v(ra.cost) - v(rb.cost);
+  });
+}
+
 // Score an event choice by the change in (weighted) coalition support it
 // produces. Higher = better for the player. Ties broken by lower debt cost.
 function scoreEventChoice(state, choice) {
@@ -62,7 +91,10 @@ function bestEventChoice(state, event) {
 // - VAT: minimised.
 // - Defence: minimised.
 // - Other spending: left at baseline (UI slider neutral).
-// - Reforms: propose every non-controversial reform as soon as available.
+// - Reforms: propose every non-controversial reform as soon as available,
+//   ordered by bang-per-buck (coalition support gained per unit of
+//   capacityLoad) so the engine's capacity gate fills with the
+//   highest-impact-per-load reforms first.
 // - Events: pick the choice that maximises coalition-bloc support.
 // - Surplus: 100% to debt paydown.
 // =============================================================================
@@ -79,7 +111,7 @@ export const dominantCheese = {
   },
   adjustBudget(_state) { return null; },
   proposeReforms(state, cohesion) {
-    return availableNonControversialReforms(state, cohesion);
+    return rankByBangPerBuck(availableNonControversialReforms(state, cohesion));
   },
   resolveEvent(state, event) {
     return bestEventChoice(state, event);

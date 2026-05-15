@@ -21,6 +21,9 @@ export {
   rollEvents,
   makeCommittedSnapshot,
   makeInitialState,
+  reformCapacityLoad,
+  calcReformCapacity,
+  calcReformLoadInFlight,
 } from './engine.js';
 export {
   stepQuarter,
@@ -28,4 +31,5 @@ export {
   dismissSummary,
   commitSurplusAllocation,
   continueAfterElection,
+  cancelReform,
 } from './gameStep.js';

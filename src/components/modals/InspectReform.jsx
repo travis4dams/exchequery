@@ -55,7 +55,7 @@ export function InspectReform({ reform, forecastNoise, onClose }) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="bg-stone-900/40 rounded p-2">
             <div className="text-[9px] uppercase tracking-wider text-stone-500">Upfront</div>
             <div className="text-sm font-semibold text-stone-200 flex items-center gap-1" style={{fontFamily: 'IBM Plex Mono'}}>
@@ -66,6 +66,13 @@ export function InspectReform({ reform, forecastNoise, onClose }) {
           <div className="bg-stone-900/40 rounded p-2">
             <div className="text-[9px] uppercase tracking-wider text-stone-500">Duration</div>
             <div className="text-sm font-semibold text-stone-200" style={{fontFamily: 'IBM Plex Mono'}}>{reform.quarters}Q</div>
+          </div>
+          <div className="bg-stone-900/40 rounded p-2">
+            <div className="text-[9px] uppercase tracking-wider text-stone-500">Capacity</div>
+            <div className="text-sm font-semibold text-stone-200 flex items-center gap-1" style={{fontFamily: 'IBM Plex Mono'}}>
+              Load {reform.capacityLoad ?? 1}
+              <CitationLink id="reform_capacity_judgement" />
+            </div>
           </div>
         </div>
 

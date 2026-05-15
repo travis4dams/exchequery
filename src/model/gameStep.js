@@ -21,6 +21,9 @@
 //                                     { state, needsSurplusAllocation }.
 //   commitSurplusAllocation(game,a) — applies a surplus allocation.
 //   continueAfterElection(game)     — honeymoon reset; bumps term, termsWon.
+//   cancelReform(game, id)          — drops an in-flight reform; sunk-cost
+//                                     on upfront £bn; bloc penalty to
+//                                     publicSector & professional.
 // =============================================================================
 
 import { PARAMS } from './params.js';
@@ -39,6 +42,8 @@ import {
   rollEvents,
   sampleReformOutcome,
   makeCommittedSnapshot,
+  reformCapacityLoad,
+  calcReformCapacity,
 } from './engine.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
@@ -53,6 +58,9 @@ const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
 //
 // Ordering must match the original ChancellorSim.advanceQuarter exactly:
 // 1. Commit proposed reforms (no passReq re-check — UI gates that).
+//    Engine enforces capacity: skip any proposal whose capacityLoad would
+//    push total in-flight load past calcReformCapacity. Skipped proposals
+//    are logged and discarded (they don't auto-requeue).
 // 2. Apply quarterly bloc deltas and clamp [0, 100].
 // 3. Population dynamics (uses post-commit reforms; only `complete` ones
 //    contribute populationEffects).
@@ -82,11 +90,24 @@ export function stepQuarter(game) {
 
   let n = { ...game };
 
-  // 1. Commit proposed reforms
+  // 1. Commit proposed reforms (engine-enforced capacity)
   const startedReforms = [];
+  const skippedReforms = [];
+  const capacity = calcReformCapacity(n);
+  let inFlightLoad = 0;
+  for (const r of Object.values(n.reforms)) {
+    if (r.status === 'inProgress') inFlightLoad += reformCapacityLoad(r.reformDef);
+  }
   for (const id of n.proposedReforms) {
     const reform = REFORMS[id];
     if (!reform) continue;
+    const load = reformCapacityLoad(reform);
+    if (inFlightLoad + load > capacity) {
+      skippedReforms.push(reform.name);
+      n.log = [...n.log, { q: n.quarter, text: `Deferred (no capacity): ${reform.name}` }];
+      continue;
+    }
+    inFlightLoad += load;
     const cost = v(reform.cost);
     n.reforms = {
       ...n.reforms,
@@ -213,6 +234,7 @@ export function stepQuarter(game) {
     blocChanges: blocChangeArray.slice(0, 4),
     weightChanges: Object.entries(weightChanges).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3),
     startedReforms,
+    skippedReforms,
     completedReforms,
     eventPending: !!eventToShow,
     pendingSurplus: n.pendingSurplus,
@@ -334,4 +356,28 @@ export function continueAfterElection(game) {
     log: [...game.log, { q: 1, text: `🗳️ Re-elected for Term ${game.term + 1}.` }],
     committed: null,
   };
+}
+
+// =============================================================================
+// cancelReform — drop an in-flight reform. Upfront cost stays on the books
+// (sunk-cost); apply a bloc penalty to publicSector & professional.
+// =============================================================================
+export function cancelReform(game, id) {
+  const r = game.reforms[id];
+  if (!r || r.status !== 'inProgress') return game;
+  const reform = REFORMS[id] || r.reformDef;
+  const penalty = v(PARAMS.reformCapacity.cancelBlocPenalty);
+  const newReforms = { ...game.reforms };
+  delete newReforms[id];
+  const newBlocSupport = { ...game.blocSupport };
+  newBlocSupport.publicSector = Math.max(0, Math.min(100, newBlocSupport.publicSector + penalty));
+  newBlocSupport.professional = Math.max(0, Math.min(100, newBlocSupport.professional + penalty));
+  const n = {
+    ...game,
+    reforms: newReforms,
+    blocSupport: newBlocSupport,
+    log: [...game.log, { q: game.quarter, text: `Cancelled: ${reform?.name || id}` }],
+  };
+  n.committed = makeCommittedSnapshot(n);
+  return n;
 }

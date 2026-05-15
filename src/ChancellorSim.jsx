@@ -14,11 +14,15 @@ import {
   quarterlyBlocDelta,
   computeRiskMods,
   makeInitialState,
+  reformCapacityLoad,
+  calcReformCapacity,
+  calcReformLoadInFlight,
   stepQuarter,
   resolveEvent as modelResolveEvent,
   dismissSummary as modelDismissSummary,
   commitSurplusAllocation as modelCommitSurplusAllocation,
   continueAfterElection as modelContinueAfterElection,
+  cancelReform as modelCancelReform,
 } from './model/index.js';
 
 import { Intro } from './components/modals/Intro.jsx';
@@ -85,6 +89,8 @@ export default function ChancellorSim() {
   const spending = useMemo(() => calcSpending(game), [game]);
   const riskMods = useMemo(() => computeRiskMods(game), [game]);
   const projectedDeltas = useMemo(() => quarterlyBlocDelta(game), [game]);
+  const reformCapacity = useMemo(() => calcReformCapacity(game), [game]);
+  const reformLoadInFlight = useMemo(() => calcReformLoadInFlight(game), [game]);
   const deficit = -balance;
   const deficitGDP = deficit / game.gdp * 100;
   const debtRatio = (game.debt / game.gdp * 100).toFixed(0);
@@ -95,6 +101,10 @@ export default function ChancellorSim() {
   function set(patch) { setGame(g => ({ ...g, ...patch })); }
   function proposeReform(id) { setGame(g => ({ ...g, proposedReforms: [...g.proposedReforms, id] })); }
   function unproposeReform(id) { setGame(g => ({ ...g, proposedReforms: g.proposedReforms.filter(rid => rid !== id) })); }
+
+  function cancelReform(id) {
+    setGame(g => modelCancelReform(g, id));
+  }
 
   function advanceQuarter() {
     if (game.pendingEvent || game.pendingSummary || showReelect || showSurplusAlloc) return;
@@ -139,7 +149,8 @@ export default function ChancellorSim() {
     const reform = REFORMS[id];
     if (game.reforms[id]) return false;
     if (game.proposedReforms.includes(id)) return false;
-    return reform.prereq.every(p => game.reforms[p]?.status === 'complete');
+    if (!reform.prereq.every(p => game.reforms[p]?.status === 'complete')) return false;
+    return reformLoadInFlight + reformCapacityLoad(reform) <= reformCapacity;
   }
 
   const balanceDiff = committed ? balance - committed.balance : null;
@@ -279,7 +290,9 @@ export default function ChancellorSim() {
         {tab === 'reforms' && (
           <ReformsTab game={game} coalitionCohesion={coalitionCohesion}
             canStartReform={canStartReform} proposeReform={proposeReform}
-            unproposeReform={unproposeReform} onInspect={setInspectReform} />
+            unproposeReform={unproposeReform} cancelReform={cancelReform}
+            reformCapacity={reformCapacity} reformLoadInFlight={reformLoadInFlight}
+            onInspect={setInspectReform} />
         )}
         {tab === 'risks' && <RisksTab riskMods={riskMods} />}
         {tab === 'ledger' && (
@@ -298,6 +311,7 @@ export default function ChancellorSim() {
               <div className="text-[11px] text-stone-300">
                 {game.proposedReforms.length > 0 && <span className="text-sky-400">{game.proposedReforms.length} queued · </span>}
                 {Object.values(game.reforms).filter(r => r.status === 'inProgress').length} in flight ·
+                {' '}<span className={reformLoadInFlight >= reformCapacity ? 'text-amber-400' : 'text-stone-400'}>Cap {reformLoadInFlight}/{reformCapacity}</span> ·
                 {' '}{Object.values(game.reforms).filter(r => r.status === 'complete').length} delivered
               </div>
             </div>
