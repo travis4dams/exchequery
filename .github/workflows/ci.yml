@@ -31,3 +31,57 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+
+  # Extended balance check — only on PRs targeting main (release gate).
+  # Runs the dominant-strategy playtest with more seeds to catch regressions
+  # that only surface across many games.
+  playtest-extended:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+        env:
+          PLAYTEST_SEEDS: 500
+
+  # Release readiness — only on PRs targeting main. Verifies the PR bumps
+  # package.json version and adds a corresponding section to PATCH_NOTES.md.
+  release-readiness:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check version bumped and patch notes updated
+        run: |
+          set -euo pipefail
+
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "PR version: $NEW_VERSION"
+
+          git fetch origin main --depth=1
+          MAIN_VERSION=$(git show origin/main:package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version")
+          echo "main version: $MAIN_VERSION"
+
+          if [ "$NEW_VERSION" = "$MAIN_VERSION" ]; then
+            echo "::error::package.json version must be bumped before merging to main (currently $NEW_VERSION on both branches)."
+            exit 1
+          fi
+
+          if [ ! -f PATCH_NOTES.md ]; then
+            echo "::error::PATCH_NOTES.md is missing."
+            exit 1
+          fi
+
+          if ! grep -qE "^## \[v${NEW_VERSION//./\\.}\]" PATCH_NOTES.md; then
+            echo "::error::PATCH_NOTES.md must contain a '## [v${NEW_VERSION}]' section for this release."
+            exit 1
+          fi
+
+          echo "Release readiness OK."
