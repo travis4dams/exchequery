@@ -12,6 +12,12 @@ import { PARAMS } from './params.js';
 import { BLOCS, COALITION } from './blocs.js';
 import { REFORMS, REFORM_BRANCHES } from './reforms.js';
 import { EVENT_DEFINITIONS, REFORM_RISK_MODS } from './events.js';
+import {
+  makeInitialParliament,
+  updateSeatMoods,
+  aggregateParliamentMood,
+  reformPmAlignment,
+} from './parliament.js';
 
 // Convenience: unwrap a { value, citationId } leaf to its scalar.
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
@@ -448,6 +454,8 @@ export function rollEvents(s, mods) {
 
 export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
   const I = PARAMS.initial;
+  const parliament = makeInitialParliament({ blocSupport: initialBlocSupport });
+  const { governingPartyMood, chamberMood } = aggregateParliamentMood(parliament.seatMoodById, parliament);
   return {
     quarter: 1, term: 1, globalQuarter: 1,
     gdp: v(I.gdp), realGDP: v(I.realGDP),
@@ -468,7 +476,92 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,
     forecastNoise: v(PARAMS.forecastNoise.base),
+    politicalCapital: v(I.politicalCapitalStart),
+    pmRelationship: v(I.pmRelationshipStart),
+    parliament,
+    parliamentMood: governingPartyMood,
+    chamberMood,
+    pcLog: [],
+    yieldBreachedLastQuarter: false,
   };
+}
+
+// =============================================================================
+// Political-capital and PM-relationship dynamics
+// =============================================================================
+
+// One-quarter PC regeneration. Returns { delta, breakdown } so the engine can
+// log it and the UI can show the tooltip.
+export function computePcRegen(state) {
+  const PC = PARAMS.politicalCapital;
+  const base = v(PC.baseRegen);
+  const alpha = v(PC.parliamentAlpha);
+  const beta = v(PC.pmBeta);
+  const softCap = v(PC.softCap);
+  const decay = v(PC.softCapDecay);
+
+  const parlContribution = alpha * (state.parliamentMood - 50) / 50;
+  const pmContribution   = beta  * (state.pmRelationship - 50) / 50;
+  const overCap = Math.max(0, state.politicalCapital - softCap);
+  const decayAmount = decay * overCap;
+
+  const delta = base + parlContribution + pmContribution - decayAmount;
+  return {
+    delta,
+    breakdown: {
+      base,
+      parliament: parlContribution,
+      pm: pmContribution,
+      decay: -decayAmount,
+    },
+  };
+}
+
+// PM-relationship adjustments for one quarter. Returns { delta, reasons[] }.
+// Called after reform completions + bond-yield update in stepQuarter.
+export function computePmRelationshipDelta(state, { completedReforms = [], yieldBreached = false, surplusPaidDown = 0, cohesion = null } = {}) {
+  const PMR = PARAMS.pmRelationship;
+  let delta = 0;
+  const reasons = [];
+
+  for (const r of completedReforms) {
+    const align = reformPmAlignment(r, state.parliament.pmIdeology);
+    if (Math.abs(align) > 0.01) {
+      const d = align * v(PMR.deltaAlignedScale);
+      delta += d;
+      reasons.push({ d, reason: align > 0 ? `aligned reform: ${r.name}` : `opposed reform: ${r.name}` });
+    }
+  }
+  if (cohesion !== null && cohesion < v(PMR.cohesionLowThreshold)) {
+    delta += v(PMR.deltaCohesionLow);
+    reasons.push({ d: v(PMR.deltaCohesionLow), reason: 'coalition cohesion low' });
+  }
+  if (yieldBreached) {
+    delta += v(PMR.deltaYieldBreach);
+    reasons.push({ d: v(PMR.deltaYieldBreach), reason: 'bond yield breached threshold' });
+  }
+  if (surplusPaidDown >= v(PMR.surplusPayDownThreshold)) {
+    delta += v(PMR.deltaSurplusPayDown);
+    reasons.push({ d: v(PMR.deltaSurplusPayDown), reason: 'surplus to debt paydown' });
+  }
+  if (state.parliamentMood >= v(PMR.highParlMoodThreshold)) {
+    delta += v(PMR.deltaHighParlMood);
+    reasons.push({ d: v(PMR.deltaHighParlMood), reason: 'parliament mood high' });
+  }
+  // Mean reversion toward target.
+  const target = v(PMR.meanReversionTarget);
+  const rate = v(PMR.meanReversionRate);
+  delta += rate * (target - state.pmRelationship);
+
+  return { delta, reasons };
+}
+
+export function clampPc(pc) {
+  return Math.max(0, Math.min(v(PARAMS.politicalCapital.max), pc));
+}
+
+export function clampPmRelationship(pmr) {
+  return Math.max(0, Math.min(v(PARAMS.pmRelationship.max), pmr));
 }
 
 // Re-export ancillary references the UI needs to render reforms/events.

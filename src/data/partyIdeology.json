@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-05-15",
+  "generator": "scripts/buildConstituencies.js",
+  "sourceFile": "data/raw/ralphascott-census-2024.csv",
+  "sourceVersion": "ralphascott v1.1",
+  "note": "Great Britain only — Northern Ireland (18 seats) excluded. See data/raw/SOURCES.md.",
+  "source": "Chapel Hill Expert Survey 2024 UK extract",
+  "url": "https://www.chesdata.eu/2024-chapel-hill-expert-survey-ches",
+  "method": "CHES lrecon (0–10) and galtan (0–10) rescaled to [-1, +1] via (x - 5) / 5.",
+  "anchors": {
+    "Lab": {
+      "econ": -0.32,
+      "social": -0.26
+    },
+    "Con": {
+      "econ": 0.46,
+      "social": 0.4
+    },
+    "LD": {
+      "econ": -0.06,
+      "social": -0.5
+    },
+    "RUK": {
+      "econ": 0.54,
+      "social": 0.82
+    },
+    "Reform": {
+      "econ": 0.54,
+      "social": 0.82
+    },
+    "Green": {
+      "econ": -0.6,
+      "social": -0.7
+    },
+    "SNP": {
+      "econ": -0.3,
+      "social": -0.34
+    },
+    "PC": {
+      "econ": -0.32,
+      "social": -0.3
+    },
+    "Ind": {
+      "econ": 0,
+      "social": 0
+    },
+    "Spk": {
+      "econ": 0,
+      "social": 0
+    },
+    "Other": {
+      "econ": 0,
+      "social": 0
+    }
+  }
+}
