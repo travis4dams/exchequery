@@ -9,6 +9,15 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+### Balance
+### Fixes
+### Known Issues
+
+---
+
+## [v0.2.0] — 2026-05-15
+
+### New
 - **Equity market.** Aggregate equity index responds to growth, corp-tax stance, real rates, and business sentiment. A small wealth-effect feeds back into growth, capped at ±0.1pp/qtr.
 - **Risk premium on gilts.** Long yield now adds a sovereign risk premium that widens with debt-to-GDP above 100% and with coalition cohesion volatility. Markets tab gauges it.
 - Markets tab gains an Equity panel and the Bond panel now breaks out short rate, gilt yield, and risk premium separately.
@@ -56,20 +65,6 @@ section accumulates on the `dev` branch between releases.
 - Cheese strategy still survives the first term in most games (the inflation buildup takes 8–12 quarters and the term-1 honeymoon protects against early collapse). Subsequent terms reliably collapse.
 - Northern Ireland's 18 seats are not modelled (source data is Great Britain only); none take the Labour or Conservative whip so it doesn't affect the political-capital mechanic.
 - Per-MP voting-record heterodoxy (TheyWorkForYou) is not yet folded in — the within-party spread comes from constituency demographics and Brexit signal only. Planned for a follow-up.
-
----
-
-## [v0.1.2] — 2026-05-15
-
-### New
-- Event payouts now each carry their own citation. Tapping a choice's details panel surfaces a per-event source note explaining the magnitudes, not a generic methodology stub.
-- About tab intro and README "How to play" now pull live deficit, debt-to-GDP, coalition floor, bond ceiling, term length and forecast-noise band from PARAMS instead of hardcoded prose. `npm run sync-docs` regenerates the README block; CI fails if it drifts.
-
-### Balance
-- Replaced shared `event_payouts_judgement` citation with 18 per-event citations, each documenting the scale-of-event reasoning for that scenario.
-
-### Fixes
-- Inherited-deficit text updated to £133bn (OBR Nov-2025 EFO) — was lingering at the older £132bn round-down.
 
 ---
 
