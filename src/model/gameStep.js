@@ -50,6 +50,9 @@ import {
   bondYieldFromBankRate,
   updateHousePriceIndex,
   updateEnergyPriceIndex,
+  updateEquityIndex,
+  updateRiskPremium,
+  wealthEffectOnGrowth,
   computePcRegen,
   computePmRelationshipDelta,
   clampPc,
@@ -200,11 +203,12 @@ export function stepQuarter(game) {
     n.debt = n.debt - qBalance;
   }
 
-  // 6. GDP grows; then real-rate drag on growth state.
+  // 6. GDP grows; then real-rate drag and equity-wealth effect on growth state.
   n.gdp = n.gdp * (1 + (n.growth + n.inflation) / 100 / 4);
   n.realGDP = n.realGDP * (1 + n.growth / 100 / 4);
   const realRateGap = n.bankRate - n.inflation - v(PARAMS.okun.neutralRealRate);
   n.growth = n.growth - v(PARAMS.growthDrag.realRateCoef) * realRateGap;
+  n.growth = n.growth + wealthEffectOnGrowth(n);
 
   // 6a. Housing & energy markets — update before inflation so contributions
   //     flow into the Phillips-curve forcing term in updateInflation.
@@ -213,7 +217,17 @@ export function stepQuarter(game) {
   n.energyPriceIndex = updateEnergyPriceIndex(n);
   n.energyPricePath = [...((n.energyPricePath || []).slice(-7)), n.energyPriceIndex];
 
-  // 6b. Monetary block — strict order: unemployment, inflation, Bank Rate, yield.
+  // 6b. Equity index — consumes Math.random() once. MUST run before the
+  //     event roll in step 9 so the existing playtest seed library stays
+  //     stable.
+  n.equityIndex = updateEquityIndex(n);
+  n.equityPath = [...((n.equityPath || []).slice(-7)), n.equityIndex];
+
+  // 6c. Risk premium — reads debt-to-GDP inline and stdev of cohesionHistory.
+  //     Computed BEFORE bondYieldFromBankRate so the yield picks it up.
+  n.riskPremium = updateRiskPremium(n);
+
+  // 6d. Monetary block — strict order: unemployment, inflation, Bank Rate, yield.
   n.unemployment = updateUnemployment(n);
   n.inflation = updateInflation(n);
   n.bankRate = updateBankRate(n);
@@ -259,6 +273,9 @@ export function stepQuarter(game) {
       }
       if (reform.special === 'flattenPhillipsSlope') {
         n.phillipsSlopeMultiplier = (n.phillipsSlopeMultiplier ?? 1) * 0.6;
+      }
+      if (reform.special === 'enablePensionDamper') {
+        n.equityShockDamper = v(PARAMS.equity.pensionDamper);
       }
 
       completedReforms.push(reform.name);
@@ -322,6 +339,10 @@ export function stepQuarter(game) {
     const wc = n.blocWeights[id] - preWeights[id];
     if (Math.abs(wc) >= 0.001) weightChanges[id] = wc;
   }
+
+  // Cohesion history for the next quarter's risk-premium volatility term.
+  const cohesionNow = calcCoalitionCohesion(n.blocSupport, n.blocWeights);
+  n.cohesionHistory = [...((n.cohesionHistory || []).slice(-3)), cohesionNow];
 
   n.pendingSummary = {
     quarter: n.quarter,
@@ -398,6 +419,17 @@ export function resolveEvent(game, choice) {
     // energyMixReform halves positive (shock) injections; reductions pass through unchanged.
     if (energyDelta > 0 && n.energyShockDamper) energyDelta *= n.energyShockDamper;
     n.energyPriceIndex = Math.max(50, Math.min(400, (n.energyPriceIndex ?? 100) + energyDelta));
+  }
+  let equityDelta = v(eff.equityIndex);
+  if (equityDelta) {
+    // pensionConsolidation damps negative (shock) injections; positive moves pass through.
+    if (equityDelta < 0 && n.equityShockDamper) equityDelta *= n.equityShockDamper;
+    n.equityIndex = Math.max(30, Math.min(300, (n.equityIndex ?? 100) + equityDelta));
+  }
+  const riskPremium = v(eff.riskPremium);
+  if (riskPremium) {
+    n.riskPremium = Math.max(v(PARAMS.riskPremium.floor),
+      Math.min(v(PARAMS.riskPremium.ceiling), (n.riskPremium ?? 0) + riskPremium));
   }
   if (eff.blocs) {
     n.blocSupport = { ...n.blocSupport };

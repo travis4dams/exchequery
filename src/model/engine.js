@@ -446,10 +446,79 @@ export function bondYieldFromBankRate(s) {
   const yieldSmooth = v(PARAMS.monetary.yieldSmooth);
   const balYr = calcBalance(s);
   const deficitAdj = Math.max(0, -balYr) * deficitCoef;
-  const target = s.bankRate + termPremium + deficitAdj;
+  const riskPremium = s.riskPremium ?? 0;
+  const target = s.bankRate + termPremium + deficitAdj + riskPremium;
   const lo = v(PARAMS.bondYield.floor);
   const hi = v(PARAMS.bondYield.ceiling);
   return Math.max(lo, Math.min(hi, yieldSmooth * s.bondYield + (1 - yieldSmooth) * target));
+}
+
+// =============================================================================
+// Equity market + risk premium (Phase 3)
+//
+// updateEquityIndex consumes Math.random ONCE per call (sentiment noise). It
+// must be called BEFORE rollEvents in stepQuarter to preserve seed stability
+// for the existing event roll.
+// updateRiskPremium reads s.cohesionHistory (stdev) and inline-computes
+// debt-to-GDP rather than reading a stored field.
+// =============================================================================
+
+export function updateEquityIndex(s) {
+  const E = PARAMS.equity;
+  const persistence = v(E.persistence);
+  const earningsCoef = v(E.earningsCoef);
+  const taxCorpDrag = v(E.taxCorpDrag);
+  const rateSensitivity = v(E.rateSensitivity);
+  const businessSentimentScale = v(E.businessSentimentScale);
+  const noiseScale = v(E.sentimentNoiseScale);
+  const trendGrowth = v(PARAMS.okun.trendGrowth);
+  const neutralReal = v(PARAMS.okun.neutralRealRate);
+  const corpAnchor = v(PARAMS.initial.taxCorp);
+
+  const growthGap = s.growth - trendGrowth;
+  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  const businessLean = ((s.blocSupport?.business ?? 50) - 50) / 50;
+  const noise = (Math.random() * 2 - 1) * noiseScale;
+
+  const forcing = 100
+    + earningsCoef * growthGap
+    - taxCorpDrag * (s.taxCorp - corpAnchor)
+    - rateSensitivity * realRateGap
+    + businessSentimentScale * businessLean
+    + noise;
+
+  const next = persistence * (s.equityIndex ?? 100) + (1 - persistence) * forcing;
+  return Math.max(30, Math.min(300, next));
+}
+
+function cohesionVolatility(history) {
+  if (!history || history.length < 2) return 0;
+  const mean = history.reduce((a, b) => a + b, 0) / history.length;
+  const variance = history.reduce((a, x) => a + (x - mean) ** 2, 0) / history.length;
+  return Math.sqrt(variance);
+}
+
+export function updateRiskPremium(s) {
+  const R = PARAMS.riskPremium;
+  const threshold = v(R.debtThreshold);
+  const debtCoef = v(R.debtCoef);
+  let volCoef = v(R.volatilityCoef);
+  if (s.reforms?.cityRegulation?.status === 'complete') {
+    volCoef *= v(PARAMS.equity.cityRegulationDamper);
+  }
+  const debtToGDP = s.debt / s.gdp * 100;
+  const debtKick = debtCoef * Math.max(0, debtToGDP - threshold);
+  const volKick = volCoef * cohesionVolatility(s.cohesionHistory);
+  const lo = v(R.floor);
+  const hi = v(R.ceiling);
+  return Math.max(lo, Math.min(hi, debtKick + volKick));
+}
+
+export function wealthEffectOnGrowth(s) {
+  const coef = v(PARAMS.equity.wealthEffectCoef);
+  const cap = v(PARAMS.equity.wealthEffectCap);
+  const raw = coef * ((s.equityIndex ?? 100) / 100 - 1);
+  return Math.max(-cap, Math.min(cap, raw));
 }
 
 // =============================================================================
@@ -502,6 +571,15 @@ export function computeRiskMods(s) {
     planningRevolt: s.reforms?.housingSupplyTarget?.status === 'complete'
       ? v(R.planningRevolt.postReformBase)
       : v(R.planningRevolt.base),
+    equityCrash: v(R.equityCrash.base)
+      + Math.max(0, (s.equityIndex ?? 100) - 130) * v(R.equityCrash.perEquityAboveThreshold),
+    giltStrike: (s.riskPremium ?? 0) > v(R.giltStrike.whenPremiumAbove)
+      ? v(R.giltStrike.activeBase)
+      : v(R.giltStrike.base),
+    sovereignRatingAction: ((s.debt / s.gdp * 100) > v(R.sovereignRatingAction.whenDebtAbove)
+      && (s.riskPremium ?? 0) > v(R.sovereignRatingAction.whenPremiumAbove))
+      ? v(R.sovereignRatingAction.activeBase)
+      : v(R.sovereignRatingAction.base),
   };
 
   // Spending-based modifiers
@@ -598,6 +676,7 @@ export function makeCommittedSnapshot(s) {
     bankRate: s.bankRate, inflationTarget: s.inflationTarget,
     housePriceIndex: s.housePriceIndex, energyPriceIndex: s.energyPriceIndex,
     housingSupply: s.housingSupply,
+    equityIndex: s.equityIndex, riskPremium: s.riskPremium,
   };
 }
 
@@ -650,6 +729,10 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     housePricePath: [],
     energyPricePath: [],
     phillipsSlopeMultiplier: 1,
+    equityIndex: v(I.equityIndex),
+    equityPath: [],
+    riskPremium: v(I.riskPremium),
+    cohesionHistory: [],
     log: [], pendingEvent: null, pendingSummary: null,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,

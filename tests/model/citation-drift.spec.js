@@ -51,7 +51,7 @@ describe('README PARAMS-bound blocks reflect live values', () => {
 });
 
 describe('event effects are fully cited', () => {
-  const NUMERIC_EFFECT_KEYS = ['debt', 'growth', 'inflation', 'healthIndex', 'bondYield', 'housePriceIndex', 'energyPriceIndex'];
+  const NUMERIC_EFFECT_KEYS = ['debt', 'growth', 'inflation', 'healthIndex', 'bondYield', 'housePriceIndex', 'energyPriceIndex', 'equityIndex', 'riskPremium'];
   for (const [eventId, def] of Object.entries(EVENT_DEFINITIONS)) {
     it(`${eventId}: every choice effect leaf is { value, citationId }`, () => {
       expect(def.citationId, `${eventId} missing event-level citationId`).toBeTruthy();

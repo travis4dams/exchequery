@@ -30,7 +30,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { runGame, aggregate } from './runGame.js';
-import { dominantCheese, doNothing, randomReforms, supplySideBuilder, cheesePlusFlex } from './strategies.js';
+import { dominantCheese, doNothing, randomReforms, supplySideBuilder, cheesePlusFlex, dominantCheeseUltra } from './strategies.js';
 
 const TRIALS = Number(process.env.PLAYTEST_SEEDS) || 100;
 const MAX_TERMS = 4;
@@ -45,21 +45,23 @@ function runBatch(strategy) {
 }
 
 describe(`dominant-strategy playtest (${TRIALS} games)`, () => {
-  let cheeseStats, doNothingStats, randomStats, supplyStats, flexStats;
+  let cheeseStats, doNothingStats, randomStats, supplyStats, flexStats, ultraStats;
 
-  // Five batches of TRIALS games each — bump the default 10s hook timeout.
+  // Six batches of TRIALS games each — bump the default 10s hook timeout.
   beforeAll(() => {
     cheeseStats = aggregate(runBatch(dominantCheese));
     doNothingStats = aggregate(runBatch(doNothing));
     randomStats = aggregate(runBatch(randomReforms));
     supplyStats = aggregate(runBatch(supplySideBuilder));
     flexStats = aggregate(runBatch(cheesePlusFlex));
+    ultraStats = aggregate(runBatch(dominantCheeseUltra));
     // Single greppable JSON line per strategy.
     console.log('CHEESE_AGGREGATE ' + JSON.stringify(cheeseStats));
     console.log('DO_NOTHING_AGGREGATE ' + JSON.stringify(doNothingStats));
     console.log('RANDOM_AGGREGATE ' + JSON.stringify(randomStats));
     console.log('SUPPLY_AGGREGATE ' + JSON.stringify(supplyStats));
     console.log('FLEX_AGGREGATE ' + JSON.stringify(flexStats));
+    console.log('ULTRA_AGGREGATE ' + JSON.stringify(ultraStats));
   }, 600_000);
 
   it('cheese ends with lower cohesion than do-nothing (exploit defeated)', () => {
@@ -86,5 +88,15 @@ describe(`dominant-strategy playtest (${TRIALS} games)`, () => {
 
   it('cheesePlusFlex still ends below do-nothing on cohesion (flex does not rescue cheese)', () => {
     expect(flexStats.meanFinalCohesion).toBeLessThan(doNothingStats.meanFinalCohesion);
+  });
+
+  it('cheesePlusFlex carries a higher risk premium than supplySideBuilder', () => {
+    // flex paths churn the coalition and frequently collapse — the risk
+    // premium should reflect that volatility relative to the stable
+    // supply-side build-out. (We compare flex, not pure cheese: cheese
+    // pays down debt aggressively, so its risk premium stays compressed
+    // even though the coalition is unhappy.)
+    expect(flexStats.meanFinalRiskPremium)
+      .toBeGreaterThan(supplyStats.meanFinalRiskPremium + 0.05);
   });
 });

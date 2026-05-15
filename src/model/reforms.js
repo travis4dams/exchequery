@@ -836,6 +836,41 @@ export const REFORMS = {
       councilBankruptcy: cited(-20, 'ifs_local_gov'),
     },
   },
+  pensionConsolidation: {
+    name: 'Pension Consolidation (Mansion House)', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 5, prereq: [], capacityLoad: 4,
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    politicalCapitalCost: cited(10, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0.2, social: 0.0 },
+    blurb: 'Consolidate small DC pots; channel more capital into UK productive assets. Damps equity-shock blowback.',
+    citationId: 'pensions_dashboards_methodology',
+    special: 'enablePensionDamper',
+    onComplete: {
+      log: 'Pension consolidation in effect. Small pots merged; equity-shock blowback dampened.',
+    },
+    blocEffects: {
+      business: cited(4, 'bloc_methodology'),
+      professional: cited(3, 'bloc_methodology'),
+    },
+  },
+  cityRegulation: {
+    name: 'City Regulation Tightening', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 4, prereq: [], capacityLoad: 3,
+    passReq: { coalition: cited(33, 'bloc_methodology') },
+    politicalCapitalCost: cited(14, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: -0.3, social: 0.0 },
+    controversial: true,
+    blurb: 'Tighter macroprudential rules; reduces sovereign-spread volatility. Equity dampener.',
+    citationId: 'bcbs_macroprudential_capital',
+    onComplete: {
+      log: 'Tighter macroprudential rules in force. Gilt-market volatility falls.',
+    },
+    blocEffects: {
+      business: cited(-8, 'bloc_methodology'),
+      workingClass: cited(3, 'bloc_methodology'),
+      publicSector: cited(2, 'bloc_methodology'),
+    },
+  },
   banking: {
     name: 'Banking Regulation', branch: 'state',
     cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 3,

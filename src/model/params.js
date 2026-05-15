@@ -75,6 +75,8 @@ export const PARAMS = {
     housePriceIndex: cited(100, 'housing_index_methodology'),       // index, baseline 100
     energyPriceIndex: cited(100, 'energy_mix_methodology'),         // index, baseline 100
     housingSupply: cited(220, 'mhclg_housing_starts'),              // k new dwellings pa (England net additions)
+    equityIndex: cited(100, 'equity_index_methodology'),            // FTSE-style aggregate, baseline 100
+    riskPremium: cited(0, 'reinhart_rogoff_sovereign_premium'),     // pp on bondYield
   },
 
   // ===========================================================================
@@ -202,6 +204,40 @@ export const PARAMS = {
     importDependenceFloor: cited(0.4, 'energy_mix_methodology'),    // floor after energyMixReform
     cpiContributionScale: cited(10, 'energy_mix_methodology'),      // scales (idx/100 − 1) into pp-CPI; tunable
     shockReformDamper: cited(0.5, 'ccc_seventh_carbon_budget'),     // multiplier applied to energyShock injections once energyMixReform complete
+  },
+
+  // ===========================================================================
+  // Equity market — index dynamics + wealth effect on growth
+  //   equityIndex evolves toward forcing = 100 + earningsCoef*growth_gap
+  //                  − taxCorpDrag*(taxCorp − corpAnchor)
+  //                  − rateSensitivity*realRateGap
+  //                  + businessSentiment*(blocSupport.business − 50)/50 * scale
+  //                  − regulationDrag*regulationIndex
+  //                  + sentimentNoise*Math.random()
+  //   wealthEffectOnGrowth = 0.05 × (equityIndex/100 − 1), capped ±0.1pp
+  // ===========================================================================
+  equity: {
+    persistence: cited(0.7, 'equity_index_methodology'),            // weight on prior-quarter equity index
+    earningsCoef: cited(3.0, 'ofs_buyback_methodology'),            // pp index per pp growth gap
+    taxCorpDrag: cited(1.2, 'ofs_buyback_methodology'),             // pp index per pp corp tax above anchor
+    rateSensitivity: cited(3.0, 'equity_index_methodology'),        // pp index per pp real rate above neutral
+    businessSentimentScale: cited(8.0, 'equity_index_methodology'), // pp index per unit (business bloc - 50)/50
+    sentimentNoiseScale: cited(3.0, 'ofs_buyback_methodology'),     // ± pp uniform per quarter
+    wealthEffectCoef: cited(0.05, 'damodaran_equity_risk_premium'), // pp growth per pp index above 100
+    wealthEffectCap: cited(0.1, 'damodaran_equity_risk_premium'),   // pp growth cap per quarter
+    pensionDamper: cited(0.7, 'pensions_dashboards_methodology'),   // multiplier on equity-shock injections once pensionConsolidation completes
+    cityRegulationDamper: cited(0.6, 'bcbs_macroprudential_capital'), // multiplier on cohesion-volatility coef once cityRegulation completes
+  },
+
+  // ===========================================================================
+  // Risk premium — sovereign spread above the term-premium-anchored target
+  // ===========================================================================
+  riskPremium: {
+    debtThreshold: cited(100, 'reinhart_rogoff_sovereign_premium'), // % debt-to-GDP above which spread starts widening
+    debtCoef: cited(0.01, 'reinhart_rogoff_sovereign_premium'),     // pp premium per pp debt-to-GDP above threshold
+    volatilityCoef: cited(0.1, 'imf_cohesion_volatility_premium'),  // pp premium per pp stdev of cohesion history
+    floor: cited(0, 'reinhart_rogoff_sovereign_premium'),
+    ceiling: cited(4, 'reinhart_rogoff_sovereign_premium'),
   },
 
   // ===========================================================================
@@ -395,6 +431,21 @@ export const PARAMS = {
     planningRevolt: {
       base: cited(0, 'housing_supply_politics_judgement'),          // 0 until housingSupplyTarget completes
       postReformBase: cited(15, 'housing_supply_politics_judgement'),
+    },
+    equityCrash: {
+      base: cited(2, 'equity_index_methodology'),
+      perEquityAboveThreshold: cited(4, 'equity_index_methodology'), // per pp equity index above 130
+    },
+    giltStrike: {
+      base: cited(0, 'event_gilt_strike'),                          // gated on riskPremium > 2.5
+      whenPremiumAbove: cited(2.5, 'event_gilt_strike'),
+      activeBase: cited(40, 'event_gilt_strike'),
+    },
+    sovereignRatingAction: {
+      base: cited(0, 'event_sovereign_rating_action'),              // gated on debt > 110 + premium > 1.5
+      whenPremiumAbove: cited(1.5, 'event_sovereign_rating_action'),
+      whenDebtAbove: cited(110, 'event_sovereign_rating_action'),
+      activeBase: cited(25, 'event_sovereign_rating_action'),
     },
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),

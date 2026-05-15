@@ -1700,6 +1700,79 @@ export const CITATIONS = {
     title: 'Planning revolt — choice payouts',
     note: 'NIMBY backlash after the housing supply target lands. Choices model three responses: concede ground (slow the programme, win back pensioner + northern blocs at the cost of giving up some supply), hold the line (incur the bloc cost), or buy off local areas with a community infrastructure premium (debt cost; partial bloc recovery). Magnitudes calibrated.',
   },
+
+  // ===========================================================================
+  // Equity + risk-premium bonds (Phase 3)
+  // ===========================================================================
+  equity_index_methodology: {
+    parameter: 'equity.* coefficients; updateEquityIndex',
+    confidence: 'judgement',
+    title: 'Equity index methodology',
+    note: 'Equity index 100-baseline aggregating earnings expectations, real rates, business confidence, regulation, and sentiment noise. Earnings term proxied from growth and corp-tax stance (high corp = lower earnings expectations). Real-rate sensitivity calibrated to typical UK equity-discount-rate empirics. Sentiment noise consumes Math.random() in gameStep BEFORE the event roll, so existing seeds remain stable. Coefficients are designer judgement; the broad mechanism (rates down → equities up; growth up → equities up; corp tax up → equities down) is well-evidenced.',
+  },
+  damodaran_equity_risk_premium: {
+    parameter: 'wealthEffectOnGrowth coefficient',
+    confidence: 'extrapolated',
+    title: 'Equity wealth effect on consumption / growth',
+    publisher: 'Damodaran (NYU); BoE QB',
+    year: 2023,
+    url: 'https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html',
+    note: 'Empirical estimates of the equity wealth-effect on UK consumption are small: a 10% equity-index rise lifts consumption by ~0.5% in the short run, fading thereafter. Sim uses a coefficient of 0.05 on (equityIndex/100 − 1), capped at ±0.1pp on growth per quarter. Extrapolated from Damodaran cross-country data and BoE Quarterly Bulletin reviews of UK consumption sensitivities; not a directly estimated UK number.',
+  },
+  reinhart_rogoff_sovereign_premium: {
+    parameter: 'riskPremium.coef_debt, debtThreshold',
+    confidence: 'extrapolated',
+    title: 'Sovereign risk premium and debt levels',
+    publisher: 'Reinhart & Rogoff; OBR sustainability work',
+    year: 2010,
+    url: 'https://www.nber.org/papers/w15639',
+    note: 'Reinhart-Rogoff (2010) and follow-up work flag a non-linear relationship between debt-to-GDP and sovereign spreads: above ~90% debt-to-GDP the average advanced-economy spread starts to widen. Sim uses a linear coefficient of 0.01pp risk premium per pp debt-to-GDP above a 100% threshold, clamped at 4pp. Extrapolated from the cross-country literature; UK-specific spreads have been compressed by sterling-asset demand and BoE balance-sheet operations.',
+  },
+  imf_cohesion_volatility_premium: {
+    parameter: 'riskPremium.coef_vol; cohesionHistory rolling stdev',
+    confidence: 'judgement',
+    title: 'Political-volatility premium on sovereign debt',
+    note: 'IMF and rating-agency analyses repeatedly cite "political stability" as a driver of sovereign spreads but rarely publish quantitative coefficients. Sim proxies it via the standard deviation of coalition cohesion over the rolling 4 quarters: a wobbly government attracts a premium. Coefficient 0.1pp risk premium per pp stdev is designer judgement, calibrated to add a meaningful but bounded premium under volatile-coalition runs.',
+  },
+  ofs_buyback_methodology: {
+    parameter: 'equity.earningsCoef, taxCorpDrag, sentimentNoiseScale',
+    confidence: 'judgement',
+    title: 'Equity earnings-expectations methodology',
+    note: 'Earnings expectations in the sim respond to: growth (positive), corp tax stance (negative), and a stochastic sentiment kick. The growth and corp-tax coefficients are calibrated so a 1pp move in either nudges the steady-state equity index by ~5pp. Sentiment noise std ~3pp per quarter captures the residual fickleness of market sentiment. All three coefficients are designer judgement.',
+  },
+  pensions_dashboards_methodology: {
+    parameter: 'pensionConsolidation reform',
+    confidence: 'judgement',
+    title: 'Pension consolidation methodology',
+    note: 'Pensions Dashboards and the recent Mansion House reforms aim to consolidate small DC pots and channel more capital into UK productive assets. The sim represents this as a state-branch reform that dampens equity-shock blowback (consolidation lowers the cost of any individual fund being hit) and lifts the business + professional blocs.',
+  },
+  bcbs_macroprudential_capital: {
+    parameter: 'cityRegulation reform; riskPremium.volatilityCoef damper',
+    confidence: 'extrapolated',
+    title: 'City regulation and risk premium',
+    publisher: 'BCBS / FPC',
+    year: 2024,
+    url: 'https://www.bankofengland.co.uk/financial-stability',
+    note: 'Higher capital + counter-cyclical buffers compress the volatility of bank-related sovereign risk: empirically, sovereigns with stronger macroprudential frameworks see narrower spreads in stress. Sim represents cityRegulation as a state-branch reform that lowers the cohesion-volatility coefficient on riskPremium. Extrapolated from BCBS / FPC framework; not estimated.',
+  },
+  event_equity_crash: {
+    parameter: 'equityCrash event choice effects',
+    confidence: 'judgement',
+    title: 'Equity crash — choice payouts',
+    note: 'Material drawdown after a hot run (modelled at HPI > 130, here equity > 130). Choices model three policy postures: targeted asset purchases (debt impact, calms markets), let the market clear (growth hit, business bloc damage), or interest-rate jawboning (small bond-yield compression, professional bloc penalty for convention-breaking). Magnitudes calibrated to event scale.',
+  },
+  event_gilt_strike: {
+    parameter: 'giltStrike event choice effects',
+    confidence: 'judgement',
+    title: 'Gilt strike — choice payouts',
+    note: 'IMF / 2022-style market revolt triggered when risk premium exceeds 2.5pp. Choices model the policy menu: emergency budget (sharp fiscal retrench, growth hit), IMF facility (debt-flavour cost, market relief), or fiscal status-quo (gilt-yield spike, professional bloc punishes). Magnitudes calibrated to the historical UK precedents (1976; 2022).',
+  },
+  event_sovereign_rating_action: {
+    parameter: 'sovereignRatingAction event choice effects',
+    confidence: 'judgement',
+    title: 'Sovereign rating action — choice payouts',
+    note: 'Rating-agency downgrade scenario when debt-to-GDP > 110% AND risk premium > 1.5pp. One-shot +0.5pp on bond yields plus choices that signal the policy posture (defiance, statement of intent to consolidate, or actual consolidation). Magnitudes match the historical scale of UK rating-action spreads (S&P 2013 / Fitch 2020).',
+  },
 };
 
 // Helper: given a citationId, return the entry or throw.

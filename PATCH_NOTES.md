@@ -9,6 +9,11 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- **Equity market.** Aggregate equity index responds to growth, corp-tax stance, real rates, and business sentiment. A small wealth-effect feeds back into growth, capped at ±0.1pp/qtr.
+- **Risk premium on gilts.** Long yield now adds a sovereign risk premium that widens with debt-to-GDP above 100% and with coalition cohesion volatility. Markets tab gauges it.
+- Markets tab gains an Equity panel and the Bond panel now breaks out short rate, gilt yield, and risk premium separately.
+- New state-branch reforms: "Pension Consolidation (Mansion House)" damps equity-shock blowback; "City Regulation Tightening" lowers the cohesion-volatility coefficient on the risk premium (controversial).
+- Three new events: Equity Market Crash (fires when equity > 130); Gilt-Market Strike (fires when risk premium > 2.5pp); Sovereign Rating Downgrade (fires when debt > 110% AND risk premium > 1.5pp).
 - **Housing market.** House Price Index now evolves quarter-by-quarter, driven by nominal-income growth, real rates, and supply. It feeds CPI via the CPIH housing weight.
 - **Energy market.** Energy Price Index with shock decay and baseline drift. Shocks now persist over 6–8 quarters before unwinding; reforms damp incoming shocks.
 - Markets tab gains Housing and Energy panels with sparklines and live CPI contributions.
@@ -31,6 +36,8 @@ section accumulates on the `dev` branch between releases.
 - About tab: new "Parliament methodology" section with citation links to CHES 2024, ONS Census 2021, Hanretty 2016 Brexit notionals, and the Ralph Scott constituency bundle.
 
 ### Balance
+- Gilts now carry a sovereign risk premium that punishes volatile coalitions. Strategies that churn the coalition (including Labour Flexibility on a cheese baseline) frequently lose markets in the medium term.
+- Equity index consumes seeded RNG before the event roll. Existing playtest seeds remain stable.
 - House prices feed CPI directly (housing weight ~0.16), so building (or failing to build) now bites at the inflation channel as well as the bloc channel.
 - Energy shocks stay around longer — wholesale gas spikes ripple through gilts and CPI for two years, not one quarter. GB Energy and Insulation reforms compound to keep the baseline lower.
 - New "planning revolt" risk only activates after Housing Supply Target completes — supply-side reform now has a coalition cost, not a free pass.

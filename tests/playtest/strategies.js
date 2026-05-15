@@ -265,6 +265,32 @@ export const cheesePlusFlex = {
 };
 
 // =============================================================================
+// dominantCheeseUltra — cheese variant that refuses every Phase 2/3 reform.
+// Used to show that the supply-side + risk-premium pressure now bites cheese
+// strategies even harder than baseline.
+// =============================================================================
+const PHASE_2_3_REFORMS = new Set([
+  'housingSupplyTarget', 'energyMixReform', 'labourFlexibility',
+  'pensionConsolidation', 'cityRegulation',
+]);
+
+export const dominantCheeseUltra = {
+  name: 'dominantCheeseUltra',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return rankByBangPerBuck(availableNonControversialReforms(state, cohesion))
+      .filter(id => !PHASE_2_3_REFORMS.has(id));
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
 // randomReforms — picks a random available non-controversial reform per
 // quarter, random event choice. Uses Math.random which the harness seeds, so
 // per-seed reproducible.

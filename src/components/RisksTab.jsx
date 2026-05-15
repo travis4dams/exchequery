@@ -11,7 +11,7 @@ export function RisksTab({ riskMods }) {
       <div className="mb-4">
         <div className="text-[10px] uppercase tracking-wider text-rose-400 mb-2">Crisis Risks</div>
         <div className="space-y-1.5">
-          {['nhsStrike', 'energyShock', 'fuelPoverty', 'housingCrisis', 'councilBankruptcy', 'financialCrisis', 'generalStrike', 'careCrisis', 'flood', 'heatwave', 'allyCrisis', 'labourShortage', 'rateHikeShock', 'wagePriceSpiral', 'monetaryPolicyError', 'housePriceCorrection', 'planningRevolt']
+          {['nhsStrike', 'energyShock', 'fuelPoverty', 'housingCrisis', 'councilBankruptcy', 'financialCrisis', 'generalStrike', 'careCrisis', 'flood', 'heatwave', 'allyCrisis', 'labourShortage', 'rateHikeShock', 'wagePriceSpiral', 'monetaryPolicyError', 'housePriceCorrection', 'planningRevolt', 'equityCrash', 'giltStrike', 'sovereignRatingAction']
             .filter(k => riskMods[k] > 1).sort((a, b) => riskMods[b] - riskMods[a]).map(k => (
             <div key={k} className="flex items-center justify-between bg-stone-900/40 rounded p-2">
               <span className="text-[12px] text-stone-300">{EVENT_DEFINITIONS[k]?.title || k}</span>

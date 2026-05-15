@@ -24,6 +24,9 @@ import {
   updateEnergyPriceIndex,
   housingInflationContribution,
   energyInflationContribution,
+  updateEquityIndex,
+  updateRiskPremium,
+  wealthEffectOnGrowth,
 } from '../../src/model/index.js';
 import { withSeededRandom } from '../playtest/rng.js';
 
@@ -248,5 +251,62 @@ describe('Housing & energy markets', () => {
     expect(energyInflationContribution({ energyPriceIndex: 100 })).toBeCloseTo(0, 6);
     const hot = energyInflationContribution({ energyPriceIndex: 150 });
     expect(hot).toBeCloseTo(0.04 * 0.5 * 10, 6);
+  });
+});
+
+describe('Equity market + risk premium', () => {
+  it('updateEquityIndex is deterministic under a fixed seed', () => {
+    const s = freshState();
+    const a = withSeededRandom(7, () => updateEquityIndex(s));
+    const b = withSeededRandom(7, () => updateEquityIndex(s));
+    expect(a).toBeCloseTo(b, 12);
+  });
+
+  it('updateEquityIndex rises when corp tax falls (other things equal)', () => {
+    const base = { ...freshState(), taxCorp: 25 };
+    const cut  = { ...freshState(), taxCorp: 18 };
+    const baseIdx = withSeededRandom(1, () => updateEquityIndex(base));
+    const cutIdx  = withSeededRandom(1, () => updateEquityIndex(cut));
+    expect(cutIdx).toBeGreaterThan(baseIdx);
+  });
+
+  it('updateEquityIndex falls when real rates rise', () => {
+    const lo = { ...freshState(), bankRate: 3.0, inflation: 2.0 };
+    const hi = { ...freshState(), bankRate: 7.0, inflation: 2.0 };
+    const loIdx = withSeededRandom(1, () => updateEquityIndex(lo));
+    const hiIdx = withSeededRandom(1, () => updateEquityIndex(hi));
+    expect(hiIdx).toBeLessThan(loIdx);
+  });
+
+  it('updateRiskPremium returns 0 when debt is well below threshold and cohesion stable', () => {
+    const s = { ...freshState(), debt: 1000, gdp: 3100, cohesionHistory: [40, 40, 40, 40] };
+    expect(updateRiskPremium(s)).toBeCloseTo(0, 6);
+  });
+
+  it('updateRiskPremium handles cohesionHistory.length < 2 as zero volatility', () => {
+    const s = { ...freshState(), debt: 1000, gdp: 3100, cohesionHistory: [40] };
+    expect(updateRiskPremium(s)).toBeCloseTo(0, 6);
+    const empty = { ...freshState(), debt: 1000, gdp: 3100, cohesionHistory: [] };
+    expect(updateRiskPremium(empty)).toBeCloseTo(0, 6);
+  });
+
+  it('updateRiskPremium widens with debt above threshold', () => {
+    const lo = { ...freshState(), debt: 2900, gdp: 3100, cohesionHistory: [40, 40, 40, 40] };
+    const hi = { ...freshState(), debt: 3600, gdp: 3100, cohesionHistory: [40, 40, 40, 40] };
+    expect(updateRiskPremium(hi)).toBeGreaterThan(updateRiskPremium(lo));
+  });
+
+  it('updateRiskPremium widens with cohesion volatility', () => {
+    const calm = { ...freshState(), debt: 1000, gdp: 3100, cohesionHistory: [40, 40, 40, 40] };
+    const volatile = { ...freshState(), debt: 1000, gdp: 3100, cohesionHistory: [30, 50, 30, 50] };
+    expect(updateRiskPremium(volatile)).toBeGreaterThan(updateRiskPremium(calm));
+  });
+
+  it('wealthEffectOnGrowth is zero at index 100 and capped at ±0.1pp', () => {
+    expect(wealthEffectOnGrowth({ equityIndex: 100 })).toBeCloseTo(0, 6);
+    expect(wealthEffectOnGrowth({ equityIndex: 120 })).toBeCloseTo(0.05 * 0.2, 6);
+    expect(wealthEffectOnGrowth({ equityIndex: 1000 })).toBeCloseTo(0.1, 6);
+    expect(wealthEffectOnGrowth({ equityIndex: 0 })).toBeCloseTo(-0.05, 6);
+    expect(wealthEffectOnGrowth({ equityIndex: -1000 })).toBeCloseTo(-0.1, 6);
   });
 });
