@@ -3,28 +3,26 @@ import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Users, Calen
 
 import {
   PARAMS,
-  BLOCS,
-  COALITION,
   INITIAL_BLOC_SUPPORT,
   INITIAL_BLOC_WEIGHTS,
   REFORMS,
-  EVENT_DEFINITIONS,
   calcCoalitionCohesion,
   calcOverallApproval,
   calcRevenue,
   calcSpending,
   calcBalance,
   quarterlyBlocDelta,
-  applyPopulationDynamics,
-  quarterlyPopulationGrowth,
   computeRiskMods,
-  sampleReformOutcome,
-  rollEvents,
-  makeCommittedSnapshot,
   makeInitialState,
   reformCapacityLoad,
   calcReformCapacity,
   calcReformLoadInFlight,
+  stepQuarter,
+  resolveEvent as modelResolveEvent,
+  dismissSummary as modelDismissSummary,
+  commitSurplusAllocation as modelCommitSurplusAllocation,
+  continueAfterElection as modelContinueAfterElection,
+  cancelReform as modelCancelReform,
 } from './model/index.js';
 
 import { Intro } from './components/modals/Intro.jsx';
@@ -105,179 +103,12 @@ export default function ChancellorSim() {
   function unproposeReform(id) { setGame(g => ({ ...g, proposedReforms: g.proposedReforms.filter(rid => rid !== id) })); }
 
   function cancelReform(id) {
-    setGame(g => {
-      const r = g.reforms[id];
-      if (!r || r.status !== 'inProgress') return g;
-      const reform = REFORMS[id] || r.reformDef;
-      const penalty = v(PARAMS.reformCapacity.cancelBlocPenalty);
-      const newReforms = { ...g.reforms };
-      delete newReforms[id];
-      const newBlocSupport = { ...g.blocSupport };
-      newBlocSupport.publicSector = Math.max(0, Math.min(100, newBlocSupport.publicSector + penalty));
-      newBlocSupport.professional = Math.max(0, Math.min(100, newBlocSupport.professional + penalty));
-      const n = {
-        ...g,
-        reforms: newReforms,
-        blocSupport: newBlocSupport,
-        log: [...g.log, { q: g.quarter, text: `Cancelled: ${reform?.name || id}` }],
-      };
-      n.committed = makeCommittedSnapshot(n);
-      return n;
-    });
+    setGame(g => modelCancelReform(g, id));
   }
 
   function advanceQuarter() {
     if (game.pendingEvent || game.pendingSummary || showReelect || showSurplusAlloc) return;
-
-    const preBlocs = { ...game.blocSupport };
-    const preCohesion = calcCoalitionCohesion(game.blocSupport, game.blocWeights);
-    const preDebt = game.debt, preGrowth = game.growth, preGini = game.gini, preHealth = game.healthIndex;
-    const preBalance = calcBalance(game);
-    const prePopulation = game.population;
-    const preWeights = { ...game.blocWeights };
-
-    setGame(g => {
-      let n = { ...g };
-
-      // 1. Commit proposed reforms
-      const startedReforms = [];
-      for (const id of n.proposedReforms) {
-        const reform = REFORMS[id];
-        if (!reform) continue;
-        const cost = v(reform.cost);
-        n.reforms = { ...n.reforms, [id]: { status: 'inProgress', startedQ: n.globalQuarter, completesQ: n.globalQuarter + reform.quarters, reformDef: reform } };
-        n.debt = n.debt + cost;
-        startedReforms.push(reform.name);
-        n.log = [...n.log, { q: n.quarter, text: `Started: ${reform.name} (£${cost}bn, ${reform.quarters}Q)` }];
-      }
-      n.proposedReforms = [];
-
-      // 2. Apply quarterly bloc support deltas
-      const deltas = quarterlyBlocDelta(n);
-      const newBlocSupport = {};
-      for (const [id, s] of Object.entries(n.blocSupport)) {
-        newBlocSupport[id] = Math.max(0, Math.min(100, s + deltas[id]));
-      }
-      n.blocSupport = newBlocSupport;
-
-      // 3. Population dynamics — bloc weights
-      n.blocWeights = applyPopulationDynamics(n.blocWeights, n.reforms);
-
-      // 4. Overall population growth
-      const popGrowthQ = quarterlyPopulationGrowth(n.reforms);
-      n.population = n.population * (1 + popGrowthQ / 100);
-
-      // 5. Fiscal flow
-      const qBalance = calcBalance(n) / 4;
-      if (qBalance >= 0) {
-        n.pendingSurplus = (n.pendingSurplus || 0) + qBalance;
-      } else {
-        n.debt = n.debt - qBalance;
-      }
-
-      // 6. GDP grows
-      n.gdp = n.gdp * (1 + (n.growth + n.inflation) / 100 / 4);
-      n.realGDP = n.realGDP * (1 + n.growth / 100 / 4);
-
-      // 7. Reform completions
-      const completedReforms = [];
-      for (const [id, r] of Object.entries(n.reforms)) {
-        if (r.status === 'inProgress' && r.completesQ <= n.globalQuarter + 1) {
-          const reform = REFORMS[id];
-          const actual = sampleReformOutcome(reform, n.forecastNoise);
-          n.reforms[id] = { ...r, status: 'complete', actualOutcome: actual };
-
-          if (actual.revBonus) n.revBonusFromReforms = (n.revBonusFromReforms || 0) + actual.revBonus;
-          if (actual.ongoingCost) n.ongoingCostFromReforms = (n.ongoingCostFromReforms || 0) + actual.ongoingCost;
-          if (actual.ongoingRev) n.ongoingRevFromReforms = (n.ongoingRevFromReforms || 0) + actual.ongoingRev;
-          if (actual.healthBoost) n.healthIndex = Math.max(0, Math.min(100, n.healthIndex + actual.healthBoost));
-          if (actual.growthBonus) n.growth = n.growth + actual.growthBonus;
-          if (actual.gini) n.gini = n.gini + actual.gini;
-
-          if (reform.blocEffects) {
-            for (const [bloc, leaf] of Object.entries(reform.blocEffects)) {
-              n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + v(leaf)));
-            }
-          }
-          if (reform.special === 'reduceForecastNoise') n.forecastNoise = v(PARAMS.forecastNoise.afterObr);
-
-          completedReforms.push(reform.name);
-          n.log = [...n.log, { q: n.quarter + 1, text: `✓ ${actual.log}` }];
-        }
-      }
-
-      // 8. Bond yield (market) and effective servicing rate (drifts toward market)
-      const BY = PARAMS.bondYield;
-      const balYr = calcBalance(n);
-      if (balYr < v(BY.bigDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.bigDeficitDelta));
-      else if (balYr < v(BY.midDeficitThreshold)) n.bondYield = Math.min(v(BY.ceiling), n.bondYield + v(BY.midDeficitDelta));
-      else if (balYr > 0) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.surplusDelta));
-      else if (balYr > v(BY.smallDeficitThreshold)) n.bondYield = Math.max(v(BY.floor), n.bondYield + v(BY.smallDeficitDelta));
-
-      // Effective rate paid on the existing debt stock chases the market rate slowly,
-      // modelling refinancing as gilts mature and are re-issued at the prevailing yield.
-      const drift = v(PARAMS.spending.effectiveRateDriftPerQuarter);
-      n.effectiveServicingRate = n.effectiveServicingRate + drift * (n.bondYield - n.effectiveServicingRate);
-
-      // 9. Events
-      const newMods = computeRiskMods(n);
-      const triggered = rollEvents(n, newMods);
-      let eventToShow = null;
-      if (triggered.length > 0) {
-        const eventId = triggered[Math.floor(Math.random() * triggered.length)];
-        eventToShow = { id: eventId, ...EVENT_DEFINITIONS[eventId] };
-      }
-
-      // 10. Summary
-      const blocChanges = {};
-      for (const id of Object.keys(BLOCS)) {
-        const change = n.blocSupport[id] - preBlocs[id];
-        if (Math.abs(change) >= 0.3) blocChanges[id] = change;
-      }
-      const blocChangeArray = Object.entries(blocChanges).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
-
-      const popChange = n.population - prePopulation;
-      const weightChanges = {};
-      for (const id of Object.keys(BLOCS)) {
-        const wc = n.blocWeights[id] - preWeights[id];
-        if (Math.abs(wc) >= 0.001) weightChanges[id] = wc;
-      }
-
-      n.pendingSummary = {
-        quarter: n.quarter,
-        debtChange: n.debt - preDebt,
-        growthChange: n.growth - preGrowth,
-        giniChange: n.gini - preGini,
-        healthChange: n.healthIndex - preHealth,
-        cohesionChange: calcCoalitionCohesion(n.blocSupport, n.blocWeights) - preCohesion,
-        balanceChange: calcBalance(n) - preBalance,
-        deficitGDP: -calcBalance(n) / n.gdp * 100,
-        gdpChange: n.gdp - g.gdp,
-        realGDPChange: n.realGDP - g.realGDP,
-        populationChange: popChange,
-        blocChanges: blocChangeArray.slice(0, 4),
-        weightChanges: Object.entries(weightChanges).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3),
-        startedReforms,
-        completedReforms,
-        eventPending: !!eventToShow,
-        pendingSurplus: n.pendingSurplus,
-        qBalance,
-      };
-      n.pendingEvent = eventToShow;
-
-      n.quarter = n.quarter + 1;
-      n.globalQuarter = n.globalQuarter + 1;
-      n.committed = makeCommittedSnapshot(n);
-
-      const newCoal = calcCoalitionCohesion(n.blocSupport, n.blocWeights);
-      if (newCoal < COALITION_FLOOR) n.status = 'collapsed';
-      else if (n.bondYield > BOND_YIELD_CEILING) n.status = 'lost-markets';
-      else if (n.quarter > TERM_LENGTH) {
-        n.status = newCoal >= REELECT_THRESHOLD ? 'election' : 'lost-election';
-      }
-
-      return n;
-    });
+    setGame(g => stepQuarter(g));
   }
 
   useEffect(() => {
@@ -286,78 +117,25 @@ export default function ChancellorSim() {
   }, [game.status, game.pendingSummary, game.pendingEvent, showFinal, showReelect]);
 
   function continueAfterElection() {
-    const honeymoonW = v(PARAMS.honeymoonResetWeight);
-    setGame(g => {
-      const newBlocSupport = { ...g.blocSupport };
-      for (const k of Object.keys(BLOCS)) {
-        newBlocSupport[k] = newBlocSupport[k] * honeymoonW + BLOCS[k].base * (1 - honeymoonW);
-      }
-      return {
-        ...g, status: 'playing', quarter: 1, term: g.term + 1, termsWon: g.termsWon + 1,
-        blocSupport: newBlocSupport, bondYield: Math.max(3.5, g.bondYield - 0.5),
-        log: [...g.log, { q: 1, text: `🗳️ Re-elected for Term ${g.term + 1}.` }], committed: null,
-      };
-    });
+    setGame(g => modelContinueAfterElection(g));
     setShowReelect(false);
   }
 
   function resolveEvent(choice) {
-    setGame(g => {
-      let n = { ...g, pendingEvent: null };
-      const eff = choice.effect;
-      if (eff.debt) n.debt = n.debt + eff.debt;
-      if (eff.growth) n.growth = n.growth + eff.growth;
-      if (eff.inflation) n.inflation = Math.max(0, n.inflation + eff.inflation);
-      if (eff.healthIndex) n.healthIndex = Math.max(0, Math.min(100, n.healthIndex + eff.healthIndex));
-      if (eff.bondYield) n.bondYield = Math.max(2, n.bondYield + eff.bondYield);
-      if (eff.blocs) {
-        for (const [bloc, delta] of Object.entries(eff.blocs)) {
-          n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + delta));
-        }
-      }
-      n.log = [...n.log, { q: g.quarter, text: `[Event] ${eff.log}` }];
-      n.committed = makeCommittedSnapshot(n);
-      return n;
-    });
+    setGame(g => modelResolveEvent(g, choice));
   }
 
   function dismissSummary() {
-    if (game.pendingSurplus >= v(PARAMS.surplusAllocation.surplusAllocPromptThreshold)) {
-      setSurplusAllocations({ debt: game.pendingSurplus, services: 0, taxCut: 0 });
-      setGame(g => ({ ...g, pendingSummary: null }));
-      setShowSurplusAlloc(true);
-    } else {
-      setGame(g => ({ ...g, pendingSummary: null, debt: g.debt - (g.pendingSurplus || 0), pendingSurplus: 0 }));
+    const { state, needsSurplusAllocation } = modelDismissSummary(game);
+    if (needsSurplusAllocation) {
+      setSurplusAllocations({ debt: state.pendingSurplus, services: 0, taxCut: 0 });
     }
+    setGame(state);
+    if (needsSurplusAllocation) setShowSurplusAlloc(true);
   }
 
   function commitSurplusAllocation() {
-    const SA = PARAMS.surplusAllocation;
-    setGame(g => {
-      const alloc = surplusAllocations;
-      let n = { ...g };
-      n.debt = n.debt - (alloc.debt || 0);
-      if (alloc.services > 0) {
-        n.healthIndex = Math.min(100, n.healthIndex + alloc.services / v(SA.servicesHealthDivisor));
-        n.blocSupport.workingClass = Math.min(100, n.blocSupport.workingClass + alloc.services / v(SA.servicesWorkingClassDivisor));
-        n.blocSupport.publicSector = Math.min(100, n.blocSupport.publicSector + alloc.services / v(SA.servicesPublicSectorDivisor));
-        n.blocSupport.pensioners   = Math.min(100, n.blocSupport.pensioners   + alloc.services / v(SA.servicesPensionersDivisor));
-        n.log = [...n.log, { q: g.quarter, text: `Allocated £${alloc.services.toFixed(0)}bn surplus to public services.` }];
-      }
-      if (alloc.taxCut > 0) {
-        n.ongoingRevFromReforms = (n.ongoingRevFromReforms || 0) - alloc.taxCut;
-        n.blocSupport.middleClass = Math.min(100, n.blocSupport.middleClass + alloc.taxCut / v(SA.taxCutMiddleDivisor));
-        n.blocSupport.business    = Math.min(100, n.blocSupport.business    + alloc.taxCut / v(SA.taxCutBusinessDivisor));
-        n.blocSupport.professional= Math.min(100, n.blocSupport.professional+ alloc.taxCut / v(SA.taxCutProfessionalDivisor));
-        n.log = [...n.log, { q: g.quarter, text: `Allocated £${alloc.taxCut.toFixed(0)}bn surplus to ongoing tax cuts.` }];
-      }
-      if (alloc.debt > 0) {
-        n.log = [...n.log, { q: g.quarter, text: `Paid down £${alloc.debt.toFixed(0)}bn of national debt.` }];
-      }
-      n.pendingSurplus = 0;
-      n.committed = makeCommittedSnapshot(n);
-      return n;
-    });
+    setGame(g => modelCommitSurplusAllocation(g, surplusAllocations));
     setShowSurplusAlloc(false);
     setSurplusAllocations({});
   }

@@ -25,3 +25,11 @@ export {
   calcReformCapacity,
   calcReformLoadInFlight,
 } from './engine.js';
+export {
+  stepQuarter,
+  resolveEvent,
+  dismissSummary,
+  commitSurplusAllocation,
+  continueAfterElection,
+  cancelReform,
+} from './gameStep.js';
