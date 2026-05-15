@@ -22,3 +22,10 @@ export {
   makeCommittedSnapshot,
   makeInitialState,
 } from './engine.js';
+export {
+  stepQuarter,
+  resolveEvent,
+  dismissSummary,
+  commitSurplusAllocation,
+  continueAfterElection,
+} from './gameStep.js';
