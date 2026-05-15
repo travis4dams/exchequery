@@ -9,6 +9,15 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+### Balance
+### Fixes
+### Known Issues
+
+---
+
+## [v0.2.0] — 2026-05-15
+
+### New
 - **Equity market.** Aggregate equity index responds to growth, corp-tax stance, real rates, and business sentiment. A small wealth-effect feeds back into growth, capped at ±0.1pp/qtr.
 - **Risk premium on gilts.** Long yield now adds a sovereign risk premium that widens with debt-to-GDP above 100% and with coalition cohesion volatility. Markets tab gauges it.
 - Markets tab gains an Equity panel and the Bond panel now breaks out short rate, gilt yield, and risk premium separately.
