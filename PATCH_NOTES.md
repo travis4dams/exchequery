@@ -9,6 +9,7 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- **Overview tab charts.** A nominal-GDP trajectory chart now anchors the Overview tab, with start-of-term and current-quarter readings. Each headline metric (Debt/GDP, Deficit/GDP, Bank Rate, Unemployment, Health, Population, Housing, Energy) gets its own inline sparkline so you can see whether the line is bending the right way at a glance. History windows extend across a full five-year term.
 - **The Chancellor's Red Box.** Multiple events can now fire in a single quarter and surface as a queue of briefing papers. Each briefing is its own modal with full multi-choice agency — no event auto-resolves. A "Brief X of Y" counter shows how many remain in the box.
 - **15 new events** spanning public health, supply chains, technology, markets and politics:
   - Public health: Pandemic, Teacher & Civil-Service Strike, Reservoir Crisis.

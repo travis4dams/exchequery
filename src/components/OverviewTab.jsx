@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
 import { REFORMS, PARAMS } from '../model/index.js';
+import { Sparkline } from './Sparkline.jsx';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 const TERM_LENGTH = v(PARAMS.termLength);
@@ -25,16 +26,50 @@ function Delta({ value, threshold = 0.1, worseUp = false, decimals = 1, suffix =
   );
 }
 
-function MetricCell({ label, value, delta, deltaProps, color }) {
+function MetricCell({ label, value, delta, deltaProps, color, points, sparkColor }) {
   return (
     <div className="bg-stone-900/40 border border-stone-800 rounded p-2">
       <div className="text-[9px] uppercase tracking-wider text-stone-500 mb-0.5 flex items-center gap-1">
         {label}
         {delta !== undefined && <Delta value={delta} {...(deltaProps || {})} />}
       </div>
-      <div className={`text-[13px] font-semibold tabular-nums ${color || 'text-stone-200'}`}
+      <div className="flex items-center justify-between gap-2">
+        <div className={`text-[13px] font-semibold tabular-nums ${color || 'text-stone-200'}`}
+             style={{fontFamily: 'IBM Plex Mono'}}>
+          {value}
+        </div>
+        {points && <Sparkline points={points} width={80} height={22} color={sparkColor || '#fbbf24'} />}
+      </div>
+    </div>
+  );
+}
+
+// Larger trajectory chart for the headline GDP figure. Reuses Sparkline at
+// panel scale; the viewBox lets it scale fluidly with the column width.
+function GdpChart({ points, current }) {
+  const first = points && points.length > 0 ? points[0] : null;
+  const pctChange = first && first !== 0 ? ((current - first) / first) * 100 : null;
+  return (
+    <div className="p-4 bg-stone-900/40 border border-stone-800 rounded-lg">
+      <div className="flex items-baseline justify-between mb-2">
+        <div className="text-[10px] uppercase tracking-wider text-stone-500">Nominal GDP (£bn)</div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-stone-200 text-[15px] font-semibold tabular-nums"
+               style={{fontFamily: 'IBM Plex Mono'}}>
+            {current.toFixed(0)}
+          </div>
+          {pctChange !== null && <Delta value={pctChange} threshold={0.05} suffix="%" />}
+        </div>
+      </div>
+      <div className="w-full">
+        <svg viewBox="0 0 600 140" preserveAspectRatio="none" width="100%" height="140">
+          <Sparkline points={points} width={600} height={140} color="#fbbf24" />
+        </svg>
+      </div>
+      <div className="flex justify-between text-[9px] text-stone-500 mt-1 tabular-nums"
            style={{fontFamily: 'IBM Plex Mono'}}>
-        {value}
+        <span>{first !== null ? `start ${first.toFixed(0)}` : ''}</span>
+        <span>now {current.toFixed(0)}</span>
       </div>
     </div>
   );
@@ -111,6 +146,8 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
         <div className="text-[10px] text-stone-500 mt-1">Quarter {game.quarter} of {TERM_LENGTH}</div>
       </div>
 
+      <GdpChart points={game.gdpPath || []} current={game.gdp} />
+
       <div>
         <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2">Headline Metrics</div>
         <div className="grid grid-cols-2 gap-2">
@@ -120,6 +157,7 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
             delta={debtRatioDelta}
             deltaProps={{ worseUp: true, threshold: 0.5 }}
             color={debtRatioNum < 90 ? 'text-emerald-400' : debtRatioNum < 110 ? 'text-stone-200' : 'text-rose-400'}
+            points={game.debtRatioPath}
           />
           <MetricCell
             label="Deficit / GDP"
@@ -127,6 +165,7 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
             delta={deficitDelta}
             deltaProps={{ worseUp: true, threshold: 0.2 }}
             color={deficitGDP < 2 ? 'text-emerald-400' : deficitGDP < 4 ? 'text-amber-400' : 'text-rose-400'}
+            points={game.deficitRatioPath}
           />
           <MetricCell
             label="Bank Rate"
@@ -134,6 +173,7 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
             delta={bankRateDelta}
             deltaProps={{ worseUp: true, threshold: 0.1 }}
             color={game.bankRate < 4 ? 'text-emerald-400' : game.bankRate < 6 ? 'text-stone-200' : 'text-rose-400'}
+            points={game.bankRatePath}
           />
           <MetricCell
             label="Unemployment"
@@ -141,6 +181,7 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
             delta={unempDelta}
             deltaProps={{ worseUp: true, threshold: 0.1 }}
             color={game.unemployment < 4.5 ? 'text-emerald-400' : game.unemployment < 6 ? 'text-stone-200' : 'text-rose-400'}
+            points={game.unemploymentPath}
           />
           <MetricCell
             label="Health Index"
@@ -148,24 +189,28 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
             delta={healthDelta}
             deltaProps={{ threshold: 0.3 }}
             color={game.healthIndex >= 55 ? 'text-emerald-400' : game.healthIndex >= 45 ? 'text-stone-200' : 'text-rose-400'}
+            points={game.healthIndexPath}
           />
           <MetricCell
             label="Population"
             value={`${popM.toFixed(1)}m`}
             delta={popDelta !== null ? popDelta * 1000 : null}
             deltaProps={{ threshold: 5, decimals: 0, suffix: 'k' }}
+            points={game.populationPath}
           />
           <MetricCell
             label="Housing Index"
             value={game.housePriceIndex.toFixed(0)}
             delta={hpiDelta}
             deltaProps={{ threshold: 0.5 }}
+            points={game.housePricePath}
           />
           <MetricCell
             label="Energy Index"
             value={game.energyPriceIndex.toFixed(0)}
             delta={energyDelta}
             deltaProps={{ worseUp: true, threshold: 0.5 }}
+            points={game.energyPricePath}
           />
         </div>
       </div>
