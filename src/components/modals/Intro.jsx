@@ -5,14 +5,7 @@ const BRIEF_ITEMS = [
   {
     body: (
       <>
-        <strong className="text-stone-100">Three win paths:</strong> an annual surplus, a deficit below 2% of GDP, or holding the coalition through the election.
-      </>
-    ),
-  },
-  {
-    body: (
-      <>
-        Reform projections carry <strong className="text-stone-100">±25% uncertainty</strong>. Pass OBR Independence early to narrow the bands.
+        <strong className="text-stone-100">Two win paths:</strong> a deficit below 2% of GDP, or getting re-elected.
       </>
     ),
   },
@@ -26,11 +19,7 @@ const BRIEF_ITEMS = [
   {
     body: (
       <>
-        Watch for the{' '}
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] align-middle">
-          <AlertCircle size={11} /> contested
-        </span>{' '}
-        chip — policies with disputed evidence.
+        Watch for the <AlertCircle size={12} className="inline-block align-[-2px] text-amber-400" /> contested symbol — policies with disputed evidence.
       </>
     ),
   },
