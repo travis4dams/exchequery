@@ -198,6 +198,99 @@ export const inflationDove = {
 };
 
 // =============================================================================
+// supplySideBuilder — proactively builds the housing + energy supply chain.
+//
+// Sequences planningReform → housingSupplyTarget → energyMixReform (after
+// greenInvest as prereq) and otherwise fills capacity with bang-per-buck
+// reforms. Cheese doesn't touch these reforms, so this strategy ends with
+// HPI capped and a damped energy market.
+// =============================================================================
+const SUPPLY_SIDE_PRIORITY = ['planningReform', 'greenInvest', 'housingSupplyTarget', 'energyMixReform'];
+
+export const supplySideBuilder = {
+  name: 'supplySideBuilder',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const proposals = [];
+    for (const id of SUPPLY_SIDE_PRIORITY) {
+      const r = REFORMS[id];
+      if (!r) continue;
+      if (state.reforms[id]) continue;
+      if (state.proposedReforms.includes(id)) continue;
+      const prereqsOk = r.prereq.every(p => state.reforms[p]?.status === 'complete');
+      if (!prereqsOk) continue;
+      const passReq = v(r.passReq?.coalition) ?? 0;
+      if (cohesion < passReq) continue;
+      const pcCost = effectivePcCost(r, { ...state, coalitionCohesion: cohesion });
+      if (pcCost > (state.politicalCapital ?? 100)) continue;
+      proposals.push(id);
+    }
+    // Fill remaining capacity with bang-per-buck reforms.
+    for (const id of rankByBangPerBuck(availableNonControversialReforms(state, cohesion))) {
+      if (proposals.includes(id)) continue;
+      proposals.push(id);
+    }
+    return proposals;
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// cheesePlusFlex — dominantCheese plus labourFlexibility queued the moment
+// it's reachable. Guards against the new reform rescuing the exploit by
+// flattening the Phillips slope.
+// =============================================================================
+export const cheesePlusFlex = {
+  name: 'cheesePlusFlex',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    const proposals = rankByBangPerBuck(availableNonControversialReforms(state, cohesion));
+    const id = 'labourFlexibility';
+    const r = REFORMS[id];
+    if (r && !state.reforms[id] && !state.proposedReforms.includes(id)) {
+      const passReq = v(r.passReq?.coalition) ?? 0;
+      if (cohesion >= passReq) proposals.unshift(id);
+    }
+    return proposals;
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// dominantCheeseUltra — cheese variant that refuses every Phase 2/3 reform.
+// Used to show that the supply-side + risk-premium pressure now bites cheese
+// strategies even harder than baseline.
+// =============================================================================
+const PHASE_2_3_REFORMS = new Set([
+  'housingSupplyTarget', 'energyMixReform', 'labourFlexibility',
+  'pensionConsolidation', 'cityRegulation',
+]);
+
+export const dominantCheeseUltra = {
+  name: 'dominantCheeseUltra',
+  initialBudget(_state) {
+    return {
+      taxIncomeHigh: 50, taxIncomeAdd: 60, taxCorp: 35, taxVAT: 15, spendDefence: 35,
+    };
+  },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return rankByBangPerBuck(availableNonControversialReforms(state, cohesion))
+      .filter(id => !PHASE_2_3_REFORMS.has(id));
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
 // randomReforms — picks a random available non-controversial reform per
 // quarter, random event choice. Uses Math.random which the harness seeds, so
 // per-seed reproducible.
