@@ -13,7 +13,7 @@ Built with React + Vite + Tailwind. Deploys as a static site to GitHub Pages.
 You inherit the UK in Q1 2026 with a deficit of roughly £133bn (4.3% of GDP) and debt at 95% of GDP. Each quarter:
 
 1. **Adjust budget levers** — income tax bands, corporation tax, VAT, and departmental spending.
-2. **Propose reforms** — multi-quarter projects with upfront costs, prerequisites, and uncertain outcomes (±25% forecast error until you pass OBR Independence).
+2. **Propose reforms** — multi-quarter projects with upfront costs, prerequisites, and per-field forecast bands (cited; ±25% fallback where not yet authored). Pass OBR Independence to narrow every band by 60%.
 3. **Watch the risk register** — events roll quarterly with probabilities modified by your policy choices.
 4. **Advance the quarter** — see what changed, allocate any surplus, handle whatever the country throws at you.
 
@@ -85,8 +85,8 @@ Every entry in `citations.js` carries a `confidence` tag:
 <!-- params:architecture:start -->
 
 The About tab's *Confidence summary* shows the live percentage breakdown
-across all parameter-level citations (currently 249 entries: ~16% sourced,
-~24% extrapolated, ~59% judgement). Borderline classification decisions and
+across all parameter-level citations (currently 250 entries: ~16% sourced,
+~24% extrapolated, ~60% judgement). Borderline classification decisions and
 their reasoning are recorded in `CLASSIFICATION_LOG.md` at repo root.
 
 <!-- params:architecture:end -->
@@ -208,7 +208,7 @@ This simulation tries to ground its numbers in real, citable research. The figur
 
 ### Methodological note
 
-Reform revenue and cost estimates carry ±25% noise in the simulation (reduced to ±10% after passing "Strengthen OBR Independence") to reflect genuine forecasting uncertainty. This isn't fudge — it's an attempt to capture that fiscal scoring is meaningfully uncertain, and that institutional credibility (the OBR's whole reason for existing) matters.
+Reform and event effects carry per-field forecast bands declared on each `cited()` call. Each leaf can specify its own asymmetric band, sampled triangular with the mode at the cited central value; leaves without an explicit band fall back to ±25%. Passing "Strengthen OBR Independence" scales every band's width by 0.4 (the single global narrowing knob). This isn't fudge — it's an attempt to capture that fiscal scoring is meaningfully uncertain, that some lines (avoidance yield) are much more uncertain on the downside than the upside, and that institutional credibility (the OBR's whole reason for existing) matters.
 
 Bloc reactions to policy are illustrative rather than measured. They draw on YouGov, Ipsos, and British Election Study survey patterns but the per-policy numbers are designer judgments calibrated to feel right, not estimated from data.
 

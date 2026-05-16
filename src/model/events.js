@@ -10,9 +10,19 @@
 
 import { CITATIONS } from './citations.js';
 
-const cited = (value, citationId) => {
+const cited = (value, citationId, opts) => {
   if (!CITATIONS[citationId]) throw new Error(`event effect references missing citation: ${citationId}`);
-  return { value, citationId };
+  const leaf = { value, citationId };
+  if (opts && opts.band) {
+    const b = opts.band;
+    const low = typeof b.low === 'number' ? b.low : -(b.width ?? 0);
+    const high = typeof b.high === 'number' ? b.high : (b.width ?? 0);
+    if (!(low <= 0 && high >= 0)) {
+      throw new Error(`events.js: band at ${citationId} must straddle zero (got low=${low}, high=${high})`);
+    }
+    leaf.band = { low, high, dist: b.dist || 'triangular' };
+  }
+  return leaf;
 };
 
 const blocs = (id, deltas) => {

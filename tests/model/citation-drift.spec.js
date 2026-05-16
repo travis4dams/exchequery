@@ -44,8 +44,8 @@ describe('README PARAMS-bound blocks reflect live values', () => {
     expect(howToPlay).toContain(`Q${v(PARAMS.termLength)}`);
   });
 
-  it('renders the live forecast-noise band', () => {
-    const pct = Math.round(v(PARAMS.forecastNoise.base) * 100);
+  it('renders the live forecast-noise fallback band', () => {
+    const pct = Math.round(v(PARAMS.forecastNoise.bandFallback) * 100);
     expect(howToPlay).toContain(`±${pct}%`);
   });
 });

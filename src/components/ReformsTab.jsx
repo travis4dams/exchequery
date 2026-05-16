@@ -103,9 +103,9 @@ export function ReformsTab({
         )}
       </div>
 
-      {game.forecastNoise > 0.15 && (
+      {(game.forecastNoiseMultiplier ?? 1) >= 1 && (
         <div className="mb-4 p-2 bg-amber-950/20 border border-amber-900/30 rounded text-[11px] text-amber-300">
-          Forecast uncertainty: ±{(game.forecastNoise*100).toFixed(0)}%. Pass <strong>OBR Independence</strong> to narrow this.
+          Each reform carries its own forecast band (see Inspect). Pass <strong>OBR Independence</strong> to narrow every band by 60%.
         </div>
       )}
 

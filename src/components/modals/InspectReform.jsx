@@ -5,10 +5,10 @@ import { CitationLink, ConfidenceBadge } from '../primitives/CitationLink.jsx';
 
 const unwrap = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
-export function InspectReform({ reform, forecastNoise, onClose }) {
+export function InspectReform({ reform, forecastMultiplier = 1, onClose }) {
   if (!reform) return null;
 
-  const projection = useMemo(() => projectReformOutcome(reform, forecastNoise), [reform, forecastNoise]);
+  const projection = useMemo(() => projectReformOutcome(reform, forecastMultiplier), [reform, forecastMultiplier]);
 
   const allCitations = useMemo(() => {
     const ids = new Set();
@@ -78,14 +78,19 @@ export function InspectReform({ reform, forecastNoise, onClose }) {
 
         {projection && Object.keys(projection).length > 0 && (
           <div className="mb-3">
-            <div className="text-[9px] uppercase tracking-wider text-stone-500 mb-1.5">Projected Outcome <span className="text-stone-600 normal-case">(±{(forecastNoise*100).toFixed(0)}% uncertainty)</span></div>
+            <div className="text-[9px] uppercase tracking-wider text-stone-500 mb-1.5">
+              Projected Outcome
+              <span className="text-stone-600 normal-case ml-1">
+                (per-field forecast bands{forecastMultiplier < 1 ? ` × ${forecastMultiplier.toFixed(2)} OBR` : ''})
+              </span>
+            </div>
             <div className="space-y-1 text-[11px]" style={{fontFamily: 'IBM Plex Mono'}}>
               {projection.revBonus && <div><span className="text-stone-400">Revenue:</span> <span className="text-emerald-400">+£{projection.revBonus.low.toFixed(1)} to +£{projection.revBonus.high.toFixed(1)}bn pa</span> {reform.onComplete?.revBonus?.citationId && <CitationLink id={reform.onComplete.revBonus.citationId} className="ml-1" />}</div>}
-              {projection.ongoingRev && <div><span className="text-stone-400">Ongoing revenue:</span> <span className={projection.ongoingRev.mid > 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.ongoingRev.low.toFixed(1)} to {projection.ongoingRev.high.toFixed(1)}bn pa</span> {reform.onComplete?.ongoingRev?.citationId && <CitationLink id={reform.onComplete.ongoingRev.citationId} className="ml-1" />}</div>}
+              {projection.ongoingRev && <div><span className="text-stone-400">Ongoing revenue:</span> <span className={projection.ongoingRev.value > 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.ongoingRev.low.toFixed(1)} to {projection.ongoingRev.high.toFixed(1)}bn pa</span> {reform.onComplete?.ongoingRev?.citationId && <CitationLink id={reform.onComplete.ongoingRev.citationId} className="ml-1" />}</div>}
               {projection.ongoingCost && <div><span className="text-stone-400">Ongoing cost:</span> <span className="text-rose-400">£{projection.ongoingCost.low.toFixed(1)} to £{projection.ongoingCost.high.toFixed(1)}bn pa</span> {reform.onComplete?.ongoingCost?.citationId && <CitationLink id={reform.onComplete.ongoingCost.citationId} className="ml-1" />}</div>}
-              {projection.growthBonus && <div><span className="text-stone-400">Growth:</span> <span className={projection.growthBonus.mid > 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.growthBonus.low.toFixed(2)} to {projection.growthBonus.high.toFixed(2)}pp</span> {reform.onComplete?.growthBonus?.citationId && <CitationLink id={reform.onComplete.growthBonus.citationId} className="ml-1" />}</div>}
-              {projection.gini && <div><span className="text-stone-400">Gini:</span> <span className={projection.gini.mid < 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.gini.low.toFixed(2)} to {projection.gini.high.toFixed(2)}</span> {reform.onComplete?.gini?.citationId && <CitationLink id={reform.onComplete.gini.citationId} className="ml-1" />}</div>}
-              {projection.healthBoost && <div><span className="text-stone-400">Health Index:</span> <span className={projection.healthBoost.mid > 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.healthBoost.low.toFixed(1)} to {projection.healthBoost.high.toFixed(1)}</span> {reform.onComplete?.healthBoost?.citationId && <CitationLink id={reform.onComplete.healthBoost.citationId} className="ml-1" />}</div>}
+              {projection.growthBonus && <div><span className="text-stone-400">Growth:</span> <span className={projection.growthBonus.value > 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.growthBonus.low.toFixed(2)} to {projection.growthBonus.high.toFixed(2)}pp</span> {reform.onComplete?.growthBonus?.citationId && <CitationLink id={reform.onComplete.growthBonus.citationId} className="ml-1" />}</div>}
+              {projection.gini && <div><span className="text-stone-400">Gini:</span> <span className={projection.gini.value < 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.gini.low.toFixed(2)} to {projection.gini.high.toFixed(2)}</span> {reform.onComplete?.gini?.citationId && <CitationLink id={reform.onComplete.gini.citationId} className="ml-1" />}</div>}
+              {projection.healthBoost && <div><span className="text-stone-400">Health Index:</span> <span className={projection.healthBoost.value > 0 ? 'text-emerald-400' : 'text-rose-400'}>{projection.healthBoost.low.toFixed(1)} to {projection.healthBoost.high.toFixed(1)}</span> {reform.onComplete?.healthBoost?.citationId && <CitationLink id={reform.onComplete.healthBoost.citationId} className="ml-1" />}</div>}
             </div>
           </div>
         )}

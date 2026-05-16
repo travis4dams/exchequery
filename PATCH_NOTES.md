@@ -9,6 +9,11 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- **Per-field forecast bands.** Every reform / event effect can now declare its own forecast-error band on the `cited()` call (asymmetric allowed). Realised outcomes are drawn from a triangular distribution with mode at the cited central value, so the published number is the mode, not just the midpoint. The old global ±25%/±10% knob has been retired in favour of per-leaf bands plus a single OBR multiplier; leaves without an explicit band still fall back to ±25%.
+- **CGT alignment is now asymmetric on the downside.** Yield band runs from −40% to +10% — reflecting that the dominant uncertainty (realisation elasticity) cuts mostly one way. HMRC Modernisation gets a tighter symmetric ±15% band.
+- **Event magnitudes vary.** Each event effect carries the same per-leaf band (or a ±15% default fallback). The published headline severity is the mode; the realised hit/boost can drift either side. Bloc-reaction deltas remain crisp so the player can still reason about coalition impact.
+- **OBR Independence is now a band-width multiplier (×0.4 = 60% narrower)** that applies to every authored band and the fallback alike — same gameplay effect as the old "±25% → ±10%" flip but works cleanly with asymmetric per-field bands.
+
 - **Overview tab charts.** A nominal-GDP trajectory chart now anchors the Overview tab, with start-of-term and current-quarter readings. Each headline metric (Debt/GDP, Deficit/GDP, Bank Rate, Unemployment, Health, Population, Housing, Energy) gets its own inline sparkline so you can see whether the line is bending the right way at a glance. History windows extend across a full five-year term.
 - **The Chancellor's Red Box.** Multiple events can now fire in a single quarter and surface as a queue of briefing papers. Each briefing is its own modal with full multi-choice agency — no event auto-resolves. A "Brief X of Y" counter shows how many remain in the box.
 - **15 new events** spanning public health, supply chains, technology, markets and politics:

@@ -87,7 +87,7 @@ export function AboutTab() {
           <div className="bg-stone-900/40 border border-stone-800 rounded-lg p-4 mb-4">
             <div className="text-[10px] uppercase tracking-wider text-amber-500 mb-2">Methodological note</div>
             <p className="text-[12px] text-stone-300 leading-relaxed mb-2">
-              Reform revenue and cost estimates carry ±25% noise (reduced to ±10% after passing OBR Independence) to reflect genuine forecasting uncertainty. Bloc reactions and event probabilities are designer judgements calibrated to feel right, not estimated from data.
+              Each reform and event effect declares its own forecast band on the cited() call (asymmetric allowed; mode stays at the central value). Leaves without an authored band fall back to ±{Math.round(unwrap(PARAMS.forecastNoise.bandFallback)*100)}%. Passing OBR Independence scales every band's width by {unwrap(PARAMS.forecastNoise.obrMultiplier)}. Bloc reactions and event probabilities are designer judgements calibrated to feel right, not estimated from data.
             </p>
             <p className="text-[12px] text-stone-300 leading-relaxed">
               Where the literature is contested — rent controls, top-rate effects, immigration — the simulation reflects the contestation rather than picking a side.
