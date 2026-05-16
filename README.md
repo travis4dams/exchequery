@@ -4,6 +4,8 @@ A quarterly fiscal simulation set in 2026. You are the UK Chancellor of the Exch
 
 Built with React + Vite + Tailwind. Deploys as a static site to GitHub Pages.
 
+See [`ROADMAP.md`](./ROADMAP.md) for ideas that have been raised but not yet started.
+
 ---
 
 ## How to play
