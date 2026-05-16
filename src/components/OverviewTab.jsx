@@ -102,12 +102,22 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
   const debtRatioDelta = committed
     ? debtRatioNum - (committed.debt / committed.gdp * 100)
     : null;
-  const deficitColor = balance >= 0
+  // Overview shows the *stable* committed books — derived from the
+  // historical paths (seeded with the initial state so this works at Q1
+  // before any commit). Top-bar Balance moves with the sliders instead.
+  const defPath = game.deficitRatioPath || [];
+  const gdpPath = game.gdpPath || [];
+  const lastIdx = Math.max(0, defPath.length - 1);
+  const stableDefGDP = defPath[lastIdx] ?? 0;
+  const stableGDP = gdpPath[lastIdx] ?? game.gdp;
+  const stableBalance = -stableDefGDP / 100 * stableGDP;
+  const balancePath = defPath.map((d, i) => -d / 100 * (gdpPath[i] ?? stableGDP));
+  const deficitColor = stableBalance >= 0
     ? 'text-signal-good'
-    : deficitGDP < 2 ? 'text-accent-300' : 'text-signal-bad';
-  const deficitLabel = balance >= 0
+    : stableDefGDP < 2 ? 'text-accent-300' : 'text-signal-bad';
+  const deficitLabel = stableBalance >= 0
     ? 'Surplus'
-    : deficitGDP < 2 ? 'Sustainable deficit' : 'Deficit';
+    : stableDefGDP < 2 ? 'Sustainable deficit' : 'Deficit';
   return (
     <Card variant="raised" padding="md" className="h-full">
       <Card.Header>
@@ -130,22 +140,22 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
           </div>
         </div>
       )}
-      {/* Balance / GDP chart — plotted with a centered zero rule so the
-          line trends up toward zero as the deficit closes. Surplus shows
-          above the rule, deficit below (negative). */}
-      {(game.deficitRatioPath || []).length >= 2 && (
+      {/* Balance chart — raw £bn with a centered zero rule. Deficit sits
+          below, surplus above; closing the gap trends the line toward
+          zero. Tracks the committed books, not the live sliders. */}
+      {balancePath.length >= 2 && (
         <div className="w-full mt-2">
           <Sparkline
-            points={game.deficitRatioPath.map(v => -v)}
+            points={balancePath}
             width={400} height={36} responsive
-            color={balance >= 0 ? 'var(--signal-good)' : 'var(--signal-bad)'}
+            color={stableBalance >= 0 ? 'var(--signal-good)' : 'var(--signal-bad)'}
             strokeWidth={1.5} dotRadius={2.5}
-            zeroAxis zeroAxisFloor={1}
+            zeroAxis zeroAxisFloor={10}
           />
           <div className="flex justify-between text-[9px] text-stone-500 mt-0.5 font-mono tabular-nums">
-            <span>Balance / GDP</span>
-            <span className={balance >= 0 ? 'text-signal-good' : 'text-signal-bad'}>
-              now {(-deficitGDP).toFixed(1)}%
+            <span>Balance</span>
+            <span className={stableBalance >= 0 ? 'text-signal-good' : 'text-signal-bad'}>
+              now {fmtSigned(stableBalance)}
             </span>
           </div>
         </div>
@@ -154,7 +164,7 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
         <div className="flex justify-between">
           <span className="text-stone-400">{deficitLabel}</span>
           <span className={`tabular-nums ${deficitColor}`}>
-            {fmtSigned(balance)} · {deficitGDP.toFixed(1)}% GDP
+            {fmtSigned(stableBalance)} · {stableDefGDP.toFixed(1)}% GDP
           </span>
         </div>
         <div className="flex justify-between">

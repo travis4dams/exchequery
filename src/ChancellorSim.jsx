@@ -54,9 +54,6 @@ const TERM_LENGTH = v(PARAMS.termLength);
 const COALITION_FLOOR = v(PARAMS.coalitionFloor);
 const BOND_YIELD_CEILING = v(PARAMS.bondYieldCeiling);
 const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
-// Initial-state balance for the pre-commit fallback on the top-bar Balance
-// hero. Deficit is stored positive in PARAMS so balance = -deficit.
-const INITIAL_BALANCE = -v(PARAMS.initial.deficit);
 
 const INITIAL = makeInitialState({
   initialBlocSupport: INITIAL_BLOC_SUPPORT,
@@ -137,13 +134,10 @@ export default function ChancellorSim() {
   const deficitGDP = deficit / game.gdp * 100;
   const debtRatio = (game.debt / game.gdp * 100).toFixed(0);
   const committed = game.committed;
-  // Header big-balance shows the *committed* books so it doesn't jitter
-  // as sliders move; the caret captures the slider-driven delta against
-  // that committed baseline so a 1pp VAT move reads as the full ~£10bn
-  // swing, not the heavily-attenuated next-quarter projection delta.
-  // Pre-commit (Q1) falls back to the initial-state baseline balance.
-  const displayBalance = committed?.balance ?? INITIAL_BALANCE;
-  const dBalance = balance - displayBalance;
+  // Top-bar Balance is the *live* slider-affected figure; the caret then
+  // shows next-quarter projection drift relative to it. The stable
+  // committed-books reading lives on the Overview's fiscal panel.
+  const dBalance = projectedBalance - balance;
   const yearQ = ((game.quarter - 1) % 4) + 1;
   const yearInTerm = Math.ceil(game.quarter / 4);
 
@@ -313,11 +307,11 @@ export default function ChancellorSim() {
                 <ProjectionCaret value={dBalance} threshold={0.5} decimals={0} worseUp={false} />
                 Balance
               </div>
-              <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${displayBalance >= 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
-                {fmtSigned(displayBalance)}
+              <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${balance >= 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
+                {fmtSigned(balance)}
               </div>
               <div className={`text-[10px] mt-1 ${deficitGDP < 2 ? 'text-signal-good' : deficitGDP < 4 ? 'text-accent-400' : 'text-signal-bad'}`}>
-                {displayBalance >= 0 ? 'Surplus' : `${(-displayBalance / game.gdp * 100).toFixed(1)}% deficit · Debt ${debtRatio}%`}
+                {balance >= 0 ? 'Surplus' : `${deficitGDP.toFixed(1)}% deficit · Debt ${debtRatio}%`}
               </div>
             </div>
           </div>
