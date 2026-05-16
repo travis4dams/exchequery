@@ -1006,7 +1006,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
   const I = PARAMS.initial;
   const parliament = makeInitialParliament({ blocSupport: initialBlocSupport });
   const { governingPartyMood, chamberMood } = aggregateParliamentMood(parliament.seatMoodById, parliament);
-  return {
+  const state = {
     quarter: 1, term: 1, globalQuarter: 1,
     gdp: v(I.gdp), realGDP: v(I.realGDP),
     population: v(I.population),
@@ -1074,6 +1074,12 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     pcLog: [],
     yieldBreachedLastQuarter: false,
   };
+  // Reseed the deficit-ratio path from the *computed* balance so the
+  // chart's first point matches the live calcBalance reading rather
+  // than the PARAMS.initial.deficit summary citation (the two differ
+  // by ~£1bn due to revenue/spending rounding).
+  state.deficitRatioPath = [-calcBalance(state) / state.gdp * 100];
+  return state;
 }
 
 // =============================================================================
