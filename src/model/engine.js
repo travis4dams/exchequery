@@ -439,14 +439,7 @@ export function computeBirths(s) {
   if (s.reforms?.freeChildcare?.status === 'complete') {
     childcareBoost = v(P.childcareBirthsBoostQ);
   }
-  let socialMediaBoost = 0;
-  if (s.reforms?.socialMediaBan?.status === 'complete') {
-    socialMediaBoost += v(P.socialMediaBanBirthCoefQ);
-  }
-  if (s.reforms?.socialMediaAlgorithmBan?.status === 'complete') {
-    socialMediaBoost += v(P.socialMediaAlgoBanBirthCoefQ);
-  }
-  return Math.max(0, base + healthDrift + childcareBoost + socialMediaBoost);
+  return Math.max(0, base + healthDrift + childcareBoost);
 }
 
 export function computeDeaths(s) {
@@ -488,7 +481,9 @@ export function computeNetMigration(s) {
 // computeEmployment via unemployment.
 export function computeWorkforce(s) {
   const P = PARAMS.population;
-  return s.population * v(P.workingAgeShare) * v(P.participationRate);
+  const I = PARAMS.initial;
+  const participation = s.participationRate ?? v(I.participationRate);
+  return s.population * v(P.workingAgeShare) * participation;
 }
 
 export function computeEmployment(s) {
@@ -496,16 +491,30 @@ export function computeEmployment(s) {
   return wf * (1 - (s.unemployment ?? 0) / 100);
 }
 
-// Annualised productivity growth in pp/yr. Currently the unconditional OBR
-// trend; the wage-passthrough term in updateWageIndex subtracts the trend
-// so a future state-dependent version can be wired in without breaking
-// the passthrough sign.
-export function computeProductivityGrowthAnn() {
-  return v(PARAMS.gdpDecomposition.productivityTrend);
+// Annualised productivity growth in pp/yr. Blends a lagged AR(1) term on
+// the prior quarter's annual growth with the OBR trend plus state-driven
+// contributions from R&D, education, and infrastructure deviations
+// (Finding 7 of the May 2026 realism audit). The wage-passthrough term
+// in updateWageIndex subtracts the trend, so the driver-driven excess is
+// what actually transmits through to wages.
+export function computeProductivityGrowthAnn(s = null) {
+  const P = PARAMS.productivity;
+  const I = PARAMS.initial;
+  const trend = v(PARAMS.gdpDecomposition.productivityTrend);
+  if (!s) return trend;
+  const rndDev   = (s.spendRnD ?? v(I.spendRnD)) - v(I.spendRnD);
+  const eduDev   = (s.educationIndex ?? 60) - 60;
+  const infraDev = (s.spendInfra ?? v(I.spendInfra)) - v(I.spendInfra);
+  const drivers = v(P.rndCoefPerBn)    * rndDev
+                + v(P.eduCoefPerPoint) * eduDev
+                + v(P.infraCoefPerBn)  * infraDev;
+  const lagged = s.lastProductivityGrowthAnn ?? trend;
+  const w = v(P.laggedWeight);
+  return w * lagged + (1 - w) * (trend + drivers);
 }
 
 export function updateProductivityIndex(s) {
-  const growthAnn = computeProductivityGrowthAnn();
+  const growthAnn = computeProductivityGrowthAnn(s);
   const prev = s.productivityIndex ?? 100;
   return prev * (1 + growthAnn / 100 / 4);
 }
@@ -526,6 +535,47 @@ export function updateEducationIndex(s) {
   // ensures even slow drifts get gently pulled toward the anchor.
   const next = reverted + v(E.meanReversionRate) * (v(E.meanReversionTo) - reverted);
   return Math.max(0, Math.min(100, next));
+}
+
+// =============================================================================
+// NAIRU dynamics — Phelps-Friedman hysteresis. NAIRU drifts toward live
+// unemployment slowly when there's a persistent gap (Ball 2009; BoE MPR Box F
+// Nov 2025); bounded by [floor, cap]. Called after updateUnemployment so the
+// downstream Phillips / migration / bloc reads inside the same quarter see
+// the just-updated NAIRU.
+// =============================================================================
+
+export function updateNAIRU(s) {
+  const N = PARAMS.nairu;
+  const I = PARAMS.initial;
+  const cur = s.naturalUnemployment ?? v(I.naturalUnemployment);
+  const gap = (s.unemployment ?? cur) - cur;
+  const next = cur + v(N.hysteresisRate) * gap;
+  return Math.max(v(N.floor), Math.min(v(N.cap), next));
+}
+
+// =============================================================================
+// Participation — state variable replacing the fixed PARAMS leaf. Drifts on
+// health (LCWRA caseload channel) and freeChildcare completion (mothers'
+// labour-force re-entry), with explicit mean reversion to an OECD anchor.
+// Called after updateUnemployment / NAIRU and before updateWageIndex so the
+// recomputed workforce reads the freshly-drifted participation rate.
+// =============================================================================
+
+export function updateParticipation(s) {
+  const P = PARAMS.participation;
+  const I = PARAMS.initial;
+  const cur = s.participationRate ?? v(I.participationRate);
+  const childcareBump = s.reforms?.freeChildcare?.status === 'complete'
+    ? v(P.freeChildcareCompletionBump) : 0;
+  const forcing = v(P.meanReversionTo)
+                + v(P.healthCoef) * ((s.healthIndex ?? 50) - 50)
+                + childcareBump;
+  const persistence = v(P.persistence);
+  const reverted = persistence * cur + (1 - persistence) * forcing;
+  const next = reverted + v(P.meanReversionRate) * (v(P.meanReversionTo) - reverted);
+  // Hard bounds: participation is a fraction, never above 1 or below ~0.5.
+  return Math.max(0.5, Math.min(1.0, next));
 }
 
 // =============================================================================
@@ -559,7 +609,7 @@ export function updateWageIndex(s) {
   const hotGap = Math.max(0, nairu - (s.unemployment ?? nairu));
   const phillipsTerm = v(W.phillipsCoef) * hotGap;
 
-  const productivityGrowth = computeProductivityGrowthAnn();
+  const productivityGrowth = computeProductivityGrowthAnn(s);
   const prodPassthrough = v(W.productivityPassthrough)
                         * (productivityGrowth - v(D.productivityTrend));
 
@@ -1250,6 +1300,9 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     mortgageRate: v(I.bankRate) + v(PARAMS.monetary.mortgagePassthrough.wedgeBps) / 100,
     inflationTarget: v(I.inflationTarget),
     naturalUnemployment: v(I.naturalUnemployment),
+    naturalUnemploymentPath: [v(I.naturalUnemployment)],
+    participationRate: v(I.participationRate),
+    participationRatePath: [v(I.participationRate)],
     boeMandate: 'inflation_only',
     bankRatePath: [],
     // Parallel to bankRatePath; used by LDI doom-loop gate and projection.js.
@@ -1297,20 +1350,24 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     wageIndex: v(PARAMS.wages.initial),
     realWageIndex: v(PARAMS.wages.initial),
     productivityIndex: 100,
-    workforce: v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate),
-    employment: v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate) * (1 - v(I.unemployment) / 100),
+    workforce: v(I.population) * v(PARAMS.population.workingAgeShare) * v(I.participationRate),
+    employment: v(I.population) * v(PARAMS.population.workingAgeShare) * v(I.participationRate) * (1 - v(I.unemployment) / 100),
     // composedGrowth = productivity growth + employment growth (annualised).
     // Seeded at productivityTrend for Q1; recomputed each quarter once
     // employment has been refreshed against fresh unemployment.
     composedGrowth: v(PARAMS.gdpDecomposition.productivityTrend),
     productivityGrowthAnn: v(PARAMS.gdpDecomposition.productivityTrend),
+    // Prior-quarter annual productivity growth — feeds the lagged-weight blend
+    // in computeProductivityGrowthAnn so productivity is sticky but responsive
+    // to R&D / education / infrastructure driver shocks.
+    lastProductivityGrowthAnn: v(PARAMS.gdpDecomposition.productivityTrend),
     employmentGrowthAnn: 0,
     cpiSinceQ1: 1.0,
     educationIndexPath:   [v(PARAMS.education.initial)],
     wageIndexPath:        [v(PARAMS.wages.initial)],
     realWageIndexPath:    [v(PARAMS.wages.initial)],
     productivityIndexPath:[100],
-    employmentPath:       [v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate) * (1 - v(I.unemployment) / 100)],
+    employmentPath:       [v(I.population) * v(PARAMS.population.workingAgeShare) * v(I.participationRate) * (1 - v(I.unemployment) / 100)],
     composedGrowthPath:   [v(PARAMS.gdpDecomposition.productivityTrend)],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,

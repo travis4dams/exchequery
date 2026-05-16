@@ -43,7 +43,10 @@ import {
   computeWorkforce,
   computeEmployment,
   updateProductivityIndex,
+  computeProductivityGrowthAnn,
   updateEducationIndex,
+  updateNAIRU,
+  updateParticipation,
   updateWageIndex,
   computeRiskMods,
   rollEvents,
@@ -266,25 +269,28 @@ export function stepQuarter(game) {
   n.growth = n.growth + applyFiscalMultipliers(n);
 
   // Demographic policy → growth via the employment-supply channel. Sums
-  // only the reform-driven contributions to births/deaths/netMigration
-  // (not health/unemployment drift) and feeds them through the OBR
-  // elasticity (`migration.gdpElasticityPer1k`) spread across the fiscal
-  // taper. This subsumes the prior `quarterlyPopulationGrowth`-driven
-  // elasticity block but extends coverage to the social-media and
-  // open-migration / integration reforms. The natural-cycle effects on
-  // pop channels remain in state (and visible in the modal) but flow
-  // through the macro via wages/inflation/HPI, not via this elasticity —
-  // matching the single-channel framing the elasticity was calibrated on.
+  // only the reform-driven contributions to births/netMigration (not
+  // health/unemployment drift) and feeds them through the OBR elasticity
+  // (`migration.gdpElasticityPer1k`) spread across the fiscal taper. The
+  // immigrantProductivityScalar (Finding 5 of the May 2026 realism audit)
+  // applies the Bell-Johnson (2023 MAC) / Hall-Manning (2024 CEP) finding
+  // that recent migrants earn ~20-30% less than equivalent UK-born initially,
+  // narrowing over a 5-year window — 0.85 is the 5-year average over that
+  // ramp. The 20-quarter migrationTaper below already provides the time
+  // spread, so no per-cohort tracking is required. Natural-cycle effects
+  // on pop channels remain in state (and visible in the modal) but flow
+  // through the macro via wages/inflation/HPI, not via this elasticity.
+  // socialMediaBan/socialMediaAlgorithmBan are no longer in this sum —
+  // their births channel was retired May 2026 (Finding 1, R4 of audit).
   const P = PARAMS.population;
   let reformDeltaK = 0;
   if (n.reforms?.freeChildcare?.status === 'complete')         reformDeltaK += v(P.childcareBirthsBoostQ);
-  if (n.reforms?.socialMediaBan?.status === 'complete')        reformDeltaK += v(P.socialMediaBanBirthCoefQ);
-  if (n.reforms?.socialMediaAlgorithmBan?.status === 'complete') reformDeltaK += v(P.socialMediaAlgoBanBirthCoefQ);
   if (n.reforms?.immigrationCap?.status === 'complete')        reformDeltaK += v(P.immigrationCapMigrationDeltaQ);
   if (n.reforms?.openMigration?.status === 'complete')         reformDeltaK += v(P.openMigrationMigrationDeltaQ);
   if (n.reforms?.integrationReform?.status === 'complete')     reformDeltaK += v(P.integrationMigrationDeltaQ);
   const migrationTaper = v(PARAMS.fiscalMultipliers.taperHorizonQuarters);
-  n.growth = n.growth + reformDeltaK * v(PARAMS.migration.gdpElasticityPer1k) / migrationTaper;
+  const migrantProdScalar = v(PARAMS.migration.immigrantProductivityScalar);
+  n.growth = n.growth + reformDeltaK * v(PARAMS.migration.gdpElasticityPer1k) * migrantProdScalar / migrationTaper;
 
   // Mean reversion toward potential + accumulated permanent shifts from
   // supply-side reforms. Transient reform bonuses (and event shocks) fade
@@ -315,11 +321,29 @@ export function stepQuarter(game) {
   //     (so wageSpiralContribution lands inside updateInflation's forcing).
   n.unemployment = updateUnemployment(n);
 
+  // 6d-nairu: NAIRU hysteresis. Drifts toward live unemployment at
+  //     PARAMS.nairu.hysteresisRate (Ball 2009; BoE MPR Box F Nov 2025).
+  //     Reads fresh unemployment and is read by the Phillips / migration /
+  //     bloc gap calculations below in the same quarter.
+  n.naturalUnemployment = updateNAIRU(n);
+
   // 6d-edu: education tracks schools spend with persistence + mean reversion.
   n.educationIndex = updateEducationIndex(n);
 
-  // 6d-prod: productivity index drifts with productivityTrend.
-  n.productivityIndex = updateProductivityIndex(n);
+  // 6d-part: participation drifts with health (LCWRA channel) and
+  //     freeChildcare completion, with mean reversion to the OECD anchor.
+  //     Must update before computeWorkforce so the labour-supply identity
+  //     reads the just-drifted rate this quarter.
+  n.participationRate = updateParticipation(n);
+
+  // 6d-prod: productivity index. Annual growth blends a lagged AR(1) term
+  //     with the OBR trend plus driver contributions from R&D / education /
+  //     infrastructure. We compute growth once, write it for the next-quarter
+  //     lag, and apply it to the index.
+  const prodGrowthAnn = computeProductivityGrowthAnn(n);
+  const prevProductivityIndex = n.productivityIndex ?? 100;
+  n.productivityIndex = prevProductivityIndex * (1 + prodGrowthAnn / 100 / 4);
+  n.lastProductivityGrowthAnn = prodGrowthAnn;
 
   // 6d-wage: wage index — Phillips + productivity passthrough + education
   //     premium + mean reversion. realWageIndex tracks deflation by CPI
@@ -336,10 +360,9 @@ export function stepQuarter(game) {
   // "structural" line beneath headline n.growth. Does NOT replace
   // n.growth; the employment-supply contribution above already routes
   // policy deltas into headline growth via the OBR elasticity.
-  const prevProductivityIndex = game.productivityIndex ?? 100;
-  n.productivityGrowthAnn = prevProductivityIndex > 0
-    ? 4 * (n.productivityIndex / prevProductivityIndex - 1) * 100
-    : v(PARAMS.gdpDecomposition.productivityTrend);
+  // Productivity growth is computed inline in 6d-prod above (`prodGrowthAnn`);
+  // we reuse it here rather than re-deriving from the index ratio.
+  n.productivityGrowthAnn = prodGrowthAnn;
   n.employmentGrowthAnn = prevEmployment > 0
     ? 4 * (n.employment / prevEmployment - 1) * 100
     : 0;
@@ -442,6 +465,8 @@ export function stepQuarter(game) {
   n.debtRatioPath = [...((n.debtRatioPath || []).slice(-19)), n.debt / n.gdp * 100];
   n.deficitRatioPath = [...((n.deficitRatioPath || []).slice(-19)), -calcBalance(n) / n.gdp * 100];
   n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];
+  n.naturalUnemploymentPath = [...((n.naturalUnemploymentPath || []).slice(-19)), n.naturalUnemployment];
+  n.participationRatePath = [...((n.participationRatePath || []).slice(-19)), n.participationRate];
   n.healthIndexPath = [...((n.healthIndexPath || []).slice(-19)), n.healthIndex];
   n.populationPath = [...((n.populationPath || []).slice(-19)), n.population];
   n.birthsPath = [...((n.birthsPath || []).slice(-19)), n.births];

@@ -138,7 +138,12 @@ describe('new reforms feed the population channels', () => {
     expect(withReform.netMigration).toBeGreaterThan(base.netMigration + 50);
   });
 
-  it('socialMediaBan completion raises births by the calibrated coef', () => {
+  it('socialMediaBan completion does NOT affect births (channel retired May 2026)', () => {
+    // The socialMediaBanBirthCoefQ births channel was retired per Finding 1
+    // of the realism audit: Twenge/Haidt evidence supports a long-run cohort-
+    // fertility hypothesis (10-15yr lag), not a current-quarter response.
+    // The reform's other effects (healthBoost, bloc reactions) still fire;
+    // only the births delta is gone.
     let base = freshState();
     let withReform = freshState();
     withReform.reforms = {
@@ -151,6 +156,6 @@ describe('new reforms feed the population channels', () => {
     };
     base = withSeededRandom(2, () => stepQuarter(base));
     withReform = withSeededRandom(2, () => stepQuarter(withReform));
-    expect(withReform.births).toBeGreaterThan(base.births + 1);
+    expect(withReform.births).toBeCloseTo(base.births, 6);
   });
 });
