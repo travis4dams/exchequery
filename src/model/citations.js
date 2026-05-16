@@ -1117,11 +1117,11 @@ export const CITATIONS = {
   },
   wage_spiral_judgement: {
     parameter: 'wages.spiralCoef and spiralTriggerGap',
-    value: 0.15,
+    value: 0.10,
     unit: 'percentage-point CPI contribution per pp wage growth above nominal trend + trigger gap',
     confidence: 'judgement',
     title: 'Wage-price spiral coefficient and trigger gap',
-    note: 'Asymmetric: only fires when wage growth exceeds nominal trend by spiralTriggerGap (1.0 pp/yr). Calibrated so trend-rate wage growth + routine Phillips firings stay quiet; only sustained wage overheating activates the channel. Without the gap the playtest baselines drifted persistently because residual spiral activity compounded across 20 quarters.',
+    note: 'Asymmetric: only fires when wage growth exceeds nominal trend by spiralTriggerGap (4.0 pp/yr — so wage growth above ~6.6%/yr). Designer-calibrated to leave the trend-rate path quiet (matches the empirical UK Phillips flattening post-GFC; routine wage growth doesn\'t spill into prices) but to fire hard in 1970s-style overheating. At gap=4 the obrCentralPath playtest baseline stays inside its band; below ~4 the residual activity drifts the baseline.',
   },
   oecd_pisa_uk_2022: {
     parameter: 'education.initial',

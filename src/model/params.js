@@ -758,16 +758,12 @@ export const PARAMS = {
     livingWageBump:          cited(1.5,  'lpc_living_wage_wageindex'),
     unionRightsBump:         cited(1.2,  'oecd_sectoral_bargaining_wageindex'),
     meanReversionToNominal:  cited(0.10, 'wage_mean_reversion_judgement'),
-    // Wage-price spiral is wired through updateInflation but held dormant in
-    // Phase 2 (coef=0). The Phase-2 wage dynamics drift modestly above trend
-    // because the Phillips term is asymmetric (hot-side only) while the AR(1)
-    // persists past firings, and even with a 1pp trigger gap the spiral fires
-    // often enough over a 20-quarter run to pull obr-central-path
-    // finalUnemployment above its ±25% band. Phase 3 ships the productivity ×
-    // employment GDP composition (which tightens the feedback loop the other
-    // way) so the spiral coefficient is revived there.
-    spiralCoef:              cited(0,    'wage_spiral_judgement'),
-    spiralTriggerGap:        cited(1.0,  'wage_spiral_judgement'),     // pp/yr above nominal trend before spiral fires
+    // Wage-price spiral fires only at sustained overheating (wage growth
+    // > nominalTrend + 4pp ≈ above 6.6%/yr). Calibrated so routine UK
+    // Phillips firings stay quiet but 1970s-style spirals bite. Each pp
+    // above the trigger adds 0.10pp to inflation that quarter.
+    spiralCoef:              cited(0.10, 'wage_spiral_judgement'),
+    spiralTriggerGap:        cited(4.0,  'wage_spiral_judgement'),
   },
 
   // ===========================================================================

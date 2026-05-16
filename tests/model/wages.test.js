@@ -54,34 +54,27 @@ describe('education premium', () => {
 });
 
 describe('wage spiral contribution', () => {
-  // spiralCoef is held at 0 for Phase 2 (see params.js note) — the channel is
-  // wired through updateInflation but dormant. These tests verify the gate
-  // logic and the trigger-gap arithmetic; the coefficient's playable value
-  // is revived in Phase 3 when the GDP composition tightens the feedback.
-  it('returns 0 when wage growth is below the trigger gap', () => {
+  // spiralCoef is live (0.10) with a 4pp trigger gap — fires only at
+  // sustained overheating (wage growth > ~6.6%/yr).
+  it('returns 0 when wage growth is below trend', () => {
     const s = freshState();
     s.wageIndexPath = [100, 100.5];  // 2% ann growth — below 2.6 trend
     s.wageIndex = 100.5;
     expect(wageSpiralContribution(s)).toBe(0);
   });
 
-  it('returns 0 when wage growth is just above trend but inside the trigger gap', () => {
+  it('returns 0 when wage growth is above trend but inside the trigger gap', () => {
     const s = freshState();
-    s.wageIndexPath = [100, 100.8];  // ~3.2% ann growth — above 2.6 but inside +1pp gap
-    s.wageIndex = 100.8;
+    s.wageIndexPath = [100, 101.25];  // 5% ann growth — above 2.6 but inside +4pp gap
+    s.wageIndex = 101.25;
     expect(wageSpiralContribution(s)).toBe(0);
   });
 
-  it('respects spiralTriggerGap (gap arithmetic test)', () => {
-    // Re-derive the contribution by hand so the test passes regardless of
-    // whether spiralCoef is currently 0 or live: the formula is coef × max(0,
-    // gap - triggerGap). With coef=0 the contribution is always 0; with a
-    // higher coef set in PARAMS, the value scales with (wage growth - trend -
-    // triggerGap). Either way the OUTPUT is non-negative.
+  it('fires positively when wage growth crosses the trigger gap', () => {
     const s = freshState();
-    s.wageIndexPath = [100, 103];  // ~12% ann growth — well above the gap
-    s.wageIndex = 103;
-    expect(wageSpiralContribution(s)).toBeGreaterThanOrEqual(0);
+    s.wageIndexPath = [100, 102];  // 8% ann growth — exceeds 2.6 + 4 = 6.6
+    s.wageIndex = 102;
+    expect(wageSpiralContribution(s)).toBeGreaterThan(0);
   });
 });
 
