@@ -1172,6 +1172,59 @@ export const CITATIONS = {
   },
 
   // ===========================================================================
+  // Phase-3 reforms: openMigration, integrationReform, socialMediaBan,
+  // socialMediaAlgorithmBan
+  // ===========================================================================
+  obr_open_migration: {
+    parameter: 'population.openMigrationMigrationDeltaQ + openMigration reform effects',
+    value: 60,
+    unit: 'thousand additional net migrants / quarter when openMigration complete',
+    confidence: 'extrapolated',
+    title: 'OBR EFO high-migration scenario',
+    publisher: 'OBR',
+    year: 2024,
+    url: 'https://obr.uk/efo/economic-and-fiscal-outlook-march-2024/',
+    note: 'OBR EFO March 2024 high-migration scenario adds ~240k pa net migration vs central; sim rounds to +60k/q. The reform also lifts growth by 0.35pp permanent via the labour-supply channel — broadly consistent with OBR\'s scenario delta on real GDP at the 5-year horizon.',
+  },
+  mac_integration_2024: {
+    parameter: 'population.integrationMigrationDeltaQ + integrationReform reform effects',
+    value: 8,
+    unit: 'thousand additional net migrants / quarter when integrationReform complete',
+    confidence: 'extrapolated',
+    title: 'Migration Advisory Committee — integration policies',
+    publisher: 'Migration Advisory Committee',
+    year: 2024,
+    url: 'https://www.gov.uk/government/organisations/migration-advisory-committee',
+    note: 'Integration packages (language tuition, recognition of qualifications, employer fast-tracks) raise effective migrant productivity and modestly raise inflows by reducing friction. +8k/q reflects a measured uplift consistent with MAC qualitative reporting; +0.12pp permanent growth follows the labour-quality channel.',
+  },
+  twenge_haidt_smartphone: {
+    parameter: 'population.socialMediaBanBirthCoefQ + socialMediaBan reform effects',
+    value: 2.5,
+    unit: 'thousand additional births / quarter when socialMediaBan complete',
+    confidence: 'extrapolated',
+    title: 'iGen: Why Today\'s Super-Connected Kids Are Growing Up Less Rebellious, More Tolerant, Less Happy',
+    publisher: 'Twenge (Atria Books)',
+    year: 2017,
+    note: 'Twenge documents declining youth socialisation, dating, and family-formation behaviour correlated with smartphone-era social media adoption. A statutory ban for under-16s would partially reverse the trend; sim sets a modest +2.5k/q to births to model the partial recovery in family-formation activity.',
+  },
+  haidt_anxious_generation: {
+    parameter: 'population.socialMediaAlgoBanBirthCoefQ + socialMediaAlgorithmBan reform effects',
+    value: 5.0,
+    unit: 'thousand additional births / quarter when socialMediaAlgorithmBan complete',
+    confidence: 'extrapolated',
+    title: 'The Anxious Generation',
+    publisher: 'Haidt (Penguin Press)',
+    year: 2024,
+    note: 'Haidt argues that algorithmic optimisation of attention is the dominant harm vector, not platform access per se. A targeted algorithm ban therefore has a larger demographic effect than the platform ban alone; sim sets +5k/q to births on top of socialMediaBan.',
+  },
+  reform_exclusion_judgement: {
+    parameter: 'reform excludesComplete schema',
+    confidence: 'judgement',
+    title: 'Reform mutual-exclusion methodology',
+    note: 'Some reform sets are mutually incompatible (you can\'t both cap and open migration). The excludesComplete field on a reform definition lists IDs whose completion permanently blocks this reform from being proposed. Enforced in stepQuarter\'s commit loop and mirrored in ReformsTab\'s picker.',
+  },
+
+  // ===========================================================================
   // Reform: revenue branch
   // ===========================================================================
   nao_hmrc_compliance: {

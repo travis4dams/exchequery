@@ -154,6 +154,16 @@ export function stepQuarter(game) {
   for (const id of n.proposedReforms) {
     const reform = REFORMS[id];
     if (!reform) continue;
+    // Mutual-exclusion gate — discards (no re-queue) if any reform listed in
+    // excludesComplete has already completed. Placed between capacity and
+    // PC so excluded items don't tie up PC pending.
+    if (reform.excludesComplete?.some((excId) => n.reforms[excId]?.status === 'complete')) {
+      skippedReforms.push(reform.name);
+      const blocker = reform.excludesComplete.find((excId) => n.reforms[excId]?.status === 'complete');
+      const blockerName = REFORMS[blocker]?.name || blocker;
+      n.log = [...n.log, { q: n.quarter, text: `Blocked (${blockerName} already passed): ${reform.name}` }];
+      continue;
+    }
     const load = reformCapacityLoad(reform);
     if (inFlightLoad + load > capacity) {
       skippedReforms.push(reform.name);

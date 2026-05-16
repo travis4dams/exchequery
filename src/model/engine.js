@@ -409,7 +409,14 @@ export function computeBirths(s) {
   if (s.reforms?.freeChildcare?.status === 'complete') {
     childcareBoost = v(P.childcareBirthsBoostQ);
   }
-  return Math.max(0, base + healthDrift + childcareBoost);
+  let socialMediaBoost = 0;
+  if (s.reforms?.socialMediaBan?.status === 'complete') {
+    socialMediaBoost += v(P.socialMediaBanBirthCoefQ);
+  }
+  if (s.reforms?.socialMediaAlgorithmBan?.status === 'complete') {
+    socialMediaBoost += v(P.socialMediaAlgoBanBirthCoefQ);
+  }
+  return Math.max(0, base + healthDrift + childcareBoost + socialMediaBoost);
 }
 
 export function computeDeaths(s) {
@@ -429,11 +436,17 @@ export function computeNetMigration(s) {
   // distinction that drives migration economics, not on Q1 happenstance.
   const unempGap = (s.unemployment ?? 0) - (s.naturalUnemployment ?? 0);
   const labourPull = v(P.migrationUnempCoef) * unempGap;
-  let capDelta = 0;
+  let reformDelta = 0;
   if (s.reforms?.immigrationCap?.status === 'complete') {
-    capDelta = v(P.immigrationCapMigrationDeltaQ);
+    reformDelta += v(P.immigrationCapMigrationDeltaQ);
   }
-  return base + labourPull + capDelta;
+  if (s.reforms?.openMigration?.status === 'complete') {
+    reformDelta += v(P.openMigrationMigrationDeltaQ);
+  }
+  if (s.reforms?.integrationReform?.status === 'complete') {
+    reformDelta += v(P.integrationMigrationDeltaQ);
+  }
+  return base + labourPull + reformDelta;
 }
 
 // =============================================================================

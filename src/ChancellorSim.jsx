@@ -204,6 +204,9 @@ export default function ChancellorSim() {
     if (game.reforms[id]) return false;
     if (game.proposedReforms.includes(id)) return false;
     if (!reform.prereq.every(p => game.reforms[p]?.status === 'complete')) return false;
+    // Mutual exclusion — if any reform listed in excludesComplete has
+    // already completed, this reform is permanently blocked.
+    if (reform.excludesComplete?.some((excId) => game.reforms[excId]?.status === 'complete')) return false;
     return reformLoadInFlight + reformCapacityLoad(reform) <= reformCapacity;
   }
 

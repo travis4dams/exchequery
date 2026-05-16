@@ -724,6 +724,10 @@ export const PARAMS = {
     // legacy aggregate). Magnitudes preserve the legacy headline net.
     childcareBirthsBoostQ:              cited(8.5,  'childcare_births_judgement'),
     immigrationCapMigrationDeltaQ:      cited(-68,  'immigration_cap_migration_judgement'),
+    openMigrationMigrationDeltaQ:       cited(60,   'obr_open_migration'),
+    integrationMigrationDeltaQ:         cited(8,    'mac_integration_2024'),
+    socialMediaBanBirthCoefQ:           cited(2.5,  'twenge_haidt_smartphone'),
+    socialMediaAlgoBanBirthCoefQ:       cited(5.0,  'haidt_anxious_generation'),
 
     // Labour-supply identity: workforce = pop × workingAgeShare × participationRate.
     workingAgeShare:    cited(0.640, 'ons_working_age_pop_2024'),    // fraction
