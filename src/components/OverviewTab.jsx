@@ -130,21 +130,22 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
           </div>
         </div>
       )}
-      {/* Balance/GDP chart — negate deficit so surplus plots above the
-          zero rule and deficit below it. Latest dot is tinted by tone. */}
+      {/* Deficit / GDP chart — plotted with a centered zero rule so the
+          line trends down toward zero as the deficit closes. Surplus
+          territory shows below the zero rule (deficit goes negative). */}
       {(game.deficitRatioPath || []).length >= 2 && (
         <div className="w-full mt-2">
           <Sparkline
-            points={game.deficitRatioPath.map(d => -d)}
+            points={game.deficitRatioPath}
             width={400} height={36} responsive
             color={balance >= 0 ? 'var(--signal-good)' : 'var(--signal-bad)'}
             strokeWidth={1.5} dotRadius={2.5}
             zeroAxis zeroAxisFloor={1}
           />
           <div className="flex justify-between text-[9px] text-stone-500 mt-0.5 font-mono tabular-nums">
-            <span>Balance / GDP</span>
+            <span>Deficit / GDP</span>
             <span className={balance >= 0 ? 'text-signal-good' : 'text-signal-bad'}>
-              now {(-deficitGDP).toFixed(1)}%
+              now {deficitGDP.toFixed(1)}%
             </span>
           </div>
         </div>
