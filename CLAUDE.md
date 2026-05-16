@@ -40,6 +40,22 @@ Group bullets by intent under these headings, in this order:
 
 Player-readable, one line each. Not commit-log style.
 
+## Dependencies
+
+Use `npm ci`, not `npm install`, for local setup and after pulling. `npm ci`
+strictly installs from `package-lock.json` and never modifies it — same
+behaviour as CI (`ci.yml`, `deploy.yml`, `release.yml` all run `npm ci`),
+so local and remote dependency trees stay identical.
+
+Only run `npm install <pkg>` (or plain `npm install`) when you are
+intentionally adding, upgrading, or removing a dependency. In that case
+commit `package.json` and `package-lock.json` together as one change.
+
+If `git status` ever shows `package-lock.json` modified after a normal
+test/build/dev run, that's `npm install` having been called somewhere —
+revert with `git checkout -- package-lock.json` rather than committing
+the drift.
+
 ## Test commands
 
 - `npm test` — Vitest unit tests + playtests (100 seeds on `dev`, 500 on
