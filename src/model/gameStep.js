@@ -37,6 +37,9 @@ import {
   calcSpending,
   quarterlyBlocDelta,
   applyPopulationDynamics,
+  computeBirths,
+  computeDeaths,
+  computeNetMigration,
   quarterlyPopulationGrowth,
   computeRiskMods,
   rollEvents,
@@ -199,9 +202,18 @@ export function stepQuarter(game) {
   // 3. Population dynamics — bloc weights
   n.blocWeights = applyPopulationDynamics(n.blocWeights, n.reforms);
 
-  // 4. Overall population growth
-  const popGrowthQ = quarterlyPopulationGrowth(n.reforms);
-  n.population = n.population * (1 + popGrowthQ / 100);
+  // 4. Overall population growth — births / deaths / net-migration in
+  //    thousands/quarter. Aggregate net adds (Δ/1000) million to the stock.
+  //    Channel coefficients in PARAMS.population drive the responses;
+  //    legacy quarterlyPopulationGrowth() is retained but no longer wired in.
+  const births = computeBirths(n);
+  const deaths = computeDeaths(n);
+  const netMigration = computeNetMigration(n);
+  n.births = births;
+  n.deaths = deaths;
+  n.netMigration = netMigration;
+  const popDeltaM = (births - deaths + netMigration) / 1000;
+  n.population = n.population + popDeltaM;
 
   // 5. Fiscal flow
   const qBalance = calcBalance(n) / 4;
@@ -364,6 +376,9 @@ export function stepQuarter(game) {
   n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];
   n.healthIndexPath = [...((n.healthIndexPath || []).slice(-19)), n.healthIndex];
   n.populationPath = [...((n.populationPath || []).slice(-19)), n.population];
+  n.birthsPath = [...((n.birthsPath || []).slice(-19)), n.births];
+  n.deathsPath = [...((n.deathsPath || []).slice(-19)), n.deaths];
+  n.netMigrationPath = [...((n.netMigrationPath || []).slice(-19)), n.netMigration];
   n.inflationPath = [...((n.inflationPath || []).slice(-19)), n.inflation];
 
   // 8. Effective rate drifts toward market (models refinancing).

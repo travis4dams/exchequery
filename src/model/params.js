@@ -701,9 +701,29 @@ export const PARAMS = {
   // Population dynamics
   // ===========================================================================
   population: {
+    // Legacy aggregate growth — retained for backward compatibility while the
+    // births/deaths/migration decomposition is the active path. Removed once
+    // nothing reads quarterlyPopulationGrowth().
     quarterlyBaseline: cited(0.15, 'ons_baseline_quarterly_pop'),   // % per quarter
-    immigrationCapDelta: cited(-0.4, 'obr_migration_cap'),          // per quarter when capped
-    childcareDelta: cited(0.05, 'resolution_childcare'),            // per quarter when free childcare
+    immigrationCapDelta: cited(-0.4, 'obr_migration_cap'),          // per quarter when capped (legacy)
+    childcareDelta: cited(0.05, 'resolution_childcare'),            // per quarter when free childcare (legacy)
+
+    // Decomposition baselines — sum to ~25k/q so Q1 reproduces the legacy
+    // aggregate trajectory.
+    birthsBaselineQ:         cited(148, 'ons_births_2024'),         // thousand / quarter
+    deathsBaselineQ:         cited(140, 'ons_deaths_2024'),         // thousand / quarter
+    netMigrationBaselineQ:   cited(17,  'ons_lts_migration_2024'),  // thousand / quarter
+
+    // Driver coefficients.
+    birthsHealthCoef:        cited(0.5,  'wellings_birth_drivers'),         // k/q per healthIndex pp above 50
+    deathsHealthCoef:        cited(-1.2, 'marmot_austerity_mortality'),     // k/q per healthIndex pp above 50
+    deathsNHSCoef:           cited(-0.4, 'marmot_austerity_mortality'),     // k/q per £bn NHS above baseline
+    migrationUnempCoef:      cited(-12.0, 'mac_unemployment_push'),         // k/q per pp unemployment above NAIRU
+
+    // Per-reform deltas wired through the new channels (rather than the
+    // legacy aggregate). Magnitudes preserve the legacy headline net.
+    childcareBirthsBoostQ:              cited(8.5,  'childcare_births_judgement'),
+    immigrationCapMigrationDeltaQ:      cited(-68,  'immigration_cap_migration_judgement'),
   },
 
   // ===========================================================================

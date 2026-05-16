@@ -381,12 +381,59 @@ export function applyPopulationDynamics(weights, reforms) {
 
 // Overall UK population growth per quarter (%), depending on policy state.
 // Each constant is treated as an annual-equivalent input divided by 4 to
-// match the original monolith's quarterly conversion.
+// match the original monolith's quarterly conversion. Retained for backward
+// compatibility while consumers migrate to the births/deaths/netMigration
+// decomposition below.
 export function quarterlyPopulationGrowth(reforms) {
   let q = v(PARAMS.population.quarterlyBaseline) / 4;
   if (reforms.immigrationCap?.status === 'complete') q += v(PARAMS.population.immigrationCapDelta) / 4;
   if (reforms.freeChildcare?.status === 'complete') q += v(PARAMS.population.childcareDelta) / 4;
   return q;
+}
+
+// Births / deaths / net-migration — all in thousands/quarter. Callers sum
+// the three channels and add (births - deaths + netMigration)/1000 to
+// population (which is stored in millions). Each function reads only from
+// the passed state so they are safe to compose in any order.
+//
+// Baselines are the Q1 starting-state values; coefficients act on deviations
+// from the corresponding initial-state anchors (healthIndex, spendNHS,
+// naturalUnemployment). At Q1 the sum reproduces the legacy ~25k/q net
+// growth by construction.
+export function computeBirths(s) {
+  const P = PARAMS.population;
+  const I = PARAMS.initial;
+  const base = v(P.birthsBaselineQ);
+  const healthDrift = v(P.birthsHealthCoef) * (s.healthIndex - v(I.healthIndex));
+  let childcareBoost = 0;
+  if (s.reforms?.freeChildcare?.status === 'complete') {
+    childcareBoost = v(P.childcareBirthsBoostQ);
+  }
+  return Math.max(0, base + healthDrift + childcareBoost);
+}
+
+export function computeDeaths(s) {
+  const P = PARAMS.population;
+  const I = PARAMS.initial;
+  const base = v(P.deathsBaselineQ);
+  const healthDrift = v(P.deathsHealthCoef) * (s.healthIndex - v(I.healthIndex));
+  const nhsDrift = v(P.deathsNHSCoef) * (s.spendNHS - v(I.spendNHS));
+  return Math.max(0, base + healthDrift + nhsDrift);
+}
+
+export function computeNetMigration(s) {
+  const P = PARAMS.population;
+  const base = v(P.netMigrationBaselineQ);
+  // Anchored to NAIRU (real economic threshold), not the initial unemployment
+  // value — so the slack penalty operates on the "tight vs slack labour market"
+  // distinction that drives migration economics, not on Q1 happenstance.
+  const unempGap = (s.unemployment ?? 0) - (s.naturalUnemployment ?? 0);
+  const labourPull = v(P.migrationUnempCoef) * unempGap;
+  let capDelta = 0;
+  if (s.reforms?.immigrationCap?.status === 'complete') {
+    capDelta = v(P.immigrationCapMigrationDeltaQ);
+  }
+  return base + labourPull + capDelta;
 }
 
 // =============================================================================
@@ -1059,6 +1106,15 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     healthIndexPath: [v(I.healthIndex)],
     populationPath: [v(I.population)],
     inflationPath: [v(I.inflation)],
+    // Population decomposition — channels in thousands/quarter. Q1 seed
+    // values are the baselines, so the first path point matches subsequent
+    // pushes from computeBirths/Deaths/NetMigration at neutral state.
+    births: v(PARAMS.population.birthsBaselineQ),
+    deaths: v(PARAMS.population.deathsBaselineQ),
+    netMigration: v(PARAMS.population.netMigrationBaselineQ),
+    birthsPath: [v(PARAMS.population.birthsBaselineQ)],
+    deathsPath: [v(PARAMS.population.deathsBaselineQ)],
+    netMigrationPath: [v(PARAMS.population.netMigrationBaselineQ)],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],

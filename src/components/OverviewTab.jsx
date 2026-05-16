@@ -250,9 +250,13 @@ function ProsperityChart({ game, onPopulationClick }) {
         </div>
         <div className="grid grid-cols-4 gap-2">
           <PopStat label="Net" value={popNetChange} unit="k" tone={popNetChange >= 0 ? 'good' : 'bad'} />
-          <PopStat label="Births" value={null} placeholder />
-          <PopStat label="Deaths" value={null} placeholder />
-          <PopStat label="Migration" value={null} placeholder />
+          {/* births / deaths / netMigration are stored in thousands per quarter;
+              PopStat takes millions and multiplies by 1000 internally, so divide
+              by 1000 before passing. */}
+          <PopStat label="Births" value={game.births != null ? game.births / 1000 : null} tone="good" />
+          <PopStat label="Deaths" value={game.deaths != null ? -game.deaths / 1000 : null} tone="bad" />
+          <PopStat label="Migration" value={game.netMigration != null ? game.netMigration / 1000 : null}
+                   tone={game.netMigration >= 0 ? 'good' : 'bad'} />
         </div>
       </button>
     </Card>
