@@ -9,6 +9,15 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+### Balance
+### Fixes
+### Known Issues
+
+---
+
+## [v0.3.0] — 2026-05-16
+
+### New
 - **Overview is now a dashboard.** A fiscal triptych across the top — debt-led on the left, deficit with the top spend lines that are driving it in the middle, GDP trajectory on the right. An "Impending risks" row only shows crisis risks at 15%+ annual probability, with the worst ones (30%+) pulsing for your attention; opportunities and quiet risks have moved to the tabs where you can do something about them. Below: a Wider Economy strip — unemployment, population, housing, energy, inflation, equities — each with its trend line. Detailed revenue and spending tabulations are one click away in a new ledger modal. Population panel previews a future births / deaths / migration breakdown.
 - **Term progress lives in the header now.** A thin brass bar sits between "Term n" and "Y/Q · NQ to election" in the top strip, freeing up Overview for context.
 - **About tab + modals refreshed.** About switches to a brass segmented control (Intro · By parameter · By source) and lays out as readable essay panels with full bibliography cards two-across on desktop. Every modal — Intro, Event, Quarter Summary, Surplus Allocation, Inspect Reform, Re-elect, Final, Bloc Info — now uses a shared modal frame with consistent border tones, the soft pulse for "this needs attention", and Escape-to-close everywhere.
