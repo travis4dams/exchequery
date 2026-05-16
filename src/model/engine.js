@@ -1054,6 +1054,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     unemploymentPath: [],
     healthIndexPath: [],
     populationPath: [],
+    inflationPath: [],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],

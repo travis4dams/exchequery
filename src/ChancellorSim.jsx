@@ -33,6 +33,7 @@ import { EventModal } from './components/modals/EventModal.jsx';
 import { QuarterSummary } from './components/modals/QuarterSummary.jsx';
 import { SurplusAllocModal } from './components/modals/SurplusAllocModal.jsx';
 import { InspectReform } from './components/modals/InspectReform.jsx';
+import { LedgerDetail } from './components/modals/LedgerDetail.jsx';
 import { Reelect } from './components/modals/Reelect.jsx';
 import { FinalModal } from './components/modals/FinalModal.jsx';
 
@@ -45,6 +46,7 @@ import { PoliticsTab } from './components/PoliticsTab.jsx';
 
 import { Container } from './components/primitives/Layout.jsx';
 import { Stat, ProjectionCaret } from './components/primitives/Stat.jsx';
+import { MeterBar } from './components/primitives/MeterBar.jsx';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
@@ -68,6 +70,7 @@ export default function ChancellorSim() {
   const [showReelect, setShowReelect] = useState(false);
   const [inspectReform, setInspectReform] = useState(null);
   const [showSurplusAlloc, setShowSurplusAlloc] = useState(false);
+  const [showLedgerDetail, setShowLedgerDetail] = useState(false);
   const [surplusAllocations, setSurplusAllocations] = useState({});
 
   useEffect(() => {
@@ -207,6 +210,15 @@ export default function ChancellorSim() {
     <div className="min-h-screen text-stone-100 font-sans app-background">
       {showIntro && <Intro onDismiss={() => setShowIntro(false)} />}
       {inspectReform && <InspectReform reform={inspectReform} forecastMultiplier={game.forecastNoiseMultiplier ?? 1} onClose={() => setInspectReform(null)} />}
+      {showLedgerDetail && (
+        <LedgerDetail
+          game={game} revenue={revenue} spending={spending}
+          balance={balance} balanceDiff={balanceDiff}
+          deficitGDP={deficitGDP} debtRatio={debtRatio}
+          committed={committed}
+          onClose={() => setShowLedgerDetail(false)}
+        />
+      )}
       {game.pendingSummary && !showIntro && (
         <QuarterSummary summary={game.pendingSummary} growth={game.growth} population={game.population} onContinue={dismissSummary} />
       )}
@@ -234,18 +246,27 @@ export default function ChancellorSim() {
 
       <div className="sticky top-0 z-30 backdrop-blur-md border-b border-treasury-800/60 bg-treasury-900/90">
         <Container size="wide" className="pt-3 pb-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+          {/* Top strip — Term n (left) · progress bar (middle) · Y/Q + election countdown + reset (right). */}
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Crown size={14} className="text-accent-500" />
-              <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400 font-sans">
-                Term {game.term} · Y{yearInTerm} Q{yearQ}
-                <span className="hidden sm:inline"> · {Math.max(0, TERM_LENGTH - game.quarter + 1)}Q to Election</span>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400 font-sans whitespace-nowrap">
+                Term {game.term}
               </div>
             </div>
-            <button onClick={reset} aria-label="Reset game"
-                    className="text-stone-500 hover:text-stone-200 transition-colors p-1 -m-1">
-              <RotateCcw size={13} />
-            </button>
+            <div className="flex-1 min-w-[60px]" title={`Q${game.quarter} of ${TERM_LENGTH}`}>
+              <MeterBar value={(game.quarter / TERM_LENGTH) * 100} tone="accent" size="xs" />
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400 font-sans whitespace-nowrap">
+                Y{yearInTerm} Q{yearQ}
+                <span className="hidden sm:inline"> · {Math.max(0, TERM_LENGTH - game.quarter + 1)}Q to Election</span>
+              </div>
+              <button onClick={reset} aria-label="Reset game"
+                      className="text-stone-500 hover:text-stone-200 transition-colors p-1 -m-1">
+                <RotateCcw size={13} />
+              </button>
+            </div>
           </div>
 
           {/* Hero figures: cohesion / GDP / balance. Mobile: 3-col compact.
@@ -352,6 +373,7 @@ export default function ChancellorSim() {
             revenue={revenue} spending={spending}
             balance={balance} balanceDiff={balanceDiff}
             riskMods={riskMods}
+            onOpenLedger={() => setShowLedgerDetail(true)}
           />
         )}
         {tab === 'budget' && <BudgetTab game={game} committed={committed} set={set} />}

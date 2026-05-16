@@ -363,6 +363,7 @@ export function stepQuarter(game) {
   n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];
   n.healthIndexPath = [...((n.healthIndexPath || []).slice(-19)), n.healthIndex];
   n.populationPath = [...((n.populationPath || []).slice(-19)), n.population];
+  n.inflationPath = [...((n.inflationPath || []).slice(-19)), n.inflation];
 
   // 8. Effective rate drifts toward market (models refinancing).
   //    Bond yield itself was already set in step 6b by bondYieldFromBankRate,
