@@ -54,6 +54,9 @@ const TERM_LENGTH = v(PARAMS.termLength);
 const COALITION_FLOOR = v(PARAMS.coalitionFloor);
 const BOND_YIELD_CEILING = v(PARAMS.bondYieldCeiling);
 const REELECT_THRESHOLD = v(PARAMS.reelectionCoalitionThreshold);
+// Initial-state balance for the pre-commit fallback on the top-bar Balance
+// hero. Deficit is stored positive in PARAMS so balance = -deficit.
+const INITIAL_BALANCE = -v(PARAMS.initial.deficit);
 
 const INITIAL = makeInitialState({
   initialBlocSupport: INITIAL_BLOC_SUPPORT,
@@ -136,8 +139,10 @@ export default function ChancellorSim() {
   const committed = game.committed;
   // Header big-balance shows the *committed* books so it doesn't jitter
   // as sliders move; slider effects + next quarter's macro drift land in
-  // the projection caret instead. Falls back to live balance pre-commit.
-  const displayBalance = committed?.balance ?? balance;
+  // the projection caret instead. Pre-commit (Q1), falls back to the
+  // initial-state baseline balance rather than the live balance —
+  // otherwise the "stable" number isn't stable.
+  const displayBalance = committed?.balance ?? INITIAL_BALANCE;
   const dBalance = projectedBalance - displayBalance;
   const yearQ = ((game.quarter - 1) % 4) + 1;
   const yearInTerm = Math.ceil(game.quarter / 4);
