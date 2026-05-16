@@ -32,8 +32,9 @@ const termQuarters = v(PARAMS.termLength);
 const termYears = termQuarters / 4;
 const coalitionFloor = v(PARAMS.coalitionFloor);
 const bondCeiling = v(PARAMS.bondYieldCeiling);
-const forecastNoise = Math.round(v(PARAMS.forecastNoise.base) * 100);
-const forecastNoiseAfterObr = Math.round(v(PARAMS.forecastNoise.afterObr) * 100);
+const forecastNoise = Math.round(v(PARAMS.forecastNoise.bandFallback) * 100);
+const obrMultiplier = v(PARAMS.forecastNoise.obrMultiplier);
+const obrShrinkPct = Math.round((1 - obrMultiplier) * 100);
 
 const summary = confidenceSummary();
 const totalEntries = summary.total;
@@ -47,7 +48,7 @@ const howToPlayBlock = [
   `You inherit the UK in Q1 2026 with a deficit of roughly £${deficit}bn (${deficitPct}% of GDP) and debt at ${debtPct}% of GDP. Each quarter:`,
   '',
   '1. **Adjust budget levers** — income tax bands, corporation tax, VAT, and departmental spending.',
-  `2. **Propose reforms** — multi-quarter projects with upfront costs, prerequisites, and uncertain outcomes (±${forecastNoise}% forecast error until you pass OBR Independence).`,
+  `2. **Propose reforms** — multi-quarter projects with upfront costs, prerequisites, and per-field forecast bands (cited; ±${forecastNoise}% fallback where not yet authored). Pass OBR Independence to narrow every band by ${obrShrinkPct}%.`,
   '3. **Watch the risk register** — events roll quarterly with probabilities modified by your policy choices.',
   '4. **Advance the quarter** — see what changed, allocate any surplus, handle whatever the country throws at you.',
   '',
@@ -68,7 +69,7 @@ const archBlock = [
 ].join('\n');
 
 const methodologyBlock = [
-  `Reform revenue and cost estimates carry ±${forecastNoise}% noise in the simulation (reduced to ±${forecastNoiseAfterObr}% after passing "Strengthen OBR Independence") to reflect genuine forecasting uncertainty.`,
+  `Reform and event effects carry per-field forecast bands declared on each cited() call (triangular distribution, mode at the central value, asymmetric bands allowed). Passing "Strengthen OBR Independence" scales every band's width by ${obrMultiplier}. Until every leaf is authored, a symmetric ±${forecastNoise}% fallback applies.`,
 ];
 
 function replaceBlock(text, startMarker, endMarker, replacement) {

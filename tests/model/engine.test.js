@@ -82,19 +82,32 @@ describe('bloc dynamics', () => {
 describe('reform sampling', () => {
   it('sampleReformOutcome is deterministic under a fixed seed', () => {
     const reform = REFORMS.hmrcCapacity;
-    const a = withSeededRandom(42, () => sampleReformOutcome(reform, 0.25));
-    const b = withSeededRandom(42, () => sampleReformOutcome(reform, 0.25));
+    // Pass multiplier=1, fallbackWidth=0.25 explicitly to keep the test seed-stable.
+    const a = withSeededRandom(42, () => sampleReformOutcome(reform, 1, 0.25));
+    const b = withSeededRandom(42, () => sampleReformOutcome(reform, 1, 0.25));
     expect(a.revBonus).toBeCloseTo(b.revBonus, 12);
   });
 
-  it('sampleReformOutcome stays within forecastNoise band', () => {
+  it('sampleReformOutcome stays within the effective band', () => {
     const reform = REFORMS.hmrcCapacity;
-    const noise = 0.25;
-    const baseline = 4;  // hmrcCapacity onComplete.revBonus
+    const fallbackWidth = 0.25;
+    const baseline = reform.onComplete.revBonus.value;
     for (let seed = 1; seed < 50; seed++) {
-      const out = withSeededRandom(seed, () => sampleReformOutcome(reform, noise));
-      expect(out.revBonus).toBeGreaterThan(baseline * (1 - noise) - 1e-9);
-      expect(out.revBonus).toBeLessThan(baseline * (1 + noise) + 1e-9);
+      const out = withSeededRandom(seed, () => sampleReformOutcome(reform, 1, fallbackWidth));
+      expect(out.revBonus).toBeGreaterThan(baseline * (1 - fallbackWidth) - 1e-9);
+      expect(out.revBonus).toBeLessThan(baseline * (1 + fallbackWidth) + 1e-9);
+    }
+  });
+
+  it('sampleReformOutcome narrows when the OBR multiplier is applied', () => {
+    const reform = REFORMS.hmrcCapacity;
+    const fallbackWidth = 0.25;
+    const baseline = reform.onComplete.revBonus.value;
+    const tightWidth = fallbackWidth * 0.4;
+    for (let seed = 1; seed < 50; seed++) {
+      const out = withSeededRandom(seed, () => sampleReformOutcome(reform, 0.4, fallbackWidth));
+      expect(out.revBonus).toBeGreaterThan(baseline * (1 - tightWidth) - 1e-9);
+      expect(out.revBonus).toBeLessThan(baseline * (1 + tightWidth) + 1e-9);
     }
   });
 });

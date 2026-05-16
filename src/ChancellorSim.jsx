@@ -254,7 +254,7 @@ export default function ChancellorSim() {
       `}</style>
 
       {showIntro && <Intro onDismiss={() => setShowIntro(false)} />}
-      {inspectReform && <InspectReform reform={inspectReform} forecastNoise={game.forecastNoise} onClose={() => setInspectReform(null)} />}
+      {inspectReform && <InspectReform reform={inspectReform} forecastMultiplier={game.forecastNoiseMultiplier ?? 1} onClose={() => setInspectReform(null)} />}
       {game.pendingSummary && !showIntro && (
         <QuarterSummary summary={game.pendingSummary} growth={game.growth} population={game.population} onContinue={dismissSummary} />
       )}

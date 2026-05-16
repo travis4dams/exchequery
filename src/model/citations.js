@@ -41,10 +41,16 @@ export const CITATIONS = {
     note: 'Event base probabilities are designer-set to produce plausible quarterly risk patterns. They are modified by reasonable mechanisms (NHS pay deal cuts strike risk; deregulation raises financial-crisis risk). Magnitudes are calibrated, not estimated.',
   },
   forecast_noise_methodology: {
-    parameter: 'forecastNoise (±25% / ±10%)',
+    parameter: 'forecastNoise (per-field bands + global multiplier)',
     confidence: 'judgement',
     title: 'Forecast-uncertainty methodology',
-    note: 'The ±25% noise band on reform outcomes (reduced to ±10% after passing OBR Independence) is a designer judgement representing genuine UK fiscal forecasting uncertainty. Magnitudes loosely calibrated to OBR forecast-error ranges but not formally derived.',
+    note: 'Each reform/event leaf can declare its own forecast-error band on the `cited()` call (asymmetric allowed); realised values are drawn from a triangular distribution with mode at the cited central value. Until every leaf is authored, leaves without an explicit band fall back to ±25%. The OBR Independence reform scales every band\'s width by 0.4 (the single global narrowing knob) — replacing the older ±25%→±10% flip while preserving the gameplay effect.',
+  },
+  event_magnitude_default: {
+    parameter: 'PARAMS.forecastNoise.eventDefaultBand',
+    confidence: 'judgement',
+    title: 'Event magnitude default band',
+    note: 'Event effects use a default ±15% symmetric magnitude band when an individual effect leaf does not declare its own band. Designer judgement: the published headline magnitude is the modal outcome, with realised severity drifting either side. The OBR Independence multiplier applies here too.',
   },
 
   // ===========================================================================

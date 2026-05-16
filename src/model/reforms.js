@@ -63,11 +63,21 @@
 
 import { CITATIONS } from './citations.js';
 
-const cited = (value, citationId) => {
+const cited = (value, citationId, opts) => {
   if (!CITATIONS[citationId]) {
     throw new Error(`reforms.js references missing citation: ${citationId}`);
   }
-  return { value, citationId };
+  const leaf = { value, citationId };
+  if (opts && opts.band) {
+    const b = opts.band;
+    const low = typeof b.low === 'number' ? b.low : -(b.width ?? 0);
+    const high = typeof b.high === 'number' ? b.high : (b.width ?? 0);
+    if (!(low <= 0 && high >= 0)) {
+      throw new Error(`reforms.js: band at ${citationId} must straddle zero (got low=${low}, high=${high})`);
+    }
+    leaf.band = { low, high, dist: b.dist || 'triangular' };
+  }
+  return leaf;
 };
 
 export const REFORMS = {
@@ -83,7 +93,9 @@ export const REFORMS = {
     blurb: 'Reverse digitisation cuts; recruit compliance staff.',
     citationId: 'nao_hmrc_compliance',
     onComplete: {
-      revBonus: cited(4, 'nao_hmrc_compliance'),
+      // NAO's historical compliance-yield estimates run tight: ±15% on the
+      // headline (closer to a CT than an avoidance line).
+      revBonus: cited(4, 'nao_hmrc_compliance', { band: { low: -0.15, high: 0.15 } }),
       log: 'HMRC modernised. Compliance up.',
     },
     blocEffects: {
@@ -118,7 +130,11 @@ export const REFORMS = {
     blurb: 'Close the entrepreneur loophole. Capital gains taxed as ordinary income.',
     citationId: 'ifs_cgt_alignment',
     onComplete: {
-      revBonus: cited(13, 'ifs_cgt_alignment'),
+      // CGT-alignment yield is dominated by realisation elasticity, which IFS
+      // and HMRC TIINs both flag as very uncertain on the downside (rich
+      // taxpayers can defer disposals indefinitely) but only mildly so on the
+      // upside. Asymmetric band reflects that.
+      revBonus: cited(13, 'ifs_cgt_alignment', { band: { low: -0.4, high: 0.1 } }),
       gini: cited(-0.3, 'cgt_gini_judgement'),
       log: "CGT aligned. The founders' loophole closed.",
     },

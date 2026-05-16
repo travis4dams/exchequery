@@ -12,11 +12,24 @@
 import { CITATIONS } from './citations.js';
 
 // Helper: asserts every value points to a valid citation, returns wrapped leaf.
-const cited = (value, citationId) => {
+// Optional third arg `{ band }` declares per-leaf forecast uncertainty —
+// `{ low, high }` relative multipliers (asymmetric allowed); see
+// src/model/uncertainty.js. Mode of the sampling distribution stays at `value`.
+const cited = (value, citationId, opts) => {
   if (!CITATIONS[citationId]) {
     throw new Error(`params.js references missing citation: ${citationId}`);
   }
-  return { value, citationId };
+  const leaf = { value, citationId };
+  if (opts && opts.band) {
+    const b = opts.band;
+    const low = typeof b.low === 'number' ? b.low : -(b.width ?? 0);
+    const high = typeof b.high === 'number' ? b.high : (b.width ?? 0);
+    if (!(low <= 0 && high >= 0)) {
+      throw new Error(`params.js: band at ${citationId} must straddle zero (got low=${low}, high=${high})`);
+    }
+    leaf.band = { low, high, dist: b.dist || 'triangular' };
+  }
+  return leaf;
 };
 
 export const PARAMS = {
@@ -32,10 +45,23 @@ export const PARAMS = {
 
   // ===========================================================================
   // Forecast noise
+  //
+  // `bandFallback` is the symmetric relative band applied to a reform/event
+  // leaf when its `cited()` site hasn't declared a per-field band yet. Once
+  // every leaf is authored, this fallback can be retired.
+  //
+  // `obrMultiplier` scales the width of every band (both authored and
+  // fallback) after the OBR Independence reform completes — the single
+  // global narrowing knob.
+  //
+  // `eventDefaultBand` is the default magnitude band on event effects (the
+  // central effect value is what the player sees in the modal; the realised
+  // magnitude is sampled inside this band).
   // ===========================================================================
   forecastNoise: {
-    base: cited(0.25, 'forecast_noise_methodology'),
-    afterObr: cited(0.10, 'forecast_noise_methodology'),
+    bandFallback: cited(0.25, 'forecast_noise_methodology'),
+    obrMultiplier: cited(0.4, 'forecast_noise_methodology'),
+    eventDefaultBand: cited(0.15, 'event_magnitude_default'),
   },
 
   // ===========================================================================
@@ -874,9 +900,16 @@ export function* walkParams(node = PARAMS, path = []) {
   }
 }
 
-// Validate at module load: throws if any cited reference is dangling.
+// Validate at module load: throws if any cited reference is dangling, and
+// asserts any declared band has a sensible shape.
 for (const leaf of walkParams()) {
   if (!CITATIONS[leaf.citationId]) {
     throw new Error(`params.js: dangling citation "${leaf.citationId}" at ${leaf.path.join('.')}`);
+  }
+  if (leaf.band) {
+    const { low, high } = leaf.band;
+    if (!(typeof low === 'number' && typeof high === 'number' && low <= 0 && high >= 0)) {
+      throw new Error(`params.js: invalid band at ${leaf.path.join('.')}`);
+    }
   }
 }

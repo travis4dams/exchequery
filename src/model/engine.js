@@ -12,6 +12,7 @@ import { PARAMS } from './params.js';
 import { BLOCS, COALITION } from './blocs.js';
 import { REFORMS, REFORM_BRANCHES } from './reforms.js';
 import { EVENT_DEFINITIONS, REFORM_RISK_MODS } from './events.js';
+import { sampleWithBand, projectBand } from './uncertainty.js';
 import {
   makeInitialParliament,
   updateSeatMoods,
@@ -906,39 +907,54 @@ export function computeRiskMods(s) {
 }
 
 // =============================================================================
-// Reform projection & sampling — pass forecastNoise band on each numeric leaf
+// Reform projection & sampling — each numeric onComplete leaf can declare its
+// own forecast band via cited(value, citationId, { band }); the global
+// `multiplier` (1.0 by default, 0.4 after OBR Independence) scales every band's
+// width. Leaves without an authored band fall back to a symmetric `fallbackWidth`.
 // =============================================================================
 
-// Extracts only the numeric on-complete effects with their values, ignoring
-// per-bloc populationEffects (which are reported separately in the UI).
-function numericOnCompleteEntries(reformDef) {
+// Yield [key, leaf] for numeric on-complete effects, ignoring `log` and the
+// per-bloc populationEffects map (which the UI reports separately).
+function numericOnCompleteLeaves(reformDef) {
   const out = [];
   const oc = reformDef.onComplete || {};
   for (const [k, leaf] of Object.entries(oc)) {
     if (k === 'log' || k === 'populationEffects') continue;
-    if (leaf && typeof leaf === 'object' && 'value' in leaf) out.push([k, leaf.value]);
+    if (leaf && typeof leaf === 'object' && 'value' in leaf) out.push([k, leaf]);
   }
   return out;
 }
 
-export function projectReformOutcome(reformDef, forecastNoise) {
+// Resolve the effective band for a leaf: prefer the cited per-leaf band,
+// otherwise fall back to a symmetric `fallbackWidth`. Returned width is
+// scaled by `multiplier` (1.0 by default; 0.4 after OBR Independence).
+function effectiveBand(leaf, fallbackWidth, multiplier) {
+  if (leaf.band) {
+    return { low: leaf.band.low * multiplier, high: leaf.band.high * multiplier, dist: leaf.band.dist };
+  }
+  if (!fallbackWidth) return null;
+  const w = fallbackWidth * multiplier;
+  return { low: -w, high: w, dist: 'triangular' };
+}
+
+export function projectReformOutcome(reformDef, multiplier = 1, fallbackWidth = v(PARAMS.forecastNoise.bandFallback)) {
   const out = {};
   if (!reformDef.onComplete) return out;
-  for (const [k, value] of numericOnCompleteEntries(reformDef)) {
-    out[k] = {
-      mid: value,
-      low: value * (1 - forecastNoise),
-      high: value * (1 + forecastNoise),
-    };
+  for (const [k, leaf] of numericOnCompleteLeaves(reformDef)) {
+    const band = effectiveBand(leaf, fallbackWidth, multiplier);
+    out[k] = projectBand(leaf.value, band);
   }
   return out;
 }
 
-export function sampleReformOutcome(reformDef, forecastNoise) {
-  const out = { log: reformDef.onComplete?.log };
-  for (const [k, value] of numericOnCompleteEntries(reformDef)) {
-    const noise = (Math.random() * 2 - 1) * forecastNoise;
-    out[k] = value * (1 + noise);
+export function sampleReformOutcome(reformDef, multiplier = 1, fallbackWidth = v(PARAMS.forecastNoise.bandFallback)) {
+  const out = { log: reformDef.onComplete?.log, forecast: {}, realised: {} };
+  for (const [k, leaf] of numericOnCompleteLeaves(reformDef)) {
+    const band = effectiveBand(leaf, fallbackWidth, multiplier);
+    const realised = sampleWithBand(leaf.value, band);
+    out[k] = realised;
+    out.realised[k] = realised;
+    out.forecast[k] = projectBand(leaf.value, band);
   }
   return out;
 }
@@ -1045,7 +1061,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     pandemicDamper: 1,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,
-    forecastNoise: v(PARAMS.forecastNoise.base),
+    forecastNoiseMultiplier: 1,
     politicalCapital: v(I.politicalCapitalStart),
     pmRelationship: v(I.pmRelationshipStart),
     parliament,

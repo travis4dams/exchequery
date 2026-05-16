@@ -66,6 +66,7 @@ import {
   aggregateParliamentMood,
   effectivePcCost,
 } from './parliament.js';
+import { sampleWithBand } from './uncertainty.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
@@ -298,7 +299,7 @@ export function stepQuarter(game) {
   for (const [id, r] of Object.entries(n.reforms)) {
     if (r.status === 'inProgress' && r.completesQ <= n.globalQuarter + 1) {
       const reform = REFORMS[id];
-      const actual = sampleReformOutcome(reform, n.forecastNoise);
+      const actual = sampleReformOutcome(reform, n.forecastNoiseMultiplier ?? 1);
       n.reforms = { ...n.reforms, [id]: { ...r, status: 'complete', actualOutcome: actual } };
 
       if (actual.revBonus) n.revBonusFromReforms = (n.revBonusFromReforms || 0) + actual.revBonus;
@@ -320,7 +321,7 @@ export function stepQuarter(game) {
           n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + v(leaf)));
         }
       }
-      if (reform.special === 'reduceForecastNoise') n.forecastNoise = v(PARAMS.forecastNoise.afterObr);
+      if (reform.special === 'reduceForecastNoise') n.forecastNoiseMultiplier = v(PARAMS.forecastNoise.obrMultiplier);
       if (reform.special === 'setBoeMandateDual') n.boeMandate = 'dual';
       if (reform.special === 'raiseInflationTarget') {
         n.inflationTarget = v(PARAMS.monetary.raisedInflationTarget);
@@ -519,14 +520,26 @@ export function resolveEvent(game, choice, { eventDef } = {}) {
   const eff = choice.effect;
   const damper = (eventDef && eventDef.pandemicEffect)
     ? (n.pandemicDamper ?? 1) : 1;
+  // Each numeric event-effect leaf is sampled inside its own band (or the
+  // PARAMS.forecastNoise.eventDefaultBand fallback), with the OBR multiplier
+  // scaling band width when applicable.
+  const noiseMul = n.forecastNoiseMultiplier ?? 1;
+  const defaultWidth = v(PARAMS.forecastNoise.eventDefaultBand);
+  const sampleEff = (leaf) => {
+    if (!leaf || typeof leaf !== 'object' || !('value' in leaf)) return undefined;
+    const band = leaf.band
+      ? { low: leaf.band.low * noiseMul, high: leaf.band.high * noiseMul }
+      : { low: -defaultWidth * noiseMul, high: defaultWidth * noiseMul };
+    return sampleWithBand(leaf.value, band);
+  };
   const scale = (x) => x ? x * damper : x;
-  const debt = scale(v(eff.debt));
-  const growth = scale(v(eff.growth));
-  const inflation = scale(v(eff.inflation));
-  const healthIndex = scale(v(eff.healthIndex));
-  const bondYield = v(eff.bondYield);
-  const bankRate = v(eff.bankRate);
-  const unemployment = scale(v(eff.unemployment));
+  const debt = scale(sampleEff(eff.debt));
+  const growth = scale(sampleEff(eff.growth));
+  const inflation = scale(sampleEff(eff.inflation));
+  const healthIndex = scale(sampleEff(eff.healthIndex));
+  const bondYield = sampleEff(eff.bondYield);
+  const bankRate = sampleEff(eff.bankRate);
+  const unemployment = scale(sampleEff(eff.unemployment));
   if (debt) n.debt = n.debt + debt;
   if (growth) n.growth = n.growth + growth;
   if (inflation) n.inflation = Math.max(0, n.inflation + inflation);
@@ -537,9 +550,9 @@ export function resolveEvent(game, choice, { eventDef } = {}) {
     Math.min(v(PARAMS.monetary.bankRateClampHigh), n.bankRate + bankRate)
   );
   if (unemployment) n.unemployment = Math.max(0, Math.min(20, n.unemployment + unemployment));
-  const hpi = v(eff.housePriceIndex);
+  const hpi = sampleEff(eff.housePriceIndex);
   if (hpi) n.housePriceIndex = Math.max(40, Math.min(250, (n.housePriceIndex ?? 100) + hpi));
-  let energyDelta = v(eff.energyPriceIndex);
+  let energyDelta = sampleEff(eff.energyPriceIndex);
   if (energyDelta) {
     // energyMixReform halves positive (shock) injections; reductions pass through unchanged.
     if (energyDelta > 0 && n.energyShockDamper) energyDelta *= n.energyShockDamper;
@@ -556,13 +569,13 @@ export function resolveEvent(game, choice, { eventDef } = {}) {
       n.thisQuarterEnergyShock = (n.thisQuarterEnergyShock ?? 0) + energyDelta;
     }
   }
-  let equityDelta = v(eff.equityIndex);
+  let equityDelta = sampleEff(eff.equityIndex);
   if (equityDelta) {
     // pensionConsolidation damps negative (shock) injections; positive moves pass through.
     if (equityDelta < 0 && n.equityShockDamper) equityDelta *= n.equityShockDamper;
     n.equityIndex = Math.max(30, Math.min(300, (n.equityIndex ?? 100) + equityDelta));
   }
-  const riskPremium = v(eff.riskPremium);
+  const riskPremium = sampleEff(eff.riskPremium);
   if (riskPremium) {
     n.riskPremium = Math.max(v(PARAMS.riskPremium.floor),
       Math.min(v(PARAMS.riskPremium.ceiling), (n.riskPremium ?? 0) + riskPremium));
@@ -570,6 +583,9 @@ export function resolveEvent(game, choice, { eventDef } = {}) {
   if (eff.blocs) {
     n.blocSupport = { ...n.blocSupport };
     for (const [bloc, leaf] of Object.entries(eff.blocs)) {
+      // Bloc-reaction deltas are designer-set political signals (cited via
+      // bloc_methodology). They don't get magnitude-randomised — keep them
+      // crisp so the player can reason about coalition impact.
       n.blocSupport[bloc] = Math.max(0, Math.min(100, n.blocSupport[bloc] + v(leaf)));
     }
   }
