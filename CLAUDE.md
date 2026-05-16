@@ -42,6 +42,12 @@ Player-readable, one line each. Not commit-log style.
 
 ## Dependencies
 
+**Node 20.** `.nvmrc` pins it; CI workflows all use Node 20. Local
+development on Node 22+ npm 11 will silently re-write `package-lock.json`
+on `npm ci` (adding `resolved` / `integrity` fields), which then breaks
+CI's `npm ci` because Node 20 / npm 10 expects platform-specific optional
+deps that npm 11 omits from regenerated lockfiles. Stay on Node 20.
+
 Use `npm ci`, not `npm install`, for local setup and after pulling. `npm ci`
 strictly installs from `package-lock.json` and never modifies it — same
 behaviour as CI (`ci.yml`, `deploy.yml`, `release.yml` all run `npm ci`),
@@ -49,7 +55,14 @@ so local and remote dependency trees stay identical.
 
 Only run `npm install <pkg>` (or plain `npm install`) when you are
 intentionally adding, upgrading, or removing a dependency. In that case
-commit `package.json` and `package-lock.json` together as one change.
+commit `package.json` and `package-lock.json` together as one change,
+and regenerate the lockfile under Node 20 (use the docker one-liner
+below if you don't have Node 20 installed):
+
+```
+docker run --rm -v "$PWD:/work" -w /work node:20 \
+  sh -c "rm -rf node_modules package-lock.json && npm install --package-lock-only && chown -R $(id -u):$(id -g) ."
+```
 
 If `git status` ever shows `package-lock.json` modified after a normal
 test/build/dev run, that's `npm install` having been called somewhere —
