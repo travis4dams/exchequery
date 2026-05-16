@@ -291,6 +291,142 @@ export const dominantCheeseUltra = {
 };
 
 // =============================================================================
+// OBR / HMRC scenario-benchmark strategies.
+//
+// These mirror the policy paths that real-world UK fiscal authorities have
+// plotted in their published forecasts. Each strategy is paired with target
+// outcomes in src/model/benchmarks.js; the obr-hmrc-scenarios spec asserts
+// the mean across seeds lands within ±25% of the published figures. They
+// give judgement-tier params (inflation persistence, forecast-noise bands,
+// recession probabilities) a real-world calibration signal.
+// =============================================================================
+
+// Reforms that fall outside an OBR central "stated policy" projection — the
+// chancellor doesn't enact them, so the strategy refuses to queue them.
+const SUPPLY_SIDE_REFORMS = new Set([
+  'planningReform', 'housingSupplyTarget', 'energyMixReform',
+  'labourFlexibility', 'greenInvest', 'insulationScheme',
+  'rail', 'digitalInfra', 'socialHousing', 'skillsBudget',
+  'freeChildcare', 'uniReform',
+]);
+
+const HEALTH_WELFARE_REFORMS = new Set([
+  'nhsPay', 'dilnotCap', 'socialCareSystemic', 'preventativeHealth',
+  'mentalHealth', 'realLivingWage',
+]);
+
+// Pick the choice that *worsens* the coalition the most — used by the
+// downside-supply-shock strategy to push the engine toward OBR's adverse
+// fan, since we can't change macro assumptions directly under the
+// strategy-only surface.
+function worstEventChoice(state, event) {
+  let worstIdx = 0;
+  let worstScore = scoreEventChoice(state, event.choices[0]);
+  for (let i = 1; i < event.choices.length; i++) {
+    const s = scoreEventChoice(state, event.choices[i]);
+    if (s.coalition < worstScore.coalition ||
+        (s.coalition === worstScore.coalition && s.debt > worstScore.debt)) {
+      worstIdx = i;
+      worstScore = s;
+    }
+  }
+  return worstIdx;
+}
+
+// =============================================================================
+// obrCentralPath — replicates OBR Nov-2025 EFO "stated policy" projection.
+// No tax changes, no spending shifts, no controversial reforms. Allows the
+// non-controversial admin reforms (obrIndependence, hmrcCapacity) that the
+// OBR baseline implicitly assumes, since these are stable institutional
+// improvements rather than fiscal stance changes.
+// =============================================================================
+const OBR_CENTRAL_ALLOWED = new Set(['obrIndependence', 'hmrcCapacity']);
+
+export const obrCentralPath = {
+  name: 'obrCentralPath',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return availableNonControversialReforms(state, cohesion)
+      .filter(id => OBR_CENTRAL_ALLOWED.has(id));
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// obrDownsideSupplyShock — replicates OBR Nov-2025 EFO downside scenario.
+// Strategy declines every supply-side reform (no planning, housing, energy,
+// labour, infra) and resolves events with the choice that most damages the
+// coalition / aggravates fiscal stance. Drives the engine toward the OBR
+// downside fan by producing a policy mix consistent with weak productivity.
+// =============================================================================
+export const obrDownsideSupplyShock = {
+  name: 'obrDownsideSupplyShock',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return availableNonControversialReforms(state, cohesion)
+      .filter(id => !SUPPLY_SIDE_REFORMS.has(id));
+  },
+  resolveEvent(state, event) { return worstEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
+// obrFrsLongRun — replicates OBR Fiscal Risks & Sustainability Report 2024
+// adverse demographic scenario. Strategy declines all NHS / welfare /
+// pension reform so demographic pressure compounds across the full 4-term
+// horizon (20 years). Distinguishes itself from the central path by routing
+// any fiscal surplus to services rather than debt paydown — the FRS
+// scenario assumes governments respond to demographic pressure by topping
+// up departmental spending, not by retiring debt.
+// =============================================================================
+const OBR_FRS_BLOCKED = new Set([
+  ...HEALTH_WELFARE_REFORMS,
+  'pensionConsolidation',
+  ...SUPPLY_SIDE_REFORMS,
+]);
+
+export const obrFrsLongRun = {
+  name: 'obrFrsLongRun',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return availableNonControversialReforms(state, cohesion)
+      .filter(id => !OBR_FRS_BLOCKED.has(id))
+      .filter(id => OBR_CENTRAL_ALLOWED.has(id));
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: 0, services: surplus, taxCut: 0 }; },
+};
+
+// =============================================================================
+// hmrcFrozenThresholds — replicates HMRC's published fiscal-drag receipts
+// path. Strategy holds every income-tax rate flat for the whole run and
+// makes no spending changes, mirroring a chancellor who relies on inflation
+// to lift effective tax burden via threshold drift. No supply-side reforms
+// are enacted (those are separate fiscal events the path doesn't assume).
+//
+// In the current engine this strategy is observationally equivalent to
+// obrCentralPath because the model has no separate threshold mechanic —
+// rates are the only fiscal handle. The strategy is kept distinct so that
+// when threshold mechanics are added later, only this strategy needs to
+// pick them up. The shared output is documented behaviour, not a bug.
+// =============================================================================
+export const hmrcFrozenThresholds = {
+  name: 'hmrcFrozenThresholds',
+  initialBudget(_state) { return null; },
+  adjustBudget(_state) { return null; },
+  proposeReforms(state, cohesion) {
+    return availableNonControversialReforms(state, cohesion)
+      .filter(id => OBR_CENTRAL_ALLOWED.has(id));
+  },
+  resolveEvent(state, event) { return bestEventChoice(state, event); },
+  allocateSurplus(_state, surplus) { return { debt: surplus, services: 0, taxCut: 0 }; },
+};
+
+// =============================================================================
 // randomReforms — picks a random available non-controversial reform per
 // quarter, random event choice. Uses Math.random which the harness seeds, so
 // per-seed reproducible.

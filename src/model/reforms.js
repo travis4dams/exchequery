@@ -63,11 +63,21 @@
 
 import { CITATIONS } from './citations.js';
 
-const cited = (value, citationId) => {
+const cited = (value, citationId, opts) => {
   if (!CITATIONS[citationId]) {
     throw new Error(`reforms.js references missing citation: ${citationId}`);
   }
-  return { value, citationId };
+  const leaf = { value, citationId };
+  if (opts && opts.band) {
+    const b = opts.band;
+    const low = typeof b.low === 'number' ? b.low : -(b.width ?? 0);
+    const high = typeof b.high === 'number' ? b.high : (b.width ?? 0);
+    if (!(low <= 0 && high >= 0)) {
+      throw new Error(`reforms.js: band at ${citationId} must straddle zero (got low=${low}, high=${high})`);
+    }
+    leaf.band = { low, high, dist: b.dist || 'triangular' };
+  }
+  return leaf;
 };
 
 export const REFORMS = {
@@ -83,7 +93,9 @@ export const REFORMS = {
     blurb: 'Reverse digitisation cuts; recruit compliance staff.',
     citationId: 'nao_hmrc_compliance',
     onComplete: {
-      revBonus: cited(4, 'nao_hmrc_compliance'),
+      // NAO's historical compliance-yield estimates run tight: ±15% on the
+      // headline (closer to a CT than an avoidance line).
+      revBonus: cited(4, 'nao_hmrc_compliance', { band: { low: -0.15, high: 0.15 } }),
       log: 'HMRC modernised. Compliance up.',
     },
     blocEffects: {
@@ -118,7 +130,11 @@ export const REFORMS = {
     blurb: 'Close the entrepreneur loophole. Capital gains taxed as ordinary income.',
     citationId: 'ifs_cgt_alignment',
     onComplete: {
-      revBonus: cited(13, 'ifs_cgt_alignment'),
+      // CGT-alignment yield is dominated by realisation elasticity, which IFS
+      // and HMRC TIINs both flag as very uncertain on the downside (rich
+      // taxpayers can defer disposals indefinitely) but only mildly so on the
+      // upside. Asymmetric band reflects that.
+      revBonus: cited(13, 'ifs_cgt_alignment', { band: { low: -0.4, high: 0.1 } }),
       gini: cited(-0.3, 'cgt_gini_judgement'),
       log: "CGT aligned. The founders' loophole closed.",
     },
@@ -269,6 +285,24 @@ export const REFORMS = {
       youth: cited(-5, 'bloc_methodology'),
     },
   },
+  taxCodeRewrite: {
+    name: 'Tax Code Rewrite', branch: 'revenue',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 6, prereq: ['hmrcCapacity'], capacityLoad: 6,
+    passReq: { coalition: cited(40, 'bloc_methodology') },
+    politicalCapitalCost: cited(20, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0.0, social: 0.0 },
+    blurb: 'Wholesale rewrite of the tax code. Removes legacy guardrails on headline rate-setting — unlocks extreme tax-rate ranges.',
+    citationId: 'slider_range_judgement',
+    special: 'unlockExtremeTaxSliders',
+    onComplete: {
+      log: 'Tax code rewritten. The Chancellor can now set any rate from 0 to confiscatory.',
+    },
+    blocEffects: {
+      professional: cited(-2, 'bloc_methodology'),
+      business: cited(-3, 'bloc_methodology'),
+      publicSector: cited(2, 'bloc_methodology'),
+    },
+  },
 
   // ===========================================================================
   // NHS & CARE branch
@@ -320,8 +354,9 @@ export const REFORMS = {
     passReq: { coalition: cited(42, 'bloc_methodology') },
     politicalCapitalCost: cited(15, 'political_capital_authoring_methodology'),
     ideologyStance: { econ: -0.4, social: -0.1 },
-    blurb: 'Free personal care, workforce pay uplift, NHS/LA integration.',
+    blurb: 'Free personal care, workforce pay uplift, NHS/LA integration. Compounds pandemic-severity damper.',
     citationId: 'social_care_systemic_extrapolated',
+    special: 'enablePandemicDamperSocialCare',
     onComplete: {
       ongoingCost: cited(12, 'social_care_systemic_extrapolated'),
       healthBoost: cited(5, 'social_care_systemic_extrapolated'),
@@ -340,8 +375,9 @@ export const REFORMS = {
     passReq: { coalition: cited(35, 'bloc_methodology') },
     politicalCapitalCost: cited(6, 'political_capital_authoring_methodology'),
     ideologyStance: { econ: -0.2, social: -0.1 },
-    blurb: 'Marmot-style upstream investment. Long-run mortality + productivity.',
+    blurb: 'Marmot-style upstream investment. Long-run mortality + productivity. Damps pandemic severity.',
     citationId: 'marmot_preventative',
+    special: 'enablePandemicDamperPreventative',
     onComplete: {
       ongoingCost: cited(2, 'marmot_preventative'),
       healthBoost: cited(4, 'marmot_preventative'),
@@ -838,6 +874,24 @@ export const REFORMS = {
     blocEffects: {
       publicSector: cited(8, 'bloc_methodology'),
       professional: cited(3, 'bloc_methodology'),
+    },
+  },
+  spendingReviewOverride: {
+    name: 'Spending Review Override', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 6, prereq: ['civilService'], capacityLoad: 6,
+    passReq: { coalition: cited(40, 'bloc_methodology') },
+    politicalCapitalCost: cited(20, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0.0, social: 0.0 },
+    blurb: 'Strip the multi-year settlement conventions. The Treasury can now reshape departmental budgets to extremes.',
+    citationId: 'slider_range_judgement',
+    special: 'unlockExtremeSpendingSliders',
+    onComplete: {
+      log: 'Spending review framework overridden. Departmental envelopes are now fully discretionary.',
+    },
+    blocEffects: {
+      publicSector: cited(-4, 'bloc_methodology'),
+      professional: cited(-2, 'bloc_methodology'),
+      business: cited(1, 'bloc_methodology'),
     },
   },
   localGov: {

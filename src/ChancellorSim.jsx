@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Calendar, AlertTriangle, BookOpen, LineChart, Landmark } from 'lucide-react';
+import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, Calendar, BookOpen, LineChart, Landmark } from 'lucide-react';
 
 import {
   PARAMS,
   INITIAL_BLOC_SUPPORT,
   INITIAL_BLOC_WEIGHTS,
   REFORMS,
+  EVENT_DEFINITIONS,
   calcCoalitionCohesion,
   calcOverallApproval,
   calcRevenue,
@@ -32,21 +33,22 @@ import { EventModal } from './components/modals/EventModal.jsx';
 import { QuarterSummary } from './components/modals/QuarterSummary.jsx';
 import { SurplusAllocModal } from './components/modals/SurplusAllocModal.jsx';
 import { InspectReform } from './components/modals/InspectReform.jsx';
+import { LedgerDetail } from './components/modals/LedgerDetail.jsx';
 import { Reelect } from './components/modals/Reelect.jsx';
 import { FinalModal } from './components/modals/FinalModal.jsx';
 
 import { OverviewTab } from './components/OverviewTab.jsx';
 import { BudgetTab } from './components/BudgetTab.jsx';
 import { ReformsTab } from './components/ReformsTab.jsx';
-import { RisksTab } from './components/RisksTab.jsx';
-import { LedgerTab } from './components/LedgerTab.jsx';
 import { MarketsTab } from './components/MarketsTab.jsx';
 import { AboutTab } from './components/AboutTab.jsx';
 import { PoliticsTab } from './components/PoliticsTab.jsx';
 
-const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
+import { Container } from './components/primitives/Layout.jsx';
+import { Stat, ProjectionCaret } from './components/primitives/Stat.jsx';
+import { MeterBar } from './components/primitives/MeterBar.jsx';
 
-const FONT_LINK = `@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');`;
+const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
 const TERM_LENGTH = v(PARAMS.termLength);
 const COALITION_FLOOR = v(PARAMS.coalitionFloor);
@@ -60,37 +62,6 @@ const INITIAL = makeInitialState({
 
 const fmtSigned = (n) => (n >= 0 ? '+' : '−') + (Math.abs(n) >= 1000 ? `£${(Math.abs(n)/1000).toFixed(1)}tn` : `£${Math.abs(n).toFixed(0)}bn`);
 
-// Projected-delta caret. `worseUp` flips the favourability sense for metrics
-// where higher = bad (gilts, gini). `deltaGood` lets callers override the
-// sign-based judgement entirely (used for inflation, which is favourable when
-// moving toward the target regardless of sign).
-function ProjectionCaret({ value, threshold = 0.1, decimals = 1, worseUp = false, deltaGood, suffix = '' }) {
-  if (value === null || value === undefined || Number.isNaN(value)) return null;
-  if (Math.abs(value) < threshold) return null;
-  const good = deltaGood !== undefined ? deltaGood : (worseUp ? value < 0 : value > 0);
-  const sign = value > 0 ? '+' : '−';
-  return (
-    <span className={`text-[9px] ${good ? 'text-emerald-400' : 'text-rose-400'}`}
-          style={{fontFamily: 'IBM Plex Mono'}}>
-      {sign}{Math.abs(value).toFixed(decimals)}{suffix}
-    </span>
-  );
-}
-
-function StatCell({ label, value, color, delta, deltaThreshold, decimals, worseUp, deltaGood }) {
-  return (
-    <div>
-      <div className="text-[9px] uppercase tracking-wider text-stone-500 flex items-center justify-center gap-1">
-        {label}
-        <ProjectionCaret value={delta} threshold={deltaThreshold} decimals={decimals}
-                         worseUp={worseUp} deltaGood={deltaGood} />
-      </div>
-      <div className={`text-[11px] font-semibold ${color}`}
-           style={{fontFamily: 'IBM Plex Mono'}}>{value}</div>
-    </div>
-  );
-}
-
 export default function ChancellorSim() {
   const [game, setGame] = useState(INITIAL);
   const [tab, setTab] = useState('overview');
@@ -99,6 +70,7 @@ export default function ChancellorSim() {
   const [showReelect, setShowReelect] = useState(false);
   const [inspectReform, setInspectReform] = useState(null);
   const [showSurplusAlloc, setShowSurplusAlloc] = useState(false);
+  const [showLedgerDetail, setShowLedgerDetail] = useState(false);
   const [surplusAllocations, setSurplusAllocations] = useState({});
 
   useEffect(() => {
@@ -109,7 +81,13 @@ export default function ChancellorSim() {
       localStorage.removeItem('chancellor_v6_save');
       const saved = localStorage.getItem('chancellor_v7_save');
       if (saved) {
-        setGame(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Migrate legacy saves: pendingEvent (object) → pendingEvents (queue).
+        if (!Array.isArray(parsed.pendingEvents)) {
+          parsed.pendingEvents = parsed.pendingEvent?.id ? [parsed.pendingEvent.id] : [];
+        }
+        if (parsed.pandemicDamper == null) parsed.pandemicDamper = 1;
+        setGame(parsed);
         setShowIntro(false);
       }
     } catch (e) {}
@@ -144,19 +122,22 @@ export default function ChancellorSim() {
   );
   const projectedBalance = useMemo(() => calcBalance(projection), [projection]);
   const dCohesion = projectedCohesion - coalitionCohesion;
-  const dBalance = projectedBalance - balance;
   const dGDP = projection.gdp - game.gdp;
-  const dGrowth = projection.growth - game.growth;
   const dGilts = projection.bondYield - game.bondYield;
   const dInflation = projection.inflation - game.inflation;
   const dGini = projection.gini - game.gini;
   const dPC = projection.politicalCapital - game.politicalCapital;
+  const dHealth = projection.healthIndex - game.healthIndex;
   const inflationTowardTarget =
     Math.abs(projection.inflation - game.inflationTarget) < Math.abs(game.inflation - game.inflationTarget);
   const deficit = -balance;
   const deficitGDP = deficit / game.gdp * 100;
   const debtRatio = (game.debt / game.gdp * 100).toFixed(0);
   const committed = game.committed;
+  // Top-bar Balance is the *live* slider-affected figure; the caret then
+  // shows next-quarter projection drift relative to it. The stable
+  // committed-books reading lives on the Overview's fiscal panel.
+  const dBalance = projectedBalance - balance;
   const yearQ = ((game.quarter - 1) % 4) + 1;
   const yearInTerm = Math.ceil(game.quarter / 4);
 
@@ -168,15 +149,26 @@ export default function ChancellorSim() {
     setGame(g => modelCancelReform(g, id));
   }
 
+  const pendingEventCount = (game.pendingEvents || []).length;
+  const currentPendingEventDef = pendingEventCount > 0
+    ? EVENT_DEFINITIONS[game.pendingEvents[0]]
+    : null;
+  const currentPendingEvent = currentPendingEventDef
+    ? { id: game.pendingEvents[0], ...currentPendingEventDef }
+    : null;
+  const initialBriefCount = game.pendingSummary?.eventQueueLength ?? pendingEventCount;
+  const briefIndex = Math.max(1, initialBriefCount - pendingEventCount + 1);
+
   function advanceQuarter() {
-    if (game.pendingEvent || game.pendingSummary || showReelect || showSurplusAlloc) return;
+    if (pendingEventCount > 0 || game.pendingSummary || showReelect || showSurplusAlloc) return;
     setGame(g => stepQuarter(g));
   }
 
   useEffect(() => {
-    if (game.status === 'election' && !game.pendingSummary && !game.pendingEvent && !showReelect) setShowReelect(true);
-    if (['collapsed', 'lost-markets', 'lost-election'].includes(game.status) && !game.pendingSummary && !game.pendingEvent && !showFinal) setShowFinal(true);
-  }, [game.status, game.pendingSummary, game.pendingEvent, showFinal, showReelect]);
+    const eventsClear = pendingEventCount === 0;
+    if (game.status === 'election' && !game.pendingSummary && eventsClear && !showReelect) setShowReelect(true);
+    if (['collapsed', 'lost-markets', 'lost-election'].includes(game.status) && !game.pendingSummary && eventsClear && !showFinal) setShowFinal(true);
+  }, [game.status, game.pendingSummary, pendingEventCount, showFinal, showReelect]);
 
   function continueAfterElection() {
     setGame(g => modelContinueAfterElection(g));
@@ -184,7 +176,7 @@ export default function ChancellorSim() {
   }
 
   function resolveEvent(choice) {
-    setGame(g => modelResolveEvent(g, choice));
+    setGame(g => modelResolveEvent(g, choice, { eventDef: currentPendingEventDef }));
   }
 
   function dismissSummary() {
@@ -218,30 +210,28 @@ export default function ChancellorSim() {
   const balanceDiff = committed ? balance - committed.balance : null;
 
   return (
-    <div className="min-h-screen text-stone-100" style={{
-      background: 'radial-gradient(ellipse at top, #2a2418 0%, #14110c 60%, #0d0b08 100%)',
-      fontFamily: 'IBM Plex Sans, sans-serif'
-    }}>
-      <style>{FONT_LINK}</style>
-      <style>{`
-        input[type=range]::-webkit-slider-thumb {
-          appearance: none; width: 18px; height: 18px; border-radius: 50%;
-          background: #d97706; cursor: pointer; border: 2px solid #1c1a14;
-        }
-        input[type=range]::-moz-range-thumb {
-          width: 18px; height: 18px; border-radius: 50%;
-          background: #d97706; cursor: pointer; border: 2px solid #1c1a14;
-        }
-        .display-font { font-family: 'Fraunces', Georgia, serif; }
-      `}</style>
-
+    <div className="min-h-screen text-stone-100 font-sans app-background">
       {showIntro && <Intro onDismiss={() => setShowIntro(false)} />}
-      {inspectReform && <InspectReform reform={inspectReform} forecastNoise={game.forecastNoise} onClose={() => setInspectReform(null)} />}
+      {inspectReform && <InspectReform reform={inspectReform} forecastMultiplier={game.forecastNoiseMultiplier ?? 1} onClose={() => setInspectReform(null)} />}
+      {showLedgerDetail && (
+        <LedgerDetail
+          game={game} revenue={revenue} spending={spending}
+          balance={balance} balanceDiff={balanceDiff}
+          deficitGDP={deficitGDP} debtRatio={debtRatio}
+          committed={committed}
+          onClose={() => setShowLedgerDetail(false)}
+        />
+      )}
       {game.pendingSummary && !showIntro && (
         <QuarterSummary summary={game.pendingSummary} growth={game.growth} population={game.population} onContinue={dismissSummary} />
       )}
-      {game.pendingEvent && !showIntro && !game.pendingSummary && !showSurplusAlloc && (
-        <EventModal event={game.pendingEvent} onChoice={resolveEvent} />
+      {currentPendingEvent && !showIntro && !game.pendingSummary && !showSurplusAlloc && (
+        <EventModal
+          event={currentPendingEvent}
+          onChoice={resolveEvent}
+          briefIndex={briefIndex}
+          briefTotal={initialBriefCount}
+        />
       )}
       {showReelect && (
         <Reelect term={game.term} coalitionCohesion={coalitionCohesion} balance={balance} deficitGDP={deficitGDP}
@@ -257,96 +247,138 @@ export default function ChancellorSim() {
         <FinalModal game={game} balance={balance} coalitionCohesion={coalitionCohesion} onReset={reset} />
       )}
 
-      <div className="sticky top-0 z-30 backdrop-blur-md border-b border-stone-800/60"
-           style={{background: 'rgba(20, 17, 12, 0.92)'}}>
-        <div className="max-w-md mx-auto px-4 pt-3 pb-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Crown size={14} className="text-amber-500" />
-              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400">
-                Term {game.term} · Y{yearInTerm} Q{yearQ} · {Math.max(0, TERM_LENGTH - game.quarter + 1)}Q to Election
+      <div className="sticky top-0 z-30 backdrop-blur-md border-b border-treasury-800/60 bg-treasury-900/90">
+        <Container size="wide" className="pt-3 pb-3">
+          {/* Top strip — Term n (left) · progress bar (middle) · Y/Q + election countdown + reset (right). */}
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Crown size={14} className="text-accent-500" />
+              <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400 font-sans whitespace-nowrap">
+                Term {game.term}
               </div>
             </div>
-            <button onClick={reset} className="text-stone-500 hover:text-stone-300"><RotateCcw size={13} /></button>
+            <div className="flex-1 min-w-[60px]" title={`Q${game.quarter} of ${TERM_LENGTH}`}>
+              <MeterBar value={(game.quarter / TERM_LENGTH) * 100} tone="accent" size="xs" />
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-stone-400 font-sans whitespace-nowrap">
+                Y{yearInTerm} Q{yearQ}
+                <span className="hidden sm:inline"> · {Math.max(0, TERM_LENGTH - game.quarter + 1)}Q to Election</span>
+              </div>
+              <button onClick={reset} aria-label="Reset game"
+                      className="text-stone-500 hover:text-stone-200 transition-colors p-1 -m-1">
+                <RotateCcw size={13} />
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 items-end mb-3">
+
+          {/* Hero figures: cohesion / GDP / balance. Mobile: 3-col compact.
+              Desktop: same 3 columns, more breathing room and a brass rule
+              between this row and the secondary stats below. */}
+          <div className="grid grid-cols-3 gap-3 md:gap-6 items-end pb-3 border-b border-treasury-800/70 relative">
+            <span aria-hidden className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent-600/40 to-transparent" />
+
             <div>
               <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-0.5 flex items-center gap-1.5 flex-wrap">
                 Cohesion
                 <ProjectionCaret value={dCohesion} threshold={0.1} decimals={1} worseUp={false} />
               </div>
-              <div className={`display-font text-3xl font-medium tabular-nums leading-none ${
-                coalitionCohesion >= REELECT_THRESHOLD ? 'text-emerald-400' : coalitionCohesion >= 28 ? 'text-amber-400' : 'text-rose-400'
+              <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${
+                coalitionCohesion >= REELECT_THRESHOLD ? 'text-signal-good' : coalitionCohesion >= 28 ? 'text-accent-400' : 'text-signal-bad'
               }`}>{coalitionCohesion.toFixed(0)}%</div>
               <div className="text-[10px] text-stone-500 mt-1">Overall {overallApproval.toFixed(0)}% · Floor {COALITION_FLOOR}%</div>
             </div>
+
             <div className="text-center">
               <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-0.5 flex items-center justify-center gap-1.5 flex-wrap">
                 GDP
                 <ProjectionCaret value={dGDP} threshold={1} decimals={0} worseUp={false} suffix="bn" />
               </div>
-              <div className="display-font text-2xl font-medium tabular-nums leading-none text-stone-100">
+              <div className="font-display text-2xl md:text-3xl font-medium tabular-nums leading-none text-stone-100">
                 £{(game.gdp/1000).toFixed(2)}tn
               </div>
-              <div className={`text-[10px] mt-1 flex items-center justify-center gap-1.5 ${game.growth > 1.5 ? 'text-emerald-400' : game.growth > 0 ? 'text-stone-400' : 'text-rose-400'}`}>
+              <div className={`text-[10px] mt-1 ${game.growth > 1.5 ? 'text-signal-good' : game.growth > 0 ? 'text-stone-400' : 'text-signal-bad'}`}>
                 {game.growth.toFixed(1)}% growth
               </div>
             </div>
+
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-0.5 flex items-center justify-end gap-1.5 flex-wrap">
                 <ProjectionCaret value={dBalance} threshold={0.5} decimals={0} worseUp={false} />
                 Balance
               </div>
-              <div className={`text-xl font-bold tabular-nums ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-                   style={{fontFamily: 'IBM Plex Mono'}}>{fmtSigned(balance)}</div>
-              <div className={`text-[10px] mt-0.5 ${deficitGDP < 2 ? 'text-emerald-400' : deficitGDP < 4 ? 'text-amber-400' : 'text-rose-400'}`}>
+              <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${balance >= 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
+                {fmtSigned(balance)}
+              </div>
+              <div className={`text-[10px] mt-1 ${deficitGDP < 2 ? 'text-signal-good' : deficitGDP < 4 ? 'text-accent-400' : 'text-signal-bad'}`}>
                 {balance >= 0 ? 'Surplus' : `${deficitGDP.toFixed(1)}% deficit · Debt ${debtRatio}%`}
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-1 text-center">
-            <StatCell label="Growth" value={`${game.growth.toFixed(1)}%`}
-                      color={game.growth > 1.5 ? 'text-emerald-400' : game.growth > 0 ? 'text-stone-200' : 'text-rose-400'}
-                      delta={dGrowth} deltaThreshold={0.1} decimals={1} worseUp={false} />
-            <StatCell label="Gilts" value={`${game.bondYield.toFixed(1)}%`}
-                      color={game.bondYield < 4 ? 'text-emerald-400' : game.bondYield < 5.5 ? 'text-stone-200' : 'text-rose-400'}
-                      delta={dGilts} deltaThreshold={0.1} decimals={2} worseUp={true} />
-            <StatCell label="Inflation" value={`${game.inflation.toFixed(1)}%`}
-                      color={Math.abs(game.inflation - game.inflationTarget) < 0.5 ? 'text-emerald-400' : Math.abs(game.inflation - game.inflationTarget) < 1.5 ? 'text-amber-400' : 'text-rose-400'}
-                      delta={dInflation} deltaThreshold={0.1} decimals={2}
-                      deltaGood={inflationTowardTarget} />
-            <StatCell label="Gini" value={game.gini.toFixed(1)}
-                      color={game.gini < 34 ? 'text-emerald-400' : game.gini < 36 ? 'text-stone-200' : 'text-rose-400'}
-                      delta={dGini} deltaThreshold={0.1} decimals={2} worseUp={true} />
-            <StatCell label="PC" value={game.politicalCapital.toFixed(0)}
-                      color={game.politicalCapital >= 50 ? 'text-amber-400' : game.politicalCapital >= 25 ? 'text-stone-200' : 'text-rose-400'}
-                      delta={dPC} deltaThreshold={0.5} decimals={0} worseUp={false} />
+
+          {/* Secondary metrics: Growth is already implied under GDP above,
+              so this strip carries Health (the social proxy), Gini, Inflation,
+              Gilts, and PC. */}
+          <div className="grid grid-cols-5 gap-2 pt-3">
+            <Stat label="Health" value={game.healthIndex.toFixed(0)}
+                  color={game.healthIndex >= 55 ? 'text-signal-good' : game.healthIndex >= 45 ? 'text-stone-200' : 'text-signal-bad'}
+                  delta={dHealth} deltaThreshold={0.3} decimals={1} />
+            <Stat label="Gini" value={game.gini.toFixed(1)}
+                  color={game.gini < 34 ? 'text-signal-good' : game.gini < 36 ? 'text-stone-200' : 'text-signal-bad'}
+                  delta={dGini} deltaThreshold={0.1} decimals={2} worseUp />
+            <Stat label="Inflation" value={`${game.inflation.toFixed(1)}%`}
+                  color={Math.abs(game.inflation - game.inflationTarget) < 0.5 ? 'text-signal-good' : Math.abs(game.inflation - game.inflationTarget) < 1.5 ? 'text-accent-400' : 'text-signal-bad'}
+                  delta={dInflation} deltaThreshold={0.1} decimals={2} deltaGood={inflationTowardTarget} />
+            <Stat label="Gilts" value={`${game.bondYield.toFixed(1)}%`}
+                  color={game.bondYield < 4 ? 'text-signal-good' : game.bondYield < 5.5 ? 'text-stone-200' : 'text-signal-bad'}
+                  delta={dGilts} deltaThreshold={0.1} decimals={2} worseUp />
+            <Stat label="PC" value={game.politicalCapital.toFixed(0)}
+                  color={game.politicalCapital >= 50 ? 'text-accent-400' : game.politicalCapital >= 25 ? 'text-stone-200' : 'text-signal-bad'}
+                  delta={dPC} deltaThreshold={0.5} decimals={0} />
           </div>
-        </div>
-        <div className="max-w-md mx-auto px-1 flex border-t border-stone-800/60 overflow-x-auto">
-          {[
-            {id: 'overview', label: 'Overview', icon: Calendar},
-            {id: 'budget', label: 'Budget', icon: Receipt},
-            {id: 'reforms', label: 'Reforms', icon: Hammer},
-            {id: 'politics', label: 'Politics', icon: Landmark},
-            {id: 'markets', label: 'Markets', icon: LineChart},
-            {id: 'risks', label: 'Risks', icon: AlertTriangle},
-            {id: 'ledger', label: 'Ledger', icon: FileText},
-            {id: 'about', label: 'About', icon: BookOpen},
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-                    className={`flex-1 py-2.5 text-[11px] font-medium flex items-center justify-center gap-1 transition-colors border-b-2 ${
-                      tab === t.id ? 'border-amber-500 text-amber-400' : 'border-transparent text-stone-500'
-                    }`}>
-              <t.icon size={11} /> {t.label}
-            </button>
-          ))}
-        </div>
+        </Container>
+
+        {/* Tab strip — icons-only on mobile to save width, icons+labels on md+.
+            With 6 tabs the strip now fits 360px-wide phones without scrolling. */}
+        <Container size="wide" className="!px-1 md:!px-5">
+          <div className="flex border-t border-treasury-800/60">
+            {[
+              {id: 'overview', label: 'Overview', icon: Calendar},
+              {id: 'budget', label: 'Budget', icon: Receipt},
+              {id: 'reforms', label: 'Reforms', icon: Hammer},
+              {id: 'politics', label: 'Politics', icon: Landmark},
+              {id: 'markets', label: 'Markets', icon: LineChart},
+              {id: 'about', label: 'About', icon: BookOpen},
+            ].map(t => {
+              const active = tab === t.id;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)} aria-pressed={active}
+                        aria-label={t.label} title={t.label}
+                        className={`flex-1 py-2.5 md:py-3 text-[11px] md:text-[12px] font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+                          active
+                            ? 'border-accent-500 text-accent-400'
+                            : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-treasury-700'
+                        }`}>
+                  <t.icon size={14} />
+                  <span className="hidden md:inline whitespace-nowrap">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Container>
       </div>
 
-      <div className="max-w-md mx-auto px-4 pt-5 pb-28">
-        {tab === 'overview' && <OverviewTab game={game} committed={committed}
-          deficitGDP={deficitGDP} debtRatio={debtRatio} />}
+      <Container size="wide" className="pt-5 md:pt-8 pb-32 md:pb-28">
+        {tab === 'overview' && (
+          <OverviewTab
+            game={game} committed={committed}
+            deficitGDP={deficitGDP} debtRatio={debtRatio}
+            revenue={revenue} spending={spending}
+            balance={balance} balanceDiff={balanceDiff}
+            riskMods={riskMods}
+            onOpenLedger={() => setShowLedgerDetail(true)}
+          />
+        )}
         {tab === 'budget' && <BudgetTab game={game} committed={committed} set={set} />}
         {tab === 'reforms' && (
           <ReformsTab game={game} coalitionCohesion={coalitionCohesion}
@@ -357,35 +389,31 @@ export default function ChancellorSim() {
         )}
         {tab === 'politics' && <PoliticsTab game={game} projectedDeltas={projectedDeltas} />}
         {tab === 'markets' && <MarketsTab game={game} spending={spending} />}
-        {tab === 'risks' && <RisksTab riskMods={riskMods} />}
-        {tab === 'ledger' && (
-          <LedgerTab game={game} revenue={revenue} spending={spending} balance={balance}
-            deficitGDP={deficitGDP} balanceDiff={balanceDiff} committed={committed} debtRatio={debtRatio} />
-        )}
         {tab === 'about' && <AboutTab />}
-      </div>
+      </Container>
 
-      {!showIntro && !showFinal && !showReelect && !showSurplusAlloc && !game.pendingEvent && !game.pendingSummary && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 backdrop-blur-md border-t border-stone-800/80 p-3"
-             style={{background: 'rgba(20, 17, 12, 0.92)'}}>
-          <div className="max-w-md mx-auto flex items-center gap-3">
-            <div className="flex-1">
-              <div className="text-[9px] uppercase tracking-wider text-stone-500">Quarter Status</div>
-              <div className="text-[11px] text-stone-300">
-                {game.proposedReforms.length > 0 && (
-                  <span className="text-sky-400">
-                    {game.proposedReforms.length} queued ({queuedPcCost.toFixed(0)} PC) ·{' '}
-                  </span>
-                )}
-                {Object.values(game.reforms).filter(r => r.status === 'inProgress').length} in flight ·
-                {' '}<span className={reformLoadInFlight >= reformCapacity ? 'text-amber-400' : 'text-stone-400'}>Cap {reformLoadInFlight}/{reformCapacity}</span>
+      {!showIntro && !showFinal && !showReelect && !showSurplusAlloc && pendingEventCount === 0 && !game.pendingSummary && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 backdrop-blur-md border-t border-treasury-800/80 bg-treasury-900/92">
+          <Container size="wide" className="py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-[9px] uppercase tracking-wider text-stone-500">Quarter Status</div>
+                <div className="text-[11px] md:text-[12px] text-stone-300 truncate">
+                  {game.proposedReforms.length > 0 && (
+                    <span className="text-signal-info">
+                      {game.proposedReforms.length} queued ({queuedPcCost.toFixed(0)} PC) ·{' '}
+                    </span>
+                  )}
+                  {Object.values(game.reforms).filter(r => r.status === 'inProgress').length} in flight ·
+                  {' '}<span className={reformLoadInFlight >= reformCapacity ? 'text-accent-400' : 'text-stone-400'}>Cap {reformLoadInFlight}/{reformCapacity}</span>
+                </div>
               </div>
+              <button onClick={advanceQuarter}
+                      className="bg-accent-600 hover:bg-accent-500 active:bg-accent-700 text-treasury-950 font-semibold px-5 py-2.5 md:px-6 md:py-3 rounded-md flex items-center gap-1.5 text-sm md:text-base shadow-glow-amber transition-all">
+                Next Quarter <ChevronRight size={15} />
+              </button>
             </div>
-            <button onClick={advanceQuarter}
-                    className="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-stone-950 font-semibold px-4 py-2.5 rounded-md flex items-center gap-1.5 text-sm">
-              Next Quarter <ChevronRight size={15} />
-            </button>
-          </div>
+          </Container>
         </div>
       )}
     </div>

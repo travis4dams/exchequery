@@ -13,6 +13,9 @@ import {
 import { BlocBar } from './primitives/BlocBar.jsx';
 import { CitationLink } from './primitives/CitationLink.jsx';
 import { BlocInfoModal } from './modals/BlocInfoModal.jsx';
+import { Card } from './primitives/Card.jsx';
+import { Stack, TwoCol, Grid } from './primitives/Layout.jsx';
+import { MeterBar } from './primitives/MeterBar.jsx';
 
 // Palette for the bloc pie charts. Coalition blocs get warm hues; others
 // get cooler/neutral tones so the visual split lines up with the rest of
@@ -31,6 +34,7 @@ const BLOC_COLORS = {
 
 // =============================================================================
 // Hemicycle layout — 632 seats arranged in concentric arcs.
+// Geometry is locked: viewBox is 0 0 240 140; do not change spacing constants.
 // =============================================================================
 const HEMICYCLE_GEOMETRY = (() => {
   const ROWS = 12;
@@ -77,7 +81,7 @@ function Hemicycle({ seatMoodById }) {
 function PartyLegend({ counts, governingParty }) {
   const order = ['Lab', 'Con', 'LD', 'SNP', 'RUK', 'Green', 'PC', 'Ind', 'Spk'];
   return (
-    <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-stone-400 mt-2">
+    <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10px] text-stone-400 mt-3">
       {order.filter((p) => counts[p]).map((p) => (
         <div key={p} className="flex items-center gap-1">
           <span className="inline-block w-2 h-2 rounded-full" style={{ background: PARTY_COLORS[p] }} />
@@ -89,51 +93,49 @@ function PartyLegend({ counts, governingParty }) {
 }
 
 function MoodBar({ value, ok = 60, warn = 45 }) {
-  const color = value >= ok ? 'bg-emerald-500' : value >= warn ? 'bg-amber-500' : 'bg-rose-500';
-  return (
-    <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
-      <div className={`h-full ${color} transition-all`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
-    </div>
-  );
+  return <MeterBar value={value} mood ok={ok} warn={warn} />;
 }
 
 function PoliticsCapitalCard({ pc, parliamentMood, pmRelationship, pcLog }) {
+  const lastDelta = pcLog && pcLog[0] ? pcLog[0].delta : null;
   return (
-    <div className="p-4 bg-stone-900/60 border border-stone-800 rounded-lg space-y-3">
-      <div className="flex items-baseline justify-between">
+    <Card variant="raised" padding="md">
+      <div className="flex items-baseline justify-between mb-3">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-stone-500 flex items-center gap-1">
             Political Capital <CitationLink id="pc_regen_methodology" />
           </div>
-          <div className="display-font text-3xl font-medium tabular-nums leading-none text-amber-400">
+          <div className="font-display text-3xl md:text-4xl font-medium tabular-nums leading-none text-accent-400 mt-1">
             {pc.toFixed(0)}
             <span className="text-base text-stone-500"> / 100</span>
           </div>
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wider text-stone-500">Last quarter</div>
-          <div className="text-[11px] text-stone-300" style={{ fontFamily: 'IBM Plex Mono' }}>
-            {pcLog && pcLog[0] ? `${pcLog[0].delta >= 0 ? '+' : ''}${pcLog[0].delta.toFixed(1)}` : '—'}
+          <div className={`text-[11px] font-mono tabular-nums ${lastDelta !== null ? (lastDelta >= 0 ? 'text-signal-good' : 'text-signal-bad') : 'text-stone-300'}`}>
+            {lastDelta !== null ? `${lastDelta >= 0 ? '+' : ''}${lastDelta.toFixed(1)}` : '—'}
           </div>
         </div>
       </div>
-      <div>
-        <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 flex items-center justify-between">
-          <span>Governing-Party Mood</span>
-          <span className="text-stone-300" style={{ fontFamily: 'IBM Plex Mono' }}>{parliamentMood.toFixed(0)}</span>
+      <div className="space-y-2.5">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 flex items-center justify-between">
+            <span>Governing-Party Mood</span>
+            <span className="text-stone-300 font-mono tabular-nums">{parliamentMood.toFixed(0)}</span>
+          </div>
+          <MoodBar value={parliamentMood} />
         </div>
-        <MoodBar value={parliamentMood} />
-      </div>
-      <div>
-        <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 flex items-center justify-between">
-          <span className="flex items-center gap-1">
-            PM Relationship <CitationLink id="pm_relationship_methodology" />
-          </span>
-          <span className="text-stone-300" style={{ fontFamily: 'IBM Plex Mono' }}>{pmRelationship.toFixed(0)}</span>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              PM Relationship <CitationLink id="pm_relationship_methodology" />
+            </span>
+            <span className="text-stone-300 font-mono tabular-nums">{pmRelationship.toFixed(0)}</span>
+          </div>
+          <MoodBar value={pmRelationship} />
         </div>
-        <MoodBar value={pmRelationship} />
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -143,9 +145,9 @@ function BlocPie({ slices, label }) {
   const R = 40, CX = 50, CY = 50;
   let acc = 0;
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-1 text-center">{label}</div>
-      <svg viewBox="0 0 100 100" className="w-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 100 100" className="w-full max-w-[140px] mx-auto block" preserveAspectRatio="xMidYMid meet">
         {slices.map((s) => {
           if (s.value <= 0) return null;
           const start = (acc / total) * Math.PI * 2;
@@ -168,11 +170,11 @@ function BlocPie({ slices, label }) {
   );
 }
 
-function TopSeats({ seats, label, color }) {
+function TopSeats({ seats, label, accentColor }) {
   if (seats.length === 0) return null;
   return (
     <div>
-      <div className={`text-[10px] uppercase tracking-wider mb-1.5 ${color}`}>{label}</div>
+      <div className={`text-[10px] uppercase tracking-wider mb-1.5 ${accentColor}`}>{label}</div>
       <div className="space-y-1">
         {seats.map(({ idx, seat, mood }) => (
           <div key={idx} className="flex items-center gap-2 text-[11px]">
@@ -182,7 +184,7 @@ function TopSeats({ seats, label, color }) {
             />
             <span className="text-stone-300 flex-1 truncate">{seat.name}</span>
             <span className="text-stone-500 text-[10px]">{seat.region.slice(0, 4)}</span>
-            <span className="text-stone-200 tabular-nums" style={{ fontFamily: 'IBM Plex Mono' }}>
+            <span className="text-stone-200 font-mono tabular-nums">
               {mood.toFixed(0)}
             </span>
           </div>
@@ -195,7 +197,7 @@ function TopSeats({ seats, label, color }) {
 function PcLog({ entries }) {
   if (!entries || entries.length === 0) return null;
   return (
-    <details className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg group">
+    <Card variant="raised" padding="md" as="details" className="group">
       <summary className="text-[10px] uppercase tracking-wider text-stone-500 cursor-pointer flex items-center gap-1 list-none">
         <ChevronDown size={11} className="transition-transform group-open:rotate-0 -rotate-90" />
         PC Log
@@ -203,18 +205,15 @@ function PcLog({ entries }) {
       <div className="space-y-1 mt-2">
         {entries.slice(0, 8).map((e, i) => (
           <div key={i} className="text-[11px] flex items-center gap-2">
-            <span className="text-amber-500 text-[9px]" style={{ fontFamily: 'IBM Plex Mono' }}>Q{e.q}</span>
+            <span className="text-accent-500 text-[9px] font-mono tabular-nums">Q{e.q}</span>
             <span className="text-stone-400 flex-1 truncate">{e.reason}</span>
-            <span
-              className={`tabular-nums ${e.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-              style={{ fontFamily: 'IBM Plex Mono' }}
-            >
+            <span className={`font-mono tabular-nums ${e.delta >= 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
               {e.delta >= 0 ? '+' : ''}{e.delta.toFixed(1)}
             </span>
           </div>
         ))}
       </div>
-    </details>
+    </Card>
   );
 }
 
@@ -232,12 +231,12 @@ function SeatList({ seatMoodById }) {
   const start = page * PAGE;
   const slice = filtered.slice(start, start + PAGE);
   return (
-    <details className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg group">
+    <Card variant="raised" padding="md" as="details" className="group">
       <summary className="text-[10px] uppercase tracking-wider text-stone-500 cursor-pointer flex items-center gap-1 list-none">
         <ChevronDown size={11} className="transition-transform group-open:rotate-0 -rotate-90" />
         All Constituencies ({CONSTITUENCIES.length})
       </summary>
-      <div className="mt-2">
+      <div className="mt-3">
         <div className="flex items-center gap-2 mb-2">
           <Search size={11} className="text-stone-500" />
           <input
@@ -245,18 +244,18 @@ function SeatList({ seatMoodById }) {
             placeholder="Filter by name, region, or party..."
             value={filter}
             onChange={(e) => { setFilter(e.target.value); setPage(0); }}
-            className="bg-stone-950 border border-stone-800 rounded px-2 py-1 text-[11px] flex-1 text-stone-300 outline-none focus:border-amber-600"
+            className="bg-treasury-950 border border-treasury-800 rounded px-2 py-1 text-[11px] flex-1 text-stone-300 outline-none focus:border-accent-600 transition-colors"
           />
-          <span className="text-[10px] text-stone-500 tabular-nums" style={{ fontFamily: 'IBM Plex Mono' }}>{filtered.length}</span>
+          <span className="text-[10px] text-stone-500 font-mono tabular-nums">{filtered.length}</span>
         </div>
-        <div className="space-y-0.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-0.5">
           {slice.map((c) => {
             const i = CONSTITUENCIES.indexOf(c);
             const mood = seatMoodById[i];
             const winner = WINNER_BY_IDX[i];
-            const moodColor = mood >= 60 ? 'text-emerald-400' : mood >= 40 ? 'text-stone-300' : 'text-rose-400';
+            const moodColor = mood >= 60 ? 'text-signal-good' : mood >= 40 ? 'text-stone-300' : 'text-signal-bad';
             return (
-              <div key={c.id} className="flex items-center gap-2 text-[11px] py-0.5">
+              <div key={c.id} className="flex items-center gap-2 text-[11px] py-0.5 min-w-0">
                 <span
                   className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: PARTY_COLORS[winner] }}
@@ -264,7 +263,7 @@ function SeatList({ seatMoodById }) {
                 />
                 <span className="text-stone-300 flex-1 truncate">{c.name}</span>
                 <span className="text-stone-500 text-[10px] w-12 text-right truncate">{c.region.slice(0, 6)}</span>
-                <span className={`tabular-nums w-8 text-right ${moodColor}`} style={{ fontFamily: 'IBM Plex Mono' }}>
+                <span className={`font-mono tabular-nums w-8 text-right ${moodColor}`}>
                   {mood.toFixed(0)}
                 </span>
               </div>
@@ -272,26 +271,67 @@ function SeatList({ seatMoodById }) {
           })}
         </div>
         {filtered.length > PAGE && (
-          <div className="flex justify-between mt-2 text-[10px] text-stone-400">
+          <div className="flex justify-between mt-3 text-[10px] text-stone-400">
             <button
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="disabled:text-stone-700 hover:text-stone-100"
+              className="disabled:text-stone-700 hover:text-stone-100 transition-colors"
             >
               ‹ Prev
             </button>
-            <span className="text-stone-500">{start + 1}–{Math.min(start + PAGE, filtered.length)} of {filtered.length}</span>
+            <span className="text-stone-500 font-mono tabular-nums">{start + 1}–{Math.min(start + PAGE, filtered.length)} of {filtered.length}</span>
             <button
               disabled={start + PAGE >= filtered.length}
               onClick={() => setPage((p) => p + 1)}
-              className="disabled:text-stone-700 hover:text-stone-100"
+              className="disabled:text-stone-700 hover:text-stone-100 transition-colors"
             >
               Next ›
             </button>
           </div>
         )}
       </div>
-    </details>
+    </Card>
+  );
+}
+
+function HemicycleCard({ parliament, counts }) {
+  return (
+    <Card variant="raised" padding="md">
+      <Card.Header>
+        <div className="text-[10px] uppercase tracking-wider text-stone-500 flex items-center gap-1">
+          House of Commons <CitationLink id="ralphascott_constituency_bundle" />
+        </div>
+        <Card.Meta>{parliament.pmName}, PM</Card.Meta>
+      </Card.Header>
+      <Hemicycle seatMoodById={parliament.seatMoodById} />
+      <PartyLegend counts={counts} governingParty={parliament.governingParty} />
+      <div className="text-[10px] text-stone-500 mt-3 leading-relaxed">
+        Dot saturation reflects MP mood vs neutral 50.
+        GB only (632 seats); NI's 18 omitted per source data.
+      </div>
+    </Card>
+  );
+}
+
+function BlocCompositionCard({ populationSlices, seatBlocSlices, governingParty }) {
+  return (
+    <Card variant="raised" padding="md">
+      <Card.Header>
+        <Card.Eyebrow>Bloc Composition</Card.Eyebrow>
+      </Card.Header>
+      <div className="flex gap-3">
+        <BlocPie slices={populationSlices} label="Population" />
+        <BlocPie slices={seatBlocSlices} label={`${governingParty} seats`} />
+      </div>
+      <div className="flex flex-wrap gap-x-2 gap-y-1 mt-3 justify-center">
+        {Object.keys(BLOCS).map((id) => (
+          <div key={id} className="flex items-center gap-1 text-[9px] text-stone-400">
+            <span className="inline-block w-2 h-2 rounded-sm" style={{ background: BLOC_COLORS[id] }} />
+            <span>{BLOCS[id].name}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -336,48 +376,48 @@ export function PoliticsTab({ game, projectedDeltas }) {
   }, [game.parliament.governingParty]);
 
   return (
-    <div className="space-y-4">
-      <PoliticsCapitalCard
-        pc={game.politicalCapital}
-        parliamentMood={game.parliamentMood}
-        pmRelationship={game.pmRelationship}
-        pcLog={game.pcLog}
+    <Stack gap="lg">
+      <div>
+        <h2 className="font-display text-2xl md:text-3xl font-medium italic text-stone-100 mb-1">
+          Parliament &amp; the Coalition
+        </h2>
+        <p className="text-[12px] text-stone-500">
+          The PM, your MPs, your blocs, your political capital. Where the bargain lives.
+        </p>
+      </div>
+
+      {/* Hemicycle is the centrepiece. On lg+ the PC and bloc composition
+          cards sit alongside as a side rail; on smaller screens everything
+          stacks. */}
+      <TwoCol
+        ratio="3-2"
+        gap="lg"
+        main={<HemicycleCard parliament={game.parliament} counts={counts} />}
+        side={
+          <Stack gap="md">
+            <PoliticsCapitalCard
+              pc={game.politicalCapital}
+              parliamentMood={game.parliamentMood}
+              pmRelationship={game.pmRelationship}
+              pcLog={game.pcLog}
+            />
+            <BlocCompositionCard
+              populationSlices={populationSlices}
+              seatBlocSlices={seatBlocSlices}
+              governingParty={game.parliament.governingParty}
+            />
+          </Stack>
+        }
       />
 
-      <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-[10px] uppercase tracking-wider text-stone-500 flex items-center gap-1">
-            House of Commons <CitationLink id="ralphascott_constituency_bundle" />
-          </div>
-          <div className="text-[10px] text-stone-500">{game.parliament.pmName}, PM</div>
-        </div>
-        <Hemicycle seatMoodById={game.parliament.seatMoodById} />
-        <PartyLegend counts={counts} governingParty={game.parliament.governingParty} />
-        <div className="text-[10px] text-stone-500 mt-2 leading-relaxed">
-          Dot saturation reflects MP mood vs neutral 50.
-          GB only (632 seats); NI's 18 omitted per source data.
-        </div>
-      </div>
-
-      <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
-        <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2">Bloc Composition</div>
-        <div className="flex gap-3">
-          <BlocPie slices={populationSlices} label="Population" />
-          <BlocPie slices={seatBlocSlices} label={`${game.parliament.governingParty} seats`} />
-        </div>
-        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-3 justify-center">
-          {Object.keys(BLOCS).map((id) => (
-            <div key={id} className="flex items-center gap-1 text-[9px] text-stone-400">
-              <span className="inline-block w-2 h-2 rounded-sm" style={{ background: BLOC_COLORS[id] }} />
-              <span>{BLOCS[id].name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="display-font text-xl font-medium italic text-stone-100 mb-1">Voter Blocs</h2>
-        <p className="text-[11px] text-stone-500 mb-2">Population share (small grey) shifts each quarter. Arrows show projected support drift. Tap a bloc name for details.</p>
+      <Card variant="raised" padding="md">
+        <Card.Header>
+          <Card.Eyebrow>Voter Blocs</Card.Eyebrow>
+          <Card.Meta>tap a bloc for details</Card.Meta>
+        </Card.Header>
+        <p className="text-[11px] text-stone-500 mb-3">
+          Population share (small grey) shifts each quarter. Arrows show projected support drift.
+        </p>
         <div className="space-y-1.5">
           {Object.keys(BLOCS).map((id) => (
             <BlocBar key={id} blocId={id} support={game.blocSupport[id]}
@@ -387,18 +427,20 @@ export function PoliticsTab({ game, projectedDeltas }) {
                      onInfo={() => setOpenBlocId(id)} />
           ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg space-y-3">
-        <TopSeats seats={happiest} label="Happiest Government MPs" color="text-emerald-500" />
-        <TopSeats seats={unhappiest} label="Unhappiest Government MPs" color="text-rose-500" />
-      </div>
+      <Card variant="raised" padding="md">
+        <Grid cols={{ base: 1, md: 2 }} gap="lg">
+          <TopSeats seats={happiest} label="Happiest Government MPs" accentColor="text-signal-good" />
+          <TopSeats seats={unhappiest} label="Unhappiest Government MPs" accentColor="text-signal-bad" />
+        </Grid>
+      </Card>
 
       <PcLog entries={game.pcLog} />
 
       <SeatList seatMoodById={game.parliament.seatMoodById} />
 
       {openBlocId && <BlocInfoModal blocId={openBlocId} onClose={() => setOpenBlocId(null)} />}
-    </div>
+    </Stack>
   );
 }

@@ -12,6 +12,7 @@ import { PARAMS } from './params.js';
 import { BLOCS, COALITION } from './blocs.js';
 import { REFORMS, REFORM_BRANCHES } from './reforms.js';
 import { EVENT_DEFINITIONS, REFORM_RISK_MODS } from './events.js';
+import { sampleWithBand, projectBand } from './uncertainty.js';
 import {
   makeInitialParliament,
   updateSeatMoods,
@@ -114,11 +115,13 @@ export function calcRevenue(s) {
 
 export function calcSpending(s) {
   const debtInterest = s.debt * (s.effectiveServicingRate / 100);
-  const departmental = s.spendNHS + s.spendEdu + s.spendWelfare + s.spendDefence + s.spendInfra + s.spendLocal;
+  const departmental =
+    s.spendNHS + s.spendEdu + s.spendWelfare + s.spendDefence + s.spendInfra + s.spendLocal
+    + s.spendJustice + s.spendFCDO + s.spendDEFRA + s.spendRnD + s.spendDevolved;
 
   const popScale = s.population / v(PARAMS.spending.populationScaleAnchor);
   const F = PARAMS.spending.fixedCosts;
-  const fixed = (v(F.pensions) + v(F.justice) + v(F.otherDept)) * popScale;
+  const fixed = (v(F.pensions) + v(F.otherDept)) * popScale;
 
   return {
     debtInterest, departmental, fixed,
@@ -267,6 +270,70 @@ export function quarterlyBlocDelta(s) {
     d.northern += delta * v(B.infraAbove40.northern);
   }
 
+  // Justice & Home Affairs — cut below £50bn and boost above £65bn
+  const justiceCut = Math.max(0, v(T.justiceCutFloor) - s.spendJustice);
+  if (justiceCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.justiceCutBelowFloor)) {
+      d[bloc] -= justiceCut * v(leaf);
+    }
+  }
+  const justiceBoost = Math.max(0, s.spendJustice - v(T.justiceBoostFloor));
+  if (justiceBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.justiceBoostAboveFloor)) {
+      d[bloc] -= justiceBoost * v(leaf);  // these blocs are upset by the heavy-handed boost
+    }
+  }
+
+  // FCDO / Foreign Aid — symmetric cut/boost
+  const fcdoCut = Math.max(0, v(T.fcdoCutFloor) - s.spendFCDO);
+  if (fcdoCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.fcdoCutBelowFloor)) {
+      d[bloc] -= fcdoCut * v(leaf);
+    }
+  }
+  const fcdoBoost = Math.max(0, s.spendFCDO - v(T.fcdoBoostFloor));
+  if (fcdoBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.fcdoBoostAboveFloor)) {
+      d[bloc] += fcdoBoost * v(leaf);
+    }
+  }
+
+  // DEFRA — symmetric cut/boost
+  const defraCut = Math.max(0, v(T.defraCutFloor) - s.spendDEFRA);
+  if (defraCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.defraCutBelowFloor)) {
+      d[bloc] -= defraCut * v(leaf);
+    }
+  }
+  const defraBoost = Math.max(0, s.spendDEFRA - v(T.defraBoostFloor));
+  if (defraBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.defraBoostAboveFloor)) {
+      d[bloc] += defraBoost * v(leaf);
+    }
+  }
+
+  // R&D — symmetric cut/boost
+  const rndCut = Math.max(0, v(T.rndCutFloor) - s.spendRnD);
+  if (rndCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.rndCutBelowFloor)) {
+      d[bloc] -= rndCut * v(leaf);
+    }
+  }
+  const rndBoost = Math.max(0, s.spendRnD - v(T.rndBoostFloor));
+  if (rndBoost > 0) {
+    for (const [bloc, leaf] of Object.entries(B.rndBoostAboveFloor)) {
+      d[bloc] += rndBoost * v(leaf);
+    }
+  }
+
+  // Devolved transfers — cut only
+  const devolvedCut = Math.max(0, v(T.devolvedCutFloor) - s.spendDevolved);
+  if (devolvedCut > 0) {
+    for (const [bloc, leaf] of Object.entries(B.devolvedCutBelowFloor)) {
+      d[bloc] -= devolvedCut * v(leaf);
+    }
+  }
+
   // Cost-of-living: inflation above target hurts real-income-sensitive blocs.
   const inflationGap = Math.max(0, (s.inflation ?? 0) - (s.inflationTarget ?? 0));
   if (inflationGap > 0 && B.inflationAboveTarget) {
@@ -337,7 +404,20 @@ export function quarterlyPopulationGrowth(reforms) {
 export function updateInflation(s) {
   const target = s.inflationTarget;
   const persistence = v(PARAMS.phillips.persistence);
-  const slope = v(PARAMS.phillips.slope) * (s.phillipsSlopeMultiplier ?? 1);
+  // Asymmetric slope per Bunn et al. (BoE WP 1107, 2025): hot-labour-market
+  // slope (gap > 0) is ~3× the slack-side slope. labourFlexibility reform
+  // continues to scale BOTH branches via phillipsSlopeMultiplier.
+  const gap = s.naturalUnemployment - s.unemployment;
+  const baseSlope = gap > 0 ? v(PARAMS.phillips.slopePositive)
+                            : v(PARAMS.phillips.slopeNegative);
+  const slope = baseSlope * (s.phillipsSlopeMultiplier ?? 1);
+  let phillipsTerm = slope * gap;
+  // Trend-inflation amplification: when CPI exceeds threshold, menu-cost
+  // mechanism pushes firms closer to price-increase thresholds (Bunn et al.).
+  if (s.inflation > v(PARAMS.phillips.trendInflationThreshold)) {
+    phillipsTerm *= v(PARAMS.phillips.trendInflationModifier);
+  }
+
   const vatImpulseCoef = v(PARAMS.phillips.vatImpulseCoef);
   const basicImpulseCoef = v(PARAMS.phillips.basicImpulseCoef);
   const growthDriftCoef = v(PARAMS.phillips.growthDriftCoef);
@@ -345,7 +425,6 @@ export function updateInflation(s) {
   const vatAnchor = v(PARAMS.initial.taxVAT);
   const basicAnchor = v(PARAMS.initial.taxIncomeBasic);
 
-  const phillipsTerm = slope * (s.naturalUnemployment - s.unemployment);
   const demandImpulse = vatImpulseCoef * (s.taxVAT - vatAnchor)
                       + basicImpulseCoef * (s.taxIncomeBasic - basicAnchor);
   const growthDrift = growthDriftCoef * (s.growth - trendGrowth);
@@ -365,6 +444,23 @@ export function updateInflation(s) {
 // pathological runaways. Math.random is NOT consumed here.
 // =============================================================================
 
+// Effective mortgage rate — UK 86% fixed-rate share (BoE MLAR Q3 2022) with
+// 2-year dominant fix. Blend half of today's Bank Rate with the Bank Rate
+// from `lagQuarters` ago, plus a 30bp wedge (BoE MPR Nov 2025). Reads from
+// s.bankRatePath; tests passing only bankRate fall back gracefully.
+export function updateMortgageRate(s) {
+  const M = PARAMS.monetary.mortgagePassthrough;
+  const lag = v(M.lagQuarters);
+  const wedge = v(M.wedgeBps) / 100;
+  const fixedShare = v(M.fixedShare);
+  // bankRatePath includes the current quarter at index length-1 (gameStep
+  // pushes before calling this function), so "lag quarters ago" lives at
+  // path[length-1-lag]. With lag=8: path[length-9] = 8 quarters ago.
+  const path = s.bankRatePath || [];
+  const laggedRate = path[Math.max(0, path.length - 1 - lag)] ?? s.bankRate;
+  return fixedShare * s.bankRate + (1 - fixedShare) * laggedRate + wedge;
+}
+
 export function updateHousePriceIndex(s) {
   const H = PARAMS.housing;
   const persistence = v(H.persistence);
@@ -380,7 +476,11 @@ export function updateHousePriceIndex(s) {
   // (trend + target) so high-inflation paths support HPI even when real
   // growth is weak.
   const wageSignal = (s.growth + s.inflation) - (trendGrowth + s.inflationTarget);
-  const realRateGap = s.bankRate - s.inflation - neutralReal;
+  // Real rate gap reads the effective mortgage rate (lagged blend) rather
+  // than Bank Rate directly — captures the dominant-fix UK structure.
+  // Falls back to bankRate when s.mortgageRate is absent (older test states).
+  const mortgageRate = s.mortgageRate ?? s.bankRate;
+  const realRateGap = mortgageRate - s.inflation - neutralReal;
   const supplyKick = supplyResp * (s.housingSupply - baseSupply);
   const forcing = 100 + wageElasticity * wageSignal + rateElasticity * realRateGap + supplyKick;
 
@@ -393,9 +493,20 @@ export function updateEnergyPriceIndex(s) {
   const decay = v(E.shockDecay);
   const drift = v(E.baselineDrift);
   const dampener = v(E.greenInvestDampener);
+  const passthrough = v(E.cap.passthrough);
+  const lag = v(E.cap.lagQuarters);
 
-  // Mean-revert toward 100 at decay rate; add baseline drift; apply green-policy dampener.
-  let next = decay * (s.energyPriceIndex - 100) + 100 + drift;
+  // Ofgem default-tariff cap reacts to wholesale prices ~lag quarters ago.
+  // energyShockBuffer is a FIFO 4-quarter window of incoming shock magnitudes
+  // (oldest at index 0, newest at length-1). Single-entry lookback:
+  // buffer[length - lag] is the entry from `lag` quarters ago.
+  const buffer = s.energyShockBuffer || [];
+  const lookbackIdx = Math.max(0, buffer.length - lag);
+  const capContribution = passthrough * (buffer[lookbackIdx] ?? 0);
+
+  // Mean-revert toward 100 at decay rate; add baseline drift; add cap pass-through;
+  // apply green-policy dampener.
+  let next = decay * (s.energyPriceIndex - 100) + 100 + drift + capContribution;
   if (s.reforms?.greenInvest?.status === 'complete') next += dampener;
   if (s.reforms?.insulationScheme?.status === 'complete') next += dampener;
   return Math.max(50, Math.min(400, next));
@@ -442,12 +553,20 @@ export function updateBankRate(s) {
 
 export function bondYieldFromBankRate(s) {
   const termPremium = v(PARAMS.monetary.termPremium);
+  // LDI / DB-pension structural demand for long-end gilts is a passive sink
+  // (Chicago Fed Letter 480, 2023). Discount the term premium by
+  // passiveDemandWeight × longGiltDemandShare. With weight 0.5 and share 0.28,
+  // this deducts 14bp from the 30bp base, leaving 16bp effective premium.
+  const passiveDemand = v(PARAMS.monetary.passiveDemandWeight)
+                      * v(PARAMS.equity.ldi.longGiltDemandShare);
+  const effectiveTermPremium = Math.max(0, termPremium - passiveDemand);
+
   const deficitCoef = v(PARAMS.monetary.deficitYieldCoef);
   const yieldSmooth = v(PARAMS.monetary.yieldSmooth);
   const balYr = calcBalance(s);
   const deficitAdj = Math.max(0, -balYr) * deficitCoef;
   const riskPremium = s.riskPremium ?? 0;
-  const target = s.bankRate + termPremium + deficitAdj + riskPremium;
+  const target = s.bankRate + effectiveTermPremium + deficitAdj + riskPremium;
   const lo = v(PARAMS.bondYield.floor);
   const hi = v(PARAMS.bondYield.ceiling);
   return Math.max(lo, Math.min(hi, yieldSmooth * s.bondYield + (1 - yieldSmooth) * target));
@@ -521,6 +640,111 @@ export function wealthEffectOnGrowth(s) {
   return Math.max(-cap, Math.min(cap, raw));
 }
 
+// Current-quarter growth/inflation contributions from the new departmental
+// sliders. Returns deltas in pp; caller adds them before mean reversion.
+export function deptSliderHooks(s) {
+  const G = PARAMS.growthHooks;
+  const T = PARAMS.thresholds;
+  const I = PARAMS.initial;
+
+  let growth = 0;
+  let inflation = 0;
+
+  const rndDelta = s.spendRnD - v(I.spendRnD);
+  if (rndDelta >= 0) growth += rndDelta * v(G.rndPerBnAboveBaseline);
+  else growth += rndDelta * v(G.rndPerBnBelowBaseline);  // rndDelta is negative
+
+  const fcdoDelta = s.spendFCDO - v(I.spendFCDO);
+  if (fcdoDelta >= 0) growth += fcdoDelta * v(G.fcdoPerBnAboveBaseline);
+  else growth += fcdoDelta * v(G.fcdoPerBnBelowBaseline);
+
+  const defraCut = Math.max(0, v(I.spendDEFRA) - s.spendDEFRA);
+  inflation += defraCut * v(G.defraPerBnBelowBaseline);
+
+  const justiceCutForGrowth = Math.max(0, v(T.justiceCutFloor) - s.spendJustice);
+  growth -= justiceCutForGrowth * v(G.justicePerBnBelowCutFloor);
+
+  const devolvedCutForGrowth = Math.max(0, v(I.spendDevolved) - s.spendDevolved);
+  growth -= devolvedCutForGrowth * v(G.devolvedPerBnBelowBaseline);
+
+  return { growth, inflation };
+}
+
+// =============================================================================
+// State-dependent fiscal multipliers — level-deviation interpretation.
+//
+// Each quarter the growth impulse for spending category X is:
+//   multiplier × (currentSpendLevel − baselineSpendLevel) / nominalGDP × 100
+//                / taperHorizonQuarters
+// Equivalent to spreading the cumulative multiplier effect uniformly across
+// taperHorizonQuarters (5 years) while the deviation persists. Steady state
+// matches the textbook multiplier interpretation: a sustained £10bn extra
+// infra spend (0.32% of GDP) at multiplier 1.0 over 20 quarters cumulates to
+// +0.32pp growth ≈ +£10bn GDP. Per OBR dynamic scoring (Nov 2023).
+//
+// Tax channels: deviation is in £bn of yield (rate-deviation × per-pp yield),
+// flipped negative because tax rises drag growth. VAT and income tax bands
+// each get their own yield-per-pp coefficient; income-tax bands are summed
+// directly rather than averaged, since the bases differ by ~40×.
+//
+// Recession amplification: when output gap (growth − potentialGrowth) falls
+// below recessionGapThreshold (−2pp), multiply the per-quarter impulse by
+// recessionModifier (1.7×) per Auerbach-Gorodnichenko (AEJ:Pol 2012).
+//
+// Categories covered: NHS, Education, Welfare, Local, Infrastructure, Defence
+// (CDEL/RDEL/AME assignment) plus VAT and income tax (basic/higher/additional).
+// R&D, FCDO, DEFRA, Justice, Devolved are handled by deptSliderHooks — do NOT
+// add them here without removing them there. The allowlist below enforces the
+// partition: if a key escapes the set, the throw fires immediately rather
+// than silently double-routing.
+// =============================================================================
+const FISCAL_MULTIPLIER_SPEND_ALLOWLIST = new Set([
+  'spendNHS', 'spendEdu', 'spendWelfare', 'spendLocal', 'spendInfra', 'spendDefence',
+]);
+
+export function applyFiscalMultipliers(s) {
+  const F = PARAMS.fiscalMultipliers;
+  const I = PARAMS.initial;
+  const taper = v(F.taperHorizonQuarters);
+  const gdp = s.gdp;
+  const outputGap = s.growth - v(PARAMS.potentialGrowth);
+  const ampMod = outputGap < v(F.recessionGapThreshold) ? v(F.recessionModifier) : 1;
+
+  let impulse = 0;
+
+  // Spending channels — CDEL (capital), RDEL (resource current), AME (welfare).
+  const spendCategories = [
+    { key: 'spendNHS',     baseline: v(I.spendNHS),     multiplier: v(F.rdel) },
+    { key: 'spendEdu',     baseline: v(I.spendEdu),     multiplier: v(F.rdel) },
+    { key: 'spendWelfare', baseline: v(I.spendWelfare), multiplier: v(F.ame)  },
+    { key: 'spendLocal',   baseline: v(I.spendLocal),   multiplier: v(F.rdel) },
+    { key: 'spendInfra',   baseline: v(I.spendInfra),   multiplier: v(F.cdel) },
+    { key: 'spendDefence', baseline: v(I.spendDefence), multiplier: v(F.cdel) },
+  ];
+  for (const { key, baseline, multiplier } of spendCategories) {
+    if (!FISCAL_MULTIPLIER_SPEND_ALLOWLIST.has(key)) {
+      throw new Error(`applyFiscalMultipliers: spend key '${key}' not in allowlist; check partition vs deptSliderHooks`);
+    }
+    const deviation = s[key] - baseline;
+    impulse += multiplier * (deviation / gdp) * 100 / taper;
+  }
+
+  // Tax channels — sign convention: tax rises drag growth (negative impulse).
+  // Sum £bn contributions directly across bands; do NOT average the per-pp
+  // coefficients (basic-rate yield is ~40× additional-rate yield).
+  const R = PARAMS.revenue;
+  const vatDeviationBn = (s.taxVAT - v(I.taxVAT)) * v(R.vat.perPP);
+  impulse -= v(F.vat) * (vatDeviationBn / gdp) * 100 / taper;
+
+  const itDeviationBn =
+      (s.taxIncomeBasic - v(I.taxIncomeBasic)) * v(R.incomeTax.basicRatePerPP)
+    + (s.taxIncomeHigh  - v(I.taxIncomeHigh))  * v(R.incomeTax.higherRatePerPP)
+    + (s.taxIncomeAdd   - v(I.taxIncomeAdd))   * v(R.incomeTax.additionalRatePerPP);
+  impulse -= v(F.incomeTax) * (itDeviationBn / gdp) * 100 / taper;
+
+  return impulse * ampMod;
+}
+
 // =============================================================================
 // Risk modifiers — applied to event base probabilities
 // =============================================================================
@@ -543,6 +767,9 @@ export function computeRiskMods(s) {
   const hotLabour = Math.max(0, s.naturalUnemployment - s.unemployment);
   const inflGap = Math.max(0, s.inflation - s.inflationTarget);
   const taylorDivergence = Math.abs(s.bankRate - taylorRule(s));
+  const eduAnchor = v(PARAMS.initial.spendEdu);
+  const winterQ = ((s.quarter - 1) % 4) + 1;
+  const marketStress = (s.bondYield ?? 0) + (s.riskPremium ?? 0);
 
   const m = {
     nhsStrike: v(R.nhsStrike.base),
@@ -584,6 +811,45 @@ export function computeRiskMods(s) {
       + Math.max(0, s.growth - v(PARAMS.potentialGrowth))
       * Math.max(0, s.inflation - s.inflationTarget)
       * v(R.recession.overheatingCoef),
+    civilUnrest: v(R.civilUnrest.base),
+    diplomaticIsolation: v(R.diplomaticIsolation.base),
+    independenceMovement: v(R.independenceMovement.base),
+
+    // Red Box expansion events
+    pandemic: v(R.pandemic.base),
+    teacherStrike: v(R.teacherStrike.base),
+    droughtStress: v(R.droughtStress.base) + (winterQ === 3 ? v(R.droughtStress.summerKick) : 0),
+    supplyChainShock: v(R.supplyChainShock.base)
+      + Math.max(0, s.riskPremium ?? 0) * v(R.supplyChainShock.perPpRiskPremium),
+    cyberAttack: v(R.cyberAttack.base),
+    coldSnap: v(R.coldSnap.base) + (winterQ === 1 || winterQ === 4 ? v(R.coldSnap.winterKick) : 0),
+    aiDisplacement: v(R.aiDisplacement.base) + (s.globalQuarter ?? 1) * v(R.aiDisplacement.perGlobalQuarter),
+    scientificBreakthrough: v(R.scientificBreakthrough.base),
+    sterlingSlide: marketStress > v(R.sterlingSlide.whenStressAbove)
+      ? v(R.sterlingSlide.activeBase) : v(R.sterlingSlide.base),
+    commercialPropertyCrash: v(R.commercialPropertyCrash.base)
+      + Math.max(0, (s.equityIndex ?? 100) - 130) * v(R.commercialPropertyCrash.perEquityAboveThreshold),
+    pensionFundCrisis: v(R.pensionFundCrisis.base)
+      + Math.max(0, 85 - (s.equityIndex ?? 100)) * v(R.pensionFundCrisis.perEquityBelowThreshold),
+    fintechIpo: v(R.fintechIpo.base),
+    inflationSurprise: v(R.inflationSurprise.base) + inflGap * v(R.inflationSurprise.perPpAboveTarget),
+    cabinetScandal: v(R.cabinetScandal.base)
+      + Math.max(0, -(s.parliamentMood ?? 0)) * v(R.cabinetScandal.perPpMoodDeficit),
+    devolutionDispute: v(R.devolutionDispute.base),
+    // LDI doom-loop gate (BoE Staff WP 1019, 2023). Reads s.bondYieldPath
+    // (NOT bankRatePath); compares current bondYield to the value at
+    // path[length-2] (previous quarter). At Q1 with empty path the delta
+    // is 0 and the gate stays off.
+    ldiDoomLoop: (() => {
+      const path = s.bondYieldPath || [];
+      const yieldDeltaBp = path.length >= 2
+        ? (s.bondYield - path[path.length - 2]) * 100
+        : 0;
+      const ldiSharePct = v(PARAMS.equity.ldi.longGiltDemandShare) * 100;
+      const triggered = yieldDeltaBp > v(R.ldiDoomLoop.yieldDeltaTrigger)
+                     && ldiSharePct > v(R.ldiDoomLoop.ldiShareThreshold);
+      return triggered ? v(R.ldiDoomLoop.activeBase) : v(R.ldiDoomLoop.base);
+    })(),
   };
 
   // Spending-based modifiers
@@ -596,6 +862,25 @@ export function computeRiskMods(s) {
   if (s.taxIncomeBasic > basicStrikeFloor) m.generalStrike += v(R.generalStrike.basicRateRiseKick);
   if (s.taxVAT > vatStrikeFloor) m.generalStrike += v(R.generalStrike.vatRiseKick);
   if (s.spendInfra > infraSurgeFloor) m.investmentSurge += (s.spendInfra - infraSurgeFloor) * v(R.investmentSurge.perBnInfraOverbaseline);
+
+  // New departmental risk-mod hooks.
+  const justiceCutFloor = v(T.justiceCutFloor);
+  if (s.spendJustice < justiceCutFloor) {
+    m.civilUnrest += (justiceCutFloor - s.spendJustice) * v(R.civilUnrest.perBnJusticeUnderfunded);
+  }
+  const fcdoCutFloor = v(T.fcdoCutFloor);
+  if (s.spendFCDO < fcdoCutFloor) {
+    m.diplomaticIsolation += (fcdoCutFloor - s.spendFCDO) * v(R.diplomaticIsolation.perBnFcdoUnderfunded);
+  }
+  const devolvedCutFloor = v(T.devolvedCutFloor);
+  if (s.spendDevolved < devolvedCutFloor) {
+    m.independenceMovement += (devolvedCutFloor - s.spendDevolved) * v(R.independenceMovement.perBnDevolvedUnderfunded);
+  }
+
+  // Red Box expansion: spending-driven probability bumps
+  if (s.spendNHS < nhsAnchor) m.pandemic += (nhsAnchor - s.spendNHS) * v(R.pandemic.perBnNhsUnderfunded);
+  if (s.spendEdu < eduAnchor) m.teacherStrike += (eduAnchor - s.spendEdu) * v(R.teacherStrike.perBnEduUnderfunded);
+  if (s.spendLocal < localAnchor) m.devolutionDispute += (localAnchor - s.spendLocal) * v(R.devolutionDispute.perBnLocalUnderfunded);
 
   // Reform-declared risk mods
   for (const r of Object.values(s.reforms)) {
@@ -622,39 +907,54 @@ export function computeRiskMods(s) {
 }
 
 // =============================================================================
-// Reform projection & sampling — pass forecastNoise band on each numeric leaf
+// Reform projection & sampling — each numeric onComplete leaf can declare its
+// own forecast band via cited(value, citationId, { band }); the global
+// `multiplier` (1.0 by default, 0.4 after OBR Independence) scales every band's
+// width. Leaves without an authored band fall back to a symmetric `fallbackWidth`.
 // =============================================================================
 
-// Extracts only the numeric on-complete effects with their values, ignoring
-// per-bloc populationEffects (which are reported separately in the UI).
-function numericOnCompleteEntries(reformDef) {
+// Yield [key, leaf] for numeric on-complete effects, ignoring `log` and the
+// per-bloc populationEffects map (which the UI reports separately).
+function numericOnCompleteLeaves(reformDef) {
   const out = [];
   const oc = reformDef.onComplete || {};
   for (const [k, leaf] of Object.entries(oc)) {
     if (k === 'log' || k === 'populationEffects') continue;
-    if (leaf && typeof leaf === 'object' && 'value' in leaf) out.push([k, leaf.value]);
+    if (leaf && typeof leaf === 'object' && 'value' in leaf) out.push([k, leaf]);
   }
   return out;
 }
 
-export function projectReformOutcome(reformDef, forecastNoise) {
+// Resolve the effective band for a leaf: prefer the cited per-leaf band,
+// otherwise fall back to a symmetric `fallbackWidth`. Returned width is
+// scaled by `multiplier` (1.0 by default; 0.4 after OBR Independence).
+function effectiveBand(leaf, fallbackWidth, multiplier) {
+  if (leaf.band) {
+    return { low: leaf.band.low * multiplier, high: leaf.band.high * multiplier, dist: leaf.band.dist };
+  }
+  if (!fallbackWidth) return null;
+  const w = fallbackWidth * multiplier;
+  return { low: -w, high: w, dist: 'triangular' };
+}
+
+export function projectReformOutcome(reformDef, multiplier = 1, fallbackWidth = v(PARAMS.forecastNoise.bandFallback)) {
   const out = {};
   if (!reformDef.onComplete) return out;
-  for (const [k, value] of numericOnCompleteEntries(reformDef)) {
-    out[k] = {
-      mid: value,
-      low: value * (1 - forecastNoise),
-      high: value * (1 + forecastNoise),
-    };
+  for (const [k, leaf] of numericOnCompleteLeaves(reformDef)) {
+    const band = effectiveBand(leaf, fallbackWidth, multiplier);
+    out[k] = projectBand(leaf.value, band);
   }
   return out;
 }
 
-export function sampleReformOutcome(reformDef, forecastNoise) {
-  const out = { log: reformDef.onComplete?.log };
-  for (const [k, value] of numericOnCompleteEntries(reformDef)) {
-    const noise = (Math.random() * 2 - 1) * forecastNoise;
-    out[k] = value * (1 + noise);
+export function sampleReformOutcome(reformDef, multiplier = 1, fallbackWidth = v(PARAMS.forecastNoise.bandFallback)) {
+  const out = { log: reformDef.onComplete?.log, forecast: {}, realised: {} };
+  for (const [k, leaf] of numericOnCompleteLeaves(reformDef)) {
+    const band = effectiveBand(leaf, fallbackWidth, multiplier);
+    const realised = sampleWithBand(leaf.value, band);
+    out[k] = realised;
+    out.realised[k] = realised;
+    out.forecast[k] = projectBand(leaf.value, band);
   }
   return out;
 }
@@ -706,7 +1006,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
   const I = PARAMS.initial;
   const parliament = makeInitialParliament({ blocSupport: initialBlocSupport });
   const { governingPartyMood, chamberMood } = aggregateParliamentMood(parliament.seatMoodById, parliament);
-  return {
+  const state = {
     quarter: 1, term: 1, globalQuarter: 1,
     gdp: v(I.gdp), realGDP: v(I.realGDP),
     population: v(I.population),
@@ -717,31 +1017,56 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     taxIncomeBasic: v(I.taxIncomeBasic), taxCorp: v(I.taxCorp), taxVAT: v(I.taxVAT),
     spendNHS: v(I.spendNHS), spendEdu: v(I.spendEdu), spendWelfare: v(I.spendWelfare),
     spendDefence: v(I.spendDefence), spendInfra: v(I.spendInfra), spendLocal: v(I.spendLocal),
+    spendJustice: v(I.spendJustice), spendFCDO: v(I.spendFCDO), spendDEFRA: v(I.spendDEFRA),
+    spendRnD: v(I.spendRnD), spendDevolved: v(I.spendDevolved),
     blocSupport: initialBlocSupport,
     blocWeights: initialBlocWeights,
     reforms: {}, proposedReforms: [],
     revBonusFromReforms: 0, ongoingCostFromReforms: 0, ongoingRevFromReforms: 0,
     healthIndex: v(I.healthIndex), gini: v(I.gini),
     bankRate: v(I.bankRate),
+    // Effective mortgage rate — updateMortgageRate blends current and lagged
+    // Bank Rate plus a wedge. Initialised at Bank Rate + wedge (no history yet).
+    mortgageRate: v(I.bankRate) + v(PARAMS.monetary.mortgagePassthrough.wedgeBps) / 100,
     inflationTarget: v(I.inflationTarget),
     naturalUnemployment: v(I.naturalUnemployment),
     boeMandate: 'inflation_only',
     bankRatePath: [],
+    // Parallel to bankRatePath; used by LDI doom-loop gate and projection.js.
+    // Empty initial array matches bankRatePath convention; LDI gate returns
+    // yieldDelta = 0 while path.length < 2.
+    bondYieldPath: [],
+    // FIFO 4-quarter rolling window of incoming energy shock magnitudes.
+    // Oldest at index 0, newest at length-1; consumed by updateEnergyPriceIndex
+    // via buffer[length - lagQuarters] for the Ofgem cap pass-through channel.
+    energyShockBuffer: [0, 0, 0, 0],
     housePriceIndex: v(I.housePriceIndex),
     energyPriceIndex: v(I.energyPriceIndex),
     housingSupply: v(I.housingSupply),
-    housePricePath: [],
-    energyPricePath: [],
+    // Seed paths with the initial value so the very first push produces a
+    // 2-point series (line renders at Q2 instead of Q3). Index-100 series
+    // also seed at their baseline so the chart is consistent.
+    housePricePath: [v(I.housePriceIndex)],
+    energyPricePath: [v(I.energyPriceIndex)],
     phillipsSlopeMultiplier: 1,
     equityIndex: v(I.equityIndex),
-    equityPath: [],
+    equityPath: [v(I.equityIndex)],
+    gdpPath: [v(I.gdp)],
+    realGDPPath: [v(I.realGDP)],
+    debtRatioPath: [v(I.debt) / v(I.gdp) * 100],
+    deficitRatioPath: [v(I.deficit) / v(I.gdp) * 100],
+    unemploymentPath: [v(I.unemployment)],
+    healthIndexPath: [v(I.healthIndex)],
+    populationPath: [v(I.population)],
+    inflationPath: [v(I.inflation)],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],
-    log: [], pendingEvent: null, pendingSummary: null,
+    log: [], pendingEvent: null, pendingEvents: [], pendingSummary: null,
+    pandemicDamper: 1,
     pendingSurplus: 0,
     status: 'playing', committed: null, termsWon: 0,
-    forecastNoise: v(PARAMS.forecastNoise.base),
+    forecastNoiseMultiplier: 1,
     politicalCapital: v(I.politicalCapitalStart),
     pmRelationship: v(I.pmRelationshipStart),
     parliament,
@@ -750,6 +1075,12 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     pcLog: [],
     yieldBreachedLastQuarter: false,
   };
+  // Reseed the deficit-ratio path from the *computed* balance so the
+  // chart's first point matches the live calcBalance reading rather
+  // than the PARAMS.initial.deficit summary citation (the two differ
+  // by ~£1bn due to revenue/spending rounding).
+  state.deficitRatioPath = [-calcBalance(state) / state.gdp * 100];
+  return state;
 }
 
 // =============================================================================

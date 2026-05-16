@@ -2,8 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  background: #0d0b08;
+@layer base {
+  :root {
+    --accent-300: #fcd34d;
+    --accent-400: #fbbf24;
+    --accent-500: #f59e0b;
+    --accent-600: #d97706;
+
+    --signal-good: #34d399;
+    --signal-warn: #fbbf24;
+    --signal-bad:  #fb7185;
+    --signal-info: #7dd3fc;
+
+    --surface-raised:   rgba(28, 25, 20, 0.55);
+    --surface-sunken:   rgba(13, 11, 8, 0.65);
+    --surface-elevated: rgba(48, 41, 28, 0.60);
+
+    --treasury-800: #2a2418;
+    --treasury-900: #14110c;
+    --treasury-950: #0d0b08;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    background: var(--treasury-950);
+    color: #f5f5f4;
+    font-family: '"IBM Plex Sans"', system-ui, sans-serif;
+  }
+
+  /* Range input thumbs — used by the slider primitive. */
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-600);
+    cursor: pointer;
+    border: 2px solid var(--treasury-800);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-600);
+    cursor: pointer;
+    border: 2px solid var(--treasury-800);
+  }
+}
+
+@layer components {
+  /* Promoted from the inline radial-gradient that used to live on the root
+     div in ChancellorSim.jsx (re-applied every render). */
+  .app-background {
+    background: radial-gradient(ellipse at top, #2a2418 0%, #14110c 60%, #0d0b08 100%);
+  }
+
+  /* Back-compat shim — existing callers use .display-font; new code uses font-display. */
+  .display-font {
+    font-family: 'Fraunces', Georgia, serif;
+  }
 }
