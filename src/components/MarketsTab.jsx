@@ -1,7 +1,7 @@
 import React from 'react';
 import { Landmark, TrendingUp, Briefcase, Banknote, Home, Flame, LineChart } from 'lucide-react';
 import { CitationLink } from './primitives/CitationLink.jsx';
-import { Sparkline } from './Sparkline.jsx';
+import { Sparkline } from './primitives/Sparkline.jsx';
 
 function Panel({ icon: Icon, title, children, badge }) {
   return (
