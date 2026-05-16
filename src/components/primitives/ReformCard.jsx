@@ -96,7 +96,7 @@ export function ReformCard({
                 <Clock size={10} />
               </div>
               <div className="text-[15px] font-mono font-semibold tabular-nums leading-tight text-stone-200">
-                {reform.quarters}
+                {reform.quarters}Q
               </div>
             </div>
             <div className="w-px bg-treasury-800 self-stretch" aria-hidden />
