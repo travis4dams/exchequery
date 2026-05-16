@@ -1052,6 +1052,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     equityIndex: v(I.equityIndex),
     equityPath: [v(I.equityIndex)],
     gdpPath: [v(I.gdp)],
+    realGDPPath: [v(I.realGDP)],
     debtRatioPath: [v(I.debt) / v(I.gdp) * 100],
     deficitRatioPath: [v(I.deficit) / v(I.gdp) * 100],
     unemploymentPath: [v(I.unemployment)],

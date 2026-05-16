@@ -358,6 +358,7 @@ export function stepQuarter(game) {
   //     20-quarter sliding windows. Placed after step 7 so reform completions
   //     that move healthIndex are reflected.
   n.gdpPath = [...((n.gdpPath || []).slice(-19)), n.gdp];
+  n.realGDPPath = [...((n.realGDPPath || []).slice(-19)), n.realGDP];
   n.debtRatioPath = [...((n.debtRatioPath || []).slice(-19)), n.debt / n.gdp * 100];
   n.deficitRatioPath = [...((n.deficitRatioPath || []).slice(-19)), -calcBalance(n) / n.gdp * 100];
   n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];

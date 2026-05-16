@@ -31,6 +31,7 @@ function scaleFor(points, { zeroAxis, zeroAxisFloor, height }) {
 export function Sparkline({
   points,
   overlay = null,
+  overlays = null,
   width = 120,
   height = 28,
   color = 'var(--accent-400, #fbbf24)',
@@ -52,24 +53,37 @@ export function Sparkline({
     return <svg width={width} height={height} className={`flex-shrink-0 ${className}`.trim()} />;
   }
 
+  // Normalise overlay specs: `overlay` is the legacy single-series form;
+  // `overlays` is an array of { points, color, zeroAxis?, zeroAxisFloor? }.
+  const overlaySpecs = overlays
+    ? overlays.filter(o => o && o.points && o.points.length >= 2)
+    : overlay && overlay.length >= 2
+      ? [{ points: overlay, color: overlayColor, zeroAxis: overlayZeroAxis, zeroAxisFloor: overlayZeroAxisFloor }]
+      : [];
+
   const primary = scaleFor(points, { zeroAxis, zeroAxisFloor, height });
   const xs = points.map((_, i) => (i / (points.length - 1)) * width);
   const ys = points.map(p => primary.toY(p));
   const d = points.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
 
-  let dO = null, xsO, ysO, secondary;
-  if (overlay && overlay.length >= 2) {
-    secondary = scaleFor(overlay, { zeroAxis: overlayZeroAxis, zeroAxisFloor: overlayZeroAxisFloor, height });
-    xsO = overlay.map((_, i) => (i / (overlay.length - 1)) * width);
-    ysO = overlay.map(p => secondary.toY(p));
-    dO = overlay.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xsO[i].toFixed(1)} ${ysO[i].toFixed(1)}`).join(' ');
-  }
+  const renderedOverlays = overlaySpecs.map(spec => {
+    const sc = scaleFor(spec.points, {
+      zeroAxis: spec.zeroAxis ?? false,
+      zeroAxisFloor: spec.zeroAxisFloor ?? 0.5,
+      height,
+    });
+    const xs2 = spec.points.map((_, i) => (i / (spec.points.length - 1)) * width);
+    const ys2 = spec.points.map(p => sc.toY(p));
+    const d2 = spec.points.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xs2[i].toFixed(1)} ${ys2[i].toFixed(1)}`).join(' ');
+    return { ...spec, scale: sc, xs: xs2, ys: ys2, d: d2 };
+  });
 
-  // The zero rule comes from whichever axis is zero-anchored. The overlay
-  // wins when both are set since it's the typical "balance" series whose
-  // approach to zero the rule is meant to highlight.
+  // The zero rule comes from whichever axis is zero-anchored. The first
+  // zero-axis overlay wins (typically "balance" against a level series);
+  // primary zero is used otherwise.
   let zeroY = null;
-  if (secondary && overlayZeroAxis) zeroY = secondary.toY(0);
+  const zeroOverlay = renderedOverlays.find(o => o.zeroAxis);
+  if (zeroOverlay) zeroY = zeroOverlay.scale.toY(0);
   else if (zeroAxis) zeroY = primary.toY(0);
 
   const inner = (
@@ -80,12 +94,12 @@ export function Sparkline({
       )}
       <path d={d} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r={dotRadius} fill={color} />
-      {dO && (
-        <>
-          <path d={dO} fill="none" stroke={overlayColor} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
-          <circle cx={xsO[xsO.length - 1]} cy={ysO[ysO.length - 1]} r={dotRadius} fill={overlayColor} />
-        </>
-      )}
+      {renderedOverlays.map((o, i) => (
+        <React.Fragment key={i}>
+          <path d={o.d} fill="none" stroke={o.color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={o.xs[o.xs.length - 1]} cy={o.ys[o.ys.length - 1]} r={dotRadius} fill={o.color} />
+        </React.Fragment>
+      ))}
     </>
   );
   if (responsive) {

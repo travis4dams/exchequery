@@ -186,50 +186,64 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
 
 function ProsperityChart({ game, onPopulationClick }) {
   const gdpPath = game.gdpPath || [];
+  const realPath = game.realGDPPath || [];
   const popPath = game.populationPath || [];
-  // GDP per capita in £/person: gdp is £bn, pop is millions, so the ratio
-  // is in £k/person — scale ×1000 for £/person.
-  const perCapitaPath = gdpPath.map((g, i) => (g / (popPath[i] || game.population)) * 1000);
-  const currentPerCap = (game.gdp / game.population) * 1000;
-  const firstPerCap = perCapitaPath.length > 0 ? perCapitaPath[0] : null;
-  const perCapPct = firstPerCap && firstPerCap !== 0 ? ((currentPerCap - firstPerCap) / firstPerCap) * 100 : null;
-  const popM = game.population;
-  const popFirst = popPath.length > 0 ? popPath[0] : null;
-  const popDelta = popFirst != null ? popM - popFirst : null;
+  // All three lines plotted as Q1=100 indices so the nominal/real/per-capita
+  // wedges are visually comparable on a shared scale. Real GDP per capita
+  // factors out both inflation and population growth — the "living standard"
+  // line; the gap to real GDP is the demographic drag.
+  const baseNom = gdpPath[0];
+  const baseReal = realPath[0];
+  const basePerCap = baseReal && popPath[0] ? baseReal / popPath[0] : null;
+  const nomIdx = baseNom ? gdpPath.map(g => g / baseNom * 100) : [];
+  const realIdx = baseReal ? realPath.map(g => g / baseReal * 100) : [];
+  const realPerCapIdx = (basePerCap && realPath.length === popPath.length)
+    ? realPath.map((g, i) => (g / popPath[i]) / basePerCap * 100)
+    : [];
+  const currentNom = nomIdx[nomIdx.length - 1] ?? 100;
+  const currentReal = realIdx[realIdx.length - 1] ?? 100;
+  const currentPerCap = realPerCapIdx[realPerCapIdx.length - 1] ?? 100;
+  // Living-standard headline: real GDP per capita in absolute £/person.
+  const livingStd = (game.realGDP / game.population) * 1000;
   return (
     <Card variant="raised" padding="md" className="h-full">
       <Card.Header>
-        <Card.Eyebrow>GDP per capita</Card.Eyebrow>
+        <Card.Eyebrow>Real GDP per capita</Card.Eyebrow>
         <div className="flex items-baseline gap-2">
           <div className="text-stone-100 text-[15px] md:text-[17px] font-mono font-semibold tabular-nums">
-            £{(currentPerCap/1000).toFixed(1)}k
+            £{(livingStd/1000).toFixed(1)}k
           </div>
-          {perCapPct !== null && <Delta value={perCapPct} threshold={0.05} suffix="%" />}
+          {realPerCapIdx.length >= 2 && (
+            <Delta value={currentPerCap - 100} threshold={0.05} suffix="%" decimals={1} />
+          )}
         </div>
       </Card.Header>
       <div className="w-full">
         <Sparkline
-          points={perCapitaPath}
-          overlay={popPath.length >= 2 ? popPath : null}
-          overlayColor="#a78bfa"
-          overlayZeroAxis={false}
+          points={nomIdx}
+          overlays={[
+            { points: realIdx, color: '#94a3b8' },
+            { points: realPerCapIdx, color: '#a78bfa' },
+          ]}
           width={600} height={140} responsive
           color="var(--accent-400)" strokeWidth={2} dotRadius={3}
         />
       </div>
-      <div className="flex justify-between text-[9px] text-stone-500 mt-1 font-mono tabular-nums">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-stone-500 mt-1 font-mono tabular-nums">
         <span>
           <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: 'var(--accent-400)' }} />
-          GDP/cap £{(currentPerCap/1000).toFixed(1)}k
+          Nominal {currentNom.toFixed(1)}
+        </span>
+        <span>
+          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: '#94a3b8' }} />
+          Real {currentReal.toFixed(1)}
         </span>
         <button onClick={onPopulationClick}
                 className="hover:text-stone-300 transition-colors inline-flex items-center gap-1">
           <span className="inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: '#a78bfa' }} />
-          Pop {popM.toFixed(1)}m
-          {popDelta !== null && Math.abs(popDelta * 1000) >= 5 && (
-            <Delta value={popDelta * 1000} threshold={5} decimals={0} suffix="k" />
-          )}
+          Real / capita {currentPerCap.toFixed(1)}
         </button>
+        <span className="ml-auto">indexed Q1 = 100 · Pop {game.population.toFixed(1)}m</span>
       </div>
     </Card>
   );
