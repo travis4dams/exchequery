@@ -80,6 +80,24 @@ export function calcRevenue(s) {
   const R = PARAMS.revenue;
   const gdpScale = s.gdp / v(R.gdpScaleAnchor);
 
+  // Wage-bill blend for income tax + NI. The wage portion responds to
+  // (wageIndex/100 × employment) and the GDP portion continues to scale
+  // with nominal GDP. wageBillAnchor is calibrated so wageScale = 1 at
+  // Q1; revenue at game start is bit-identical to the all-gdpScale
+  // approach. Earlier states without wageIndex/employment (older test
+  // snapshots) fall back to pure gdpScale so the formula stays defined.
+  const employment = s.employment;
+  const wageIndex  = s.wageIndex;
+  const wageScale  = (employment != null && wageIndex != null)
+    ? (wageIndex / 100) * employment / v(R.wageBillAnchor)
+    : gdpScale;
+  const itWageShare = v(R.incomeTaxWageShare);
+  const itGdpShare  = 1 - itWageShare;
+  const itBlend     = itWageShare * wageScale + itGdpShare * gdpScale;
+  const niWageShare = v(R.niWageShare);
+  const niGdpShare  = 1 - niWageShare;
+  const niBlend     = niWageShare * wageScale + niGdpShare * gdpScale;
+
   const incomeBase = v(R.incomeTax.base);
   const addAnchor = v(PARAMS.initial.taxIncomeAdd);
   const highAnchor = v(PARAMS.initial.taxIncomeHigh);
@@ -90,7 +108,7 @@ export function calcRevenue(s) {
     + (s.taxIncomeAdd - addAnchor) * v(R.incomeTax.additionalRatePerPP)
     + (s.taxIncomeHigh - highAnchor) * v(R.incomeTax.higherRatePerPP)
     + (s.taxIncomeBasic - basicAnchor) * v(R.incomeTax.basicRatePerPP)
-  ) * gdpScale;
+  ) * itBlend;
 
   const corpAnchor = v(PARAMS.initial.taxCorp);
   const corpCurveThreshold = v(R.corpTax.curvatureThreshold);
@@ -103,7 +121,7 @@ export function calcRevenue(s) {
   const vatAnchor = v(PARAMS.initial.taxVAT);
   let vat = (v(R.vat.base) + (s.taxVAT - vatAnchor) * v(R.vat.perPP)) * gdpScale;
 
-  let ni = v(R.ni) * gdpScale;
+  let ni = v(R.ni) * niBlend;
   let other = v(R.other) * gdpScale;
   const reformBonus = s.revBonusFromReforms + s.ongoingRevFromReforms;
 

@@ -1225,6 +1225,41 @@ export const CITATIONS = {
   },
 
   // ===========================================================================
+  // Revenue — wage-bill / GDP blended scaling for income tax + NI
+  // ===========================================================================
+  hmrc_wage_share_of_it: {
+    parameter: 'revenue.incomeTaxWageShare',
+    value: 0.70,
+    unit: 'fraction of income-tax base that scales with wage bill (rest scales with GDP)',
+    confidence: 'extrapolated',
+    title: 'HMRC personal incomes statistics — composition of income tax base',
+    publisher: 'HMRC',
+    year: 2024,
+    url: 'https://www.gov.uk/government/statistics/personal-incomes-statistics',
+    note: 'Roughly two-thirds to three-quarters of UK income tax receipts come from PAYE on wages and salaries; the rest is dividends, savings, self-assessment, pensions. Sim splits 70/30 wage-bill/GDP — the wage portion responds to the wageIndex × employment product, the GDP portion continues to scale with nominal GDP.',
+  },
+  hmrc_ni_wage_base: {
+    parameter: 'revenue.niWageShare',
+    value: 0.95,
+    unit: 'fraction of NI base that scales with wage bill',
+    confidence: 'extrapolated',
+    title: 'HMRC personal incomes statistics — National Insurance base',
+    publisher: 'HMRC',
+    year: 2024,
+    url: 'https://www.gov.uk/government/statistics/personal-incomes-statistics',
+    note: 'NI is almost entirely a payroll tax (Class 1 employee + employer); self-employed Class 4 and Class 2 are minor. Sim splits 95/5 wage-bill/GDP — the small GDP portion captures Class 4 and timing residuals.',
+  },
+  ons_compensation_employees: {
+    parameter: 'revenue.wageBillAnchor',
+    confidence: 'sourced',
+    title: 'ONS — Compensation of employees',
+    publisher: 'ONS',
+    year: 2024,
+    url: 'https://www.ons.gov.uk/economy/grossdomesticproductgdp',
+    note: 'UK compensation of employees ~ £1.2 trillion / yr (~50% of nominal GDP). Sim tracks wage bill as a unitless product (wageIndex/100 × employmentMillions); wageBillAnchor is set to that product at Q1 (wageIndex=100, employment≈33.04m) so wageScale=1 by construction at game start.',
+  },
+
+  // ===========================================================================
   // Reform: revenue branch
   // ===========================================================================
   nao_hmrc_compliance: {

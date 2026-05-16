@@ -133,6 +133,15 @@ export const PARAMS = {
     ni: cited(205, 'hmrc_baseline_ni'),
     other: cited(423, 'hmrc_other_baseline'),
     gdpScaleAnchor: cited(3100, 'initial_nominal_gdp'),             // revenue scales with GDP/anchor
+
+    // Income tax + NI partial scaling against the wage bill (wageIndex/100
+    // × employment). VAT, corp tax, and "other" continue to scale entirely
+    // with GDP. wageBillAnchor is the Q1 wageIndex/100 × employment product
+    // (= 1.0 × 33.28m ≈ 33.28); pinning it here keeps wageScale=1 at game
+    // start so the rewiring is bit-identical to the prior approach on Q1.
+    incomeTaxWageShare: cited(0.70, 'hmrc_wage_share_of_it'),
+    niWageShare:        cited(0.95, 'hmrc_ni_wage_base'),
+    wageBillAnchor:     cited(33.04, 'ons_compensation_employees'),
   },
 
   // ===========================================================================
