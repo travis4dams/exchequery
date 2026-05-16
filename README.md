@@ -87,8 +87,8 @@ Every entry in `citations.js` carries a `confidence` tag:
 <!-- params:architecture:start -->
 
 The About tab's *Confidence summary* shows the live percentage breakdown
-across all parameter-level citations (currently 273 entries: ~24% sourced,
-~23% extrapolated, ~53% judgement). Borderline classification decisions and
+across all parameter-level citations (currently 289 entries: ~26% sourced,
+~23% extrapolated, ~52% judgement). Borderline classification decisions and
 their reasoning are recorded in `CLASSIFICATION_LOG.md` at repo root.
 
 <!-- params:architecture:end -->

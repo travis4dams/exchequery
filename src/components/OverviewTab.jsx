@@ -395,10 +395,18 @@ function WholeEconomyStrip({ game, committed }) {
   const energyDelta = committed ? game.energyPriceIndex - committed.energyPriceIndex : null;
   const inflationDelta = committed ? game.inflation - committed.inflation : null;
   const equityDelta = committed ? (game.equityIndex ?? 100) - (committed.equityIndex ?? 100) : null;
+  // Real-wage and jobs panels — present once Phase-2 wiring is in place
+  // (game.realWageIndex / game.employment seeded by makeInitialState).
+  const realWage = game.realWageIndex;
+  const realWageDelta = (committed && committed.realWageIndex != null)
+    ? realWage - committed.realWageIndex : null;
+  const employmentM = game.employment;
+  const employmentDelta = (committed && committed.employment != null)
+    ? employmentM - committed.employment : null;
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2 px-1">Wider Economy</div>
-      <Grid cols={{ base: 2, md: 3, lg: 5 }} gap="sm">
+      <Grid cols={{ base: 2, md: 4, lg: 7 }} gap="sm">
         <MetricPanel
           label="Unemployment"
           value={`${game.unemployment.toFixed(1)}%`}
@@ -442,6 +450,28 @@ function WholeEconomyStrip({ game, committed }) {
           points={game.equityPath}
           sparkColor="#34d399"
         />
+        {realWage != null && (
+          <MetricPanel
+            label="Wages (real)"
+            value={realWage.toFixed(0)}
+            delta={realWageDelta}
+            deltaProps={{ threshold: 0.2 }}
+            color={realWageDelta != null && realWageDelta < -0.1 ? 'text-signal-bad' : 'text-stone-200'}
+            points={game.realWageIndexPath}
+            sparkColor="#fbbf24"
+          />
+        )}
+        {employmentM != null && (
+          <MetricPanel
+            label="Jobs"
+            value={`${employmentM.toFixed(2)}m`}
+            delta={employmentDelta}
+            deltaProps={{ threshold: 0.05, decimals: 2 }}
+            color={employmentDelta != null && employmentDelta < -0.05 ? 'text-signal-bad' : 'text-stone-200'}
+            points={game.employmentPath}
+            sparkColor="#60a5fa"
+          />
+        )}
       </Grid>
     </div>
   );

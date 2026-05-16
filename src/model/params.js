@@ -724,6 +724,64 @@ export const PARAMS = {
     // legacy aggregate). Magnitudes preserve the legacy headline net.
     childcareBirthsBoostQ:              cited(8.5,  'childcare_births_judgement'),
     immigrationCapMigrationDeltaQ:      cited(-68,  'immigration_cap_migration_judgement'),
+
+    // Labour-supply identity: workforce = pop × workingAgeShare × participationRate.
+    workingAgeShare:    cited(0.640, 'ons_working_age_pop_2024'),    // fraction
+    participationRate:  cited(0.80,  'ons_inactivity_2025'),         // fraction of working-age
+  },
+
+  // ===========================================================================
+  // Wages — index dynamics, asymmetric Phillips, productivity passthrough,
+  // education premium, mean reversion. Updated each quarter in stepQuarter
+  // AFTER unemployment but BEFORE inflation (so the spiral contribution can
+  // feed into the CPI forcing term).
+  // ===========================================================================
+  wages: {
+    initial:                 cited(100,  'ons_ashe_wage_anchor'),
+    persistence:             cited(0.85, 'gali_wage_persistence'),
+    phillipsCoef:            cited(0.35, 'haldane_wages_phillips'),
+    productivityPassthrough: cited(0.6,  'oecd_productivity_passthrough'),
+    educationCoef:           cited(0.02, 'devereux_uk_skill_premium'),
+    livingWageBump:          cited(1.5,  'lpc_living_wage_wageindex'),
+    unionRightsBump:         cited(1.2,  'oecd_sectoral_bargaining_wageindex'),
+    meanReversionToNominal:  cited(0.10, 'wage_mean_reversion_judgement'),
+    // Wage-price spiral is wired through updateInflation but held dormant in
+    // Phase 2 (coef=0). The Phase-2 wage dynamics drift modestly above trend
+    // because the Phillips term is asymmetric (hot-side only) while the AR(1)
+    // persists past firings, and even with a 1pp trigger gap the spiral fires
+    // often enough over a 20-quarter run to pull obr-central-path
+    // finalUnemployment above its ±25% band. Phase 3 ships the productivity ×
+    // employment GDP composition (which tightens the feedback loop the other
+    // way) so the spiral coefficient is revived there.
+    spiralCoef:              cited(0,    'wage_spiral_judgement'),
+    spiralTriggerGap:        cited(1.0,  'wage_spiral_judgement'),     // pp/yr above nominal trend before spiral fires
+  },
+
+  // ===========================================================================
+  // Education — 0-100 attainment / skill index. Lifted by schools spending
+  // above baseline; mean reverts toward 60. Feeds the wage update via an
+  // education premium term. Reform-completion bumps applied through the
+  // engine's onComplete handler (educationIndexBump leaf).
+  // ===========================================================================
+  education: {
+    initial:                 cited(62,   'oecd_pisa_uk_2022'),
+    persistence:             cited(0.90, 'education_index_methodology'),
+    spendCoef:               cited(0.20, 'ifs_education_spend_attainment'),
+    skillsBumpOnComplete:    cited(2.0,  'education_index_methodology'),
+    uniReformBumpOnComplete: cited(1.5,  'education_index_methodology'),
+    childcareBumpOnComplete: cited(1.0,  'education_index_methodology'),
+    meanReversionTo:         cited(60,   'education_index_methodology'),
+    meanReversionRate:       cited(0.05, 'education_index_methodology'),
+  },
+
+  // ===========================================================================
+  // GDP decomposition — productivity trend & lag weights. Phase 3 wires the
+  // composedGrowth = productivityGrowth + employmentGrowth seed; Phase 2
+  // exposes the productivity index for the UI without yet rewriting GDP.
+  // ===========================================================================
+  gdpDecomposition: {
+    productivityTrend:         cited(0.6,  'obr_productivity_trend'),       // pp/yr
+    laggedProductivityWeight:  cited(0.5,  'productivity_lag_judgement'),
   },
 
   // ===========================================================================

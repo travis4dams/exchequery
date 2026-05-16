@@ -40,6 +40,11 @@ import {
   computeBirths,
   computeDeaths,
   computeNetMigration,
+  computeWorkforce,
+  computeEmployment,
+  updateProductivityIndex,
+  updateEducationIndex,
+  updateWageIndex,
   quarterlyPopulationGrowth,
   computeRiskMods,
   rollEvents,
@@ -289,9 +294,32 @@ export function stepQuarter(game) {
   //     Computed BEFORE bondYieldFromBankRate so the yield picks it up.
   n.riskPremium = updateRiskPremium(n);
 
-  // 6d. Monetary block — strict order: unemployment, inflation, Bank Rate, yield.
+  // 6d. Monetary block — strict order: unemployment, education, wages,
+  //     inflation, Bank Rate, yield. Wages must update AFTER unemployment
+  //     (so the asymmetric Phillips reads fresh slack) and BEFORE inflation
+  //     (so wageSpiralContribution lands inside updateInflation's forcing).
   n.unemployment = updateUnemployment(n);
+
+  // 6d-edu: education tracks schools spend with persistence + mean reversion.
+  n.educationIndex = updateEducationIndex(n);
+
+  // 6d-prod: productivity index drifts with productivityTrend.
+  n.productivityIndex = updateProductivityIndex(n);
+
+  // 6d-wage: wage index — Phillips + productivity passthrough + education
+  //     premium + mean reversion. realWageIndex tracks deflation by CPI
+  //     since Q1, updated lazily once inflation is known.
+  n.wageIndex = updateWageIndex(n);
+
+  // 6d-labour: workforce / employment identity. Reads fresh unemployment.
+  n.workforce = computeWorkforce(n);
+  n.employment = computeEmployment(n);
+
   n.inflation = updateInflation(n);
+  // Update cumulative CPI since Q1 (used for realWageIndex deflation).
+  // s.inflation just-set is the annualised current-quarter reading.
+  n.cpiSinceQ1 = (n.cpiSinceQ1 ?? 1.0) * (1 + n.inflation / 100 / 4);
+  n.realWageIndex = n.wageIndex / n.cpiSinceQ1;
   // DEFRA cut → food/energy inflation impulse, applied post-Phillips.
   n.inflation = n.inflation + deptHooks.inflation;
   n.bankRate = updateBankRate(n);
@@ -325,6 +353,16 @@ export function stepQuarter(game) {
         }
       }
       if (actual.gini) n.gini = n.gini + actual.gini;
+      // One-shot wage/education bumps land directly on the index. The
+      // wage bump is applied AFTER updateWageIndex has run this step, so
+      // it shows up as a clean step-change on next quarter's path.
+      if (actual.wageIndexBump) {
+        n.wageIndex = (n.wageIndex ?? v(PARAMS.wages.initial)) + actual.wageIndexBump;
+      }
+      if (actual.educationIndexBump) {
+        n.educationIndex = Math.max(0, Math.min(100,
+          (n.educationIndex ?? v(PARAMS.education.initial)) + actual.educationIndexBump));
+      }
 
       if (reform.blocEffects) {
         // Mutate the freshly-shallow-copied blocSupport.
@@ -380,6 +418,13 @@ export function stepQuarter(game) {
   n.deathsPath = [...((n.deathsPath || []).slice(-19)), n.deaths];
   n.netMigrationPath = [...((n.netMigrationPath || []).slice(-19)), n.netMigration];
   n.inflationPath = [...((n.inflationPath || []).slice(-19)), n.inflation];
+  // Labour market & wages — pushed after reform-completion bumps so the
+  // last path entry reflects any wageIndexBump applied this step.
+  n.wageIndexPath        = [...((n.wageIndexPath || []).slice(-19)),        n.wageIndex];
+  n.realWageIndexPath    = [...((n.realWageIndexPath || []).slice(-19)),    n.realWageIndex];
+  n.productivityIndexPath= [...((n.productivityIndexPath || []).slice(-19)),n.productivityIndex];
+  n.educationIndexPath   = [...((n.educationIndexPath || []).slice(-19)),   n.educationIndex];
+  n.employmentPath       = [...((n.employmentPath || []).slice(-19)),       n.employment];
 
   // 8. Effective rate drifts toward market (models refinancing).
   //    Bond yield itself was already set in step 6b by bondYieldFromBankRate,

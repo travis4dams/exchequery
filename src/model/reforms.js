@@ -717,6 +717,7 @@ export const REFORMS = {
     onComplete: {
       ongoingCost: cited(6, 'resolution_childcare'),
       growthBonus: cited(0.4, 'resolution_childcare'),
+      educationIndexBump: cited(1.0, 'education_index_methodology'),
       populationEffects: {
         youth: cited(0.05, 'resolution_childcare'),
         workingClass: cited(0.05, 'resolution_childcare'),
@@ -740,6 +741,7 @@ export const REFORMS = {
     citationId: 'ifs_fe_funding',
     onComplete: {
       growthBonus: cited(0.15, 'ifs_fe_funding'),
+      educationIndexBump: cited(2.0, 'education_index_methodology'),
       log: 'FE colleges rebuilt.',
     },
     blocEffects: {
@@ -759,6 +761,7 @@ export const REFORMS = {
     citationId: 'obr_tuition_fees',
     onComplete: {
       ongoingCost: cited(3, 'obr_tuition_fees'),
+      educationIndexBump: cited(1.5, 'education_index_methodology'),
       log: 'Tuition fee debt replaced with graduate tax.',
     },
     blocEffects: {
@@ -782,6 +785,7 @@ export const REFORMS = {
     citationId: 'lpc_living_wage',
     onComplete: {
       gini: cited(-0.3, 'lpc_living_wage'),
+      wageIndexBump: cited(1.5, 'lpc_living_wage_wageindex'),
       log: 'Real Living Wage on statute.',
     },
     blocEffects: {
@@ -801,6 +805,7 @@ export const REFORMS = {
     citationId: 'oecd_sectoral_bargaining',
     onComplete: {
       gini: cited(-0.2, 'oecd_sectoral_bargaining'),
+      wageIndexBump: cited(1.2, 'oecd_sectoral_bargaining_wageindex'),
       log: 'Trade union law reformed.',
     },
     blocEffects: {

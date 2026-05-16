@@ -437,6 +437,122 @@ export function computeNetMigration(s) {
 }
 
 // =============================================================================
+// Labour-supply identity & productivity
+// =============================================================================
+
+// Working-age share × participation rate gives the labour force size in
+// millions. Identity-only — no behavioural response; the dynamic part is in
+// computeEmployment via unemployment.
+export function computeWorkforce(s) {
+  const P = PARAMS.population;
+  return s.population * v(P.workingAgeShare) * v(P.participationRate);
+}
+
+export function computeEmployment(s) {
+  const wf = computeWorkforce(s);
+  return wf * (1 - (s.unemployment ?? 0) / 100);
+}
+
+// Annualised productivity growth in pp/yr. Phase 2 keeps this minimal — the
+// trend with a small lag toward the previous quarter's annualised reading.
+// Phase 3 wires composedGrowth = productivityGrowth + employmentGrowth.
+export function computeProductivityGrowthAnn(s) {
+  const D = PARAMS.gdpDecomposition;
+  return v(D.productivityTrend);
+}
+
+export function updateProductivityIndex(s) {
+  const growthAnn = computeProductivityGrowthAnn(s);
+  const prev = s.productivityIndex ?? 100;
+  return prev * (1 + growthAnn / 100 / 4);
+}
+
+// =============================================================================
+// Education index
+// =============================================================================
+
+export function updateEducationIndex(s) {
+  const E = PARAMS.education;
+  const I = PARAMS.initial;
+  const persistence = v(E.persistence);
+  const spendDeviation = s.spendEdu - v(I.spendEdu);
+  const forcing = v(E.meanReversionTo) + v(E.spendCoef) * spendDeviation;
+  const reverted = persistence * (s.educationIndex ?? v(E.initial))
+                 + (1 - persistence) * forcing;
+  // Optional explicit mean-reversion pull on top of the persistence blend —
+  // ensures even slow drifts get gently pulled toward the anchor.
+  const next = reverted + v(E.meanReversionRate) * (v(E.meanReversionTo) - reverted);
+  return Math.max(0, Math.min(100, next));
+}
+
+// =============================================================================
+// Wages — asymmetric Phillips + productivity passthrough + education premium
+// + mean reversion. Returns the new wageIndex (a level, not a growth rate).
+// Reform-completion wageIndexBump is applied separately in the onComplete
+// walker, NOT here, so the spiral contribution this quarter reflects only
+// the organic update — bumps land cleanly on next quarter's path.
+// =============================================================================
+
+export function updateWageIndex(s) {
+  const W = PARAMS.wages;
+  const D = PARAMS.gdpDecomposition;
+  const persistence = v(W.persistence);
+  const inflTarget = s.inflationTarget ?? 2;
+  const nominalTrendAnn = v(D.productivityTrend) + inflTarget;     // pp/yr
+
+  // Prior annualised wage growth from path.
+  const path = s.wageIndexPath || [];
+  const prevQ = path.length >= 1 ? path[path.length - 1] : v(W.initial);
+  const prevWageIdx = s.wageIndex ?? prevQ;
+  const lookbackIdx = Math.max(0, path.length - 2);
+  const wageGrowthAnnPrev = path.length >= 2
+    ? 4 * (prevQ / path[lookbackIdx] - 1) * 100
+    : nominalTrendAnn;
+
+  // Asymmetric Phillips: hot-labour only (unemp below NAIRU). When labour
+  // is slack we do nothing — the slack penalty already enters via the
+  // productivity passthrough term going negative if growth is weak.
+  const nairu = s.naturalUnemployment ?? 4.25;
+  const hotGap = Math.max(0, nairu - (s.unemployment ?? nairu));
+  const phillipsTerm = v(W.phillipsCoef) * hotGap;
+
+  const productivityGrowth = computeProductivityGrowthAnn(s);
+  const prodPassthrough = v(W.productivityPassthrough)
+                        * (productivityGrowth - v(D.productivityTrend));
+
+  const educationPremium = v(W.educationCoef) * ((s.educationIndex ?? 60) - 60);
+
+  // AR(1) on annualised growth around the nominal trend anchor.
+  const wageGrowthAnn = persistence * wageGrowthAnnPrev
+                      + (1 - persistence) * nominalTrendAnn
+                      + phillipsTerm + prodPassthrough + educationPremium
+                      + v(W.meanReversionToNominal) * (nominalTrendAnn - wageGrowthAnnPrev);
+
+  return Math.max(0, prevWageIdx * (1 + wageGrowthAnn / 100 / 4));
+}
+
+// CPI contribution from above-trend wage growth (one-sided spiral). Fires
+// only when wage growth exceeds nominal trend by more than spiralTriggerGap
+// — so trend-rate wage growth, routine Phillips firings, and noisy quarters
+// don't push CPI up. Reads the most-recent annualised wage-growth
+// observation off the path; safe to call before any path entry exists.
+export function wageSpiralContribution(s) {
+  const W = PARAMS.wages;
+  const D = PARAMS.gdpDecomposition;
+  const path = s.wageIndexPath || [];
+  if (path.length < 2) return 0;
+  const cur = s.wageIndex ?? path[path.length - 1];
+  const prev = path[path.length - 2];
+  const wageGrowthAnn = 4 * (cur / prev - 1) * 100;
+  const inflTarget = s.inflationTarget ?? 2;
+  const nominalTrendAnn = v(D.productivityTrend) + inflTarget;
+  const gap = wageGrowthAnn - nominalTrendAnn;
+  const trigger = v(W.spiralTriggerGap);
+  if (gap <= trigger) return 0;
+  return v(W.spiralCoef) * (gap - trigger);
+}
+
+// =============================================================================
 // Bank of England — Phillips, Okun, Taylor rule
 //
 // All four updaters are state-in/scalar-out so callers in stepQuarter can
@@ -477,8 +593,12 @@ export function updateInflation(s) {
   const growthDrift = growthDriftCoef * (s.growth - trendGrowth);
   const housingContribution = housingInflationContribution(s);
   const energyContribution = energyInflationContribution(s);
+  // Wage-price spiral: above-trend wage growth feeds firms' marginal costs
+  // and unit-labour-cost inflation. One-sided (slack-side disinflation runs
+  // through the Phillips term already).
+  const wageSpiralTerm = wageSpiralContribution(s);
   const forcing = target + phillipsTerm + demandImpulse + growthDrift
-                + housingContribution + energyContribution;
+                + housingContribution + energyContribution + wageSpiralTerm;
 
   return Math.max(0, persistence * s.inflation + (1 - persistence) * forcing);
 }
@@ -1028,6 +1148,10 @@ export function makeCommittedSnapshot(s) {
     housePriceIndex: s.housePriceIndex, energyPriceIndex: s.energyPriceIndex,
     housingSupply: s.housingSupply,
     equityIndex: s.equityIndex, riskPremium: s.riskPremium,
+    wageIndex: s.wageIndex, realWageIndex: s.realWageIndex,
+    productivityIndex: s.productivityIndex, educationIndex: s.educationIndex,
+    workforce: s.workforce, employment: s.employment,
+    births: s.births, deaths: s.deaths, netMigration: s.netMigration,
   };
 }
 
@@ -1115,6 +1239,23 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     birthsPath: [v(PARAMS.population.birthsBaselineQ)],
     deathsPath: [v(PARAMS.population.deathsBaselineQ)],
     netMigrationPath: [v(PARAMS.population.netMigrationBaselineQ)],
+
+    // Labour market & wages — workforce/employment derive from the
+    // population × workingAge × participation × (1 − unemployment) identity.
+    // wageIndex / productivityIndex / educationIndex start at their PARAMS
+    // initial; realWageIndex = wageIndex / CPI-since-Q1 (Q1 = 1.0).
+    educationIndex: v(PARAMS.education.initial),
+    wageIndex: v(PARAMS.wages.initial),
+    realWageIndex: v(PARAMS.wages.initial),
+    productivityIndex: 100,
+    workforce: v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate),
+    employment: v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate) * (1 - v(I.unemployment) / 100),
+    cpiSinceQ1: 1.0,
+    educationIndexPath:   [v(PARAMS.education.initial)],
+    wageIndexPath:        [v(PARAMS.wages.initial)],
+    realWageIndexPath:    [v(PARAMS.wages.initial)],
+    productivityIndexPath:[100],
+    employmentPath:       [v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate) * (1 - v(I.unemployment) / 100)],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],
