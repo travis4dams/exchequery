@@ -87,8 +87,8 @@ Every entry in `citations.js` carries a `confidence` tag:
 <!-- params:architecture:start -->
 
 The About tab's *Confidence summary* shows the live percentage breakdown
-across all parameter-level citations (currently 249 entries: ~16% sourced,
-~24% extrapolated, ~59% judgement). Borderline classification decisions and
+across all parameter-level citations (currently 264 entries: ~24% sourced,
+~22% extrapolated, ~55% judgement). Borderline classification decisions and
 their reasoning are recorded in `CLASSIFICATION_LOG.md` at repo root.
 
 <!-- params:architecture:end -->
@@ -151,10 +151,33 @@ This simulation tries to ground its numbers in real, citable research. The figur
   https://www.gov.uk/government/statistics/direct-effects-of-illustrative-tax-changes
 - **Office for Budget Responsibility (OBR), *Economic and Fiscal Outlook***. Twice-yearly forecasts; the source for fiscal sustainability framing (debt-to-GDP, growth–rate–vs–interest–rate dynamics).
   https://obr.uk/efo/economic-and-fiscal-outlook/
+- **OBR, *Economic and Fiscal Outlook — March 2024***. Migration box: 200k higher/lower annual net migration shifts GDP by ≈ 1.5% in 2028-29 → 0.0075pp per 1k migrants (medium-term level effect). Anchors the simulation's migration → GDP elasticity.
+  https://obr.uk/efo/economic-and-fiscal-outlook-march-2024/
+- **OBR, *Dynamic Scoring of Policy Measures in OBR Forecasts* (November 2023)**. First-year real-GDP multipliers: CDEL 1.0, RDEL 0.6, AME 0.6, VAT 0.35, income tax/NICs 0.3. Tapers to zero over five years. Anchors the simulation's `applyFiscalMultipliers`.
+  https://obr.uk/box/dynamic-scoring-policy-measures-in-obr-forecasts/
 - **Institute for Fiscal Studies (IFS), *Green Budget* (annual)**. The most-cited UK fiscal policy analysis.
   https://ifs.org.uk/green-budget
 - **HM Treasury, *Public Spending Statistics***. Departmental spending baselines.
   https://www.gov.uk/government/collections/public-spending-statistics
+
+### Macroeconomics & monetary policy
+
+- **Bunn, Anayi, Barnes, Bloom, Mizen, Thwaites & Yotzov, *How Curvy is the Phillips Curve?***, Bank of England Staff Working Paper 1107 / NBER WP 33234 (October 2025). Cross-country macro Phillips slope = 0.19 (positive output gap) vs 0.06 (negative) — 3.2× asymmetry. Covid natural experiment: inflation 5× more sensitive to demand on the way up than on the way down. Convexity strongest under high trend inflation (menu-cost mechanism). Anchors the simulation's asymmetric Phillips slope and trend-inflation modifier.
+  https://www.bankofengland.co.uk/working-paper/2025/how-curvy-is-the-phillips-curve
+- **Coibion & Gorodnichenko, *Why Are Target Interest Rate Changes So Persistent?***, *AEJ: Macroeconomics* 4(4) (2012). Empirical quarterly Taylor-rule smoothing coefficient 0.7–0.8 across advanced economies. Anchors `monetary.bankRateInertia = 0.75`.
+  https://www.aeaweb.org/articles?id=10.1257/mac.4.4.126
+- **Auerbach & Gorodnichenko, *Measuring the Output Responses to Fiscal Policy***, *AEJ: Economic Policy* 4(2) (2012). GDP multipliers of government purchases ~1.7× larger in recession than expansion. Anchors `fiscalMultipliers.recessionModifier`.
+  https://www.aeaweb.org/articles?id=10.1257/pol.4.2.1
+- **Federal Reserve, *Fiscal Positions and Government Bond Yields in OECD Countries***, International Finance Discussion Paper 1011 (2010). G-7 panel: 1pp rise in the structural deficit/GDP ratio boosts long bond yields by ~15bp. Anchors `monetary.deficitYieldCoef = 0.006`.
+  https://www.federalreserve.gov/pubs/ifdp/2010/1011/
+- **Holston, Laubach & Williams, *Measuring the Natural Rate of Interest after COVID-19***, FRB NY Staff Report 1063 (2023). NY Fed has explicitly discontinued HLW UK estimates: "model does not provide a good fit for the data". Sim now uses survey-based UK r* instead.
+  https://www.newyorkfed.org/research/staff_reports/sr1063
+- **Mercatus Center, *Survey Measures of the Natural Rate of Interest* (2025)**. Survey-based UK r* clusters at 1.5–2.0% real; with the 2% inflation target this implies a nominal neutral rate of 3.5–4.0%. Anchors `monetary.neutralRate = 4.0%`.
+  https://www.mercatus.org/
+- **Joyce, Tong & Woods, *The UK's Quantitative Easing Policy: Design, Operation and Impact***, Bank of England Quarterly Bulletin 2011 Q3. First £200bn UK QE programme lowered medium- to long-term gilt yields by ~100bp ≈ 0.5bp per £bn. Anchors `monetary.qeYieldEffectPerBn` and the LDI doom-loop QE response.
+  https://www.bankofengland.co.uk/quarterly-bulletin/2011/q3/the-uks-quantitative-easing-policy-design-operation-and-impact
+- **Taylor, *Discretion versus Policy Rules in Practice***, *Carnegie-Rochester Conference Series on Public Policy* 39 (1993). The canonical inflation-and-output-gap reaction function. Anchors the Taylor-rule coefficients.
+  https://web.stanford.edu/~johntayl/Papers/Discretion.PDF
 
 ### Taxation — specific reforms
 
@@ -162,6 +185,9 @@ This simulation tries to ground its numbers in real, citable research. The figur
 - **Non-dom abolition**: Advani, Burgherr & Summers, *The UK Non-Dom Regime: Implications of Reform* (CenTax / LSE / Warwick, 2025). Found 2017 reform caused only ~4.9% departures while tax paid rose >150%. https://centax.org.uk/research/
 - **Top-rate elasticities**: Diamond & Saez (2011), *The Case for a Progressive Tax: From Basic Research to Policy Recommendations*. Revenue-maximising top combined rate ≈ 73% under standard assumptions. *Journal of Economic Perspectives*. https://www.aeaweb.org/articles?id=10.1257/jep.25.4.165
 - **Top-rate behavioural response (UK)**: HMRC, *Estimating the elasticity of taxable income*. ETI estimates ~0.25 for additional rate taxpayers.
+- **Updated top-rate ETI**: Browne & Phillips, *Updating and Critiquing HMRC's Analysis of the UK's 50% Top Marginal Rate of Tax* (IFS WP 17/12, 2017). Refines the additional-rate ETI to ~0.31 after fuller post-reform data and forestalling allocation. https://ifs.org.uk/
+- **VAT pass-through**: Crossley, Low & Sleeman, *Using a Temporary Indirect Tax Cut as a Fiscal Stimulus: Evidence from the UK* (IFS WP W14/16, 2014). UK 2008-09 VAT cut: central pass-through ≈ 75%; volume of retail sales rose ~1% → +0.4% total expenditure. https://ifs.org.uk/publications/using-temporary-indirect-tax-cut-fiscal-stimulus-evidence-uk
+- **Corporate tax elasticity**: Devereux, Maffini & Liu, *The Elasticity of Corporate Taxable Income: New Evidence from UK Tax Records* (Oxford CBT WP 12/23, 2012). UK elasticity of corporate taxable income with respect to (1 − statutory rate) ≈ 0.13–0.17 from bunching at kinks 2001–08. https://oxfordtax.sbs.ox.ac.uk/
 - **Wealth tax**: Advani, Chamberlain & Summers, *A Wealth Tax for the UK* (Wealth Tax Commission, 2020). https://www.wealthandpolicy.com/
 - **Inheritance tax reliefs**: IFS, *Death and Taxes* (2024). APR/BPR cost ~£3bn pa, predominantly benefit estates >£2.5m. https://ifs.org.uk/
 - **Charity tax expenditure**: HMRC, *UK Charity Tax Relief Statistics 2024–25*. Total reliefs £6.7bn; higher-rate Gift Aid relief £820m. https://www.gov.uk/government/statistics/cost-of-tax-relief
@@ -171,6 +197,7 @@ This simulation tries to ground its numbers in real, citable research. The figur
 
 - **Millionaire migration (US)**: Young, Varner, Lurie & Prisinzano, *Millionaire Migration and Taxation of the Elite*, *American Sociological Review* 81(3), 2016. 45m IRS records; migration semi-elasticities <0.1. https://journals.sagepub.com/doi/10.1177/0003122416639625
 - **UK non-dom departure data**: HMRC published statistics following 2017 and 2024 reforms; Tax Justice Network analysis. https://taxjustice.net/
+- **Fiscal effects of immigration**: Dustmann & Frattini, *The Fiscal Effects of Immigration to the UK*, *Economic Journal* (2014). EEA migrants 1995–2011 made a positive net fiscal contribution; non-EEA broadly negative. Skilled migration ~£40k/yr net positive; low-skill ~–£10k/yr. https://onlinelibrary.wiley.com/doi/10.1111/ecoj.12181
 
 ### Public services and austerity
 
@@ -178,16 +205,23 @@ This simulation tries to ground its numbers in real, citable research. The figur
 - **Walsh, McCartney et al.** (2022). Excess mortality in England & Scotland 2012–2019. https://pubmed.ncbi.nlm.nih.gov/
 - **Loopstra, Reeves et al.** (*Journal of the Royal Society of Medicine*, 2016). Each 1% cut in Pension Credit → 0.68% rise in mortality among those 85+.
 - **NHS productivity / agency spending**: NHS England Annual Report. https://www.england.nhs.uk/
+- **ONS, *Public Service Productivity Review* (revised March 2025)**. Total public-service productivity rose ≈ 0.5% pa on average 2010–2019 (≈5% cumulative). Education productivity has been volatile but not declining — contrary to popular narrative. https://www.ons.gov.uk/economy/economicoutputandproductivity/publicservicesproductivity
 
 ### Housing
 
 - **Social housing economics**: Shelter, *Building the Homes We Need* (2024). https://england.shelter.org.uk/professional_resources/policy_and_research
 - **Rent controls**: Diamond, McQuade & Qian, *The Effects of Rent Control Expansion on Tenants, Landlords, and Inequality: Evidence from San Francisco*, *American Economic Review* 109(9), 2019. https://www.aeaweb.org/articles?id=10.1257/aer.20181289
 - **Planning friction**: Competition and Markets Authority, *Housebuilding Market Study* (2024). https://www.gov.uk/cma-cases/housebuilding-market-study
+- **House prices and real rates**: Miles & Monro, *UK House Prices and Three Decades of Decline in the Risk-Free Real Interest Rate*, BoE Staff WP 837 (2019). ~80% of the 170% real UK HPI rise since 1985 attributed to a ~5pp fall in safe real rates → equilibrium semi-elasticity ~−16pp per 1pp; 3-year adjustment ~−6pp. Anchors `housing.priceRateElasticity`. https://www.bankofengland.co.uk/working-paper/2019/uk-house-prices-and-three-decades-of-decline-in-the-risk-free-real-interest-rate
+- **Housing supply elasticity**: Hilber & Vermeulen, *The Impact of Supply Constraints on House Prices in England*, *Economic Journal* 126(591), 2016. UK long-run supply price elasticity ≈ 0.4 nationally; near zero in the most-constrained Local Planning Authorities. https://onlinelibrary.wiley.com/doi/10.1111/ecoj.12213
 
 ### Labour market and minimum wage
 
 - **Living Wage / NLW effects**: Low Pay Commission Annual Report. https://www.gov.uk/government/organisations/low-pay-commission
+- **Minimum wage employment effects**: Manning, *The Elusive Employment Effect of the Minimum Wage*, *Journal of Economic Perspectives* (2021). UK NLW employment elasticity near zero (-0.05 to +0.05) across recent meta-analyses. https://www.aeaweb.org/articles?id=10.1257/jep.35.1.3
+- **Immigration → wage distribution**: Dustmann, Frattini & Preston, *The Effect of Immigration along the Distribution of Wages*, *Review of Economic Studies* (2013). Immigration depresses wages below the 20th percentile (~−0.7p/hr at 10th percentile per pp migrant labour share) but raises wages at median and above (+1.5p/hr median, +2p at 90th). https://academic.oup.com/restud/article-abstract/80/1/145/1525810
+- **UK NAIRU**: Carney letter to TSC chair Tyrie (2017). Long-run UK equilibrium unemployment ≈ 4.5%; Resolution Foundation 2024 and BoE MPR November 2025 cluster at 4.0–4.5%. Anchors `initial.naturalUnemployment = 4.25%`. https://www.parliament.uk/business/committees/committees-a-z/commons-select/treasury-committee/
+- **Okun's law for the UK**: Ball, Leigh & Loungani, *Okun's Law: Fit at 50?*, IMF WP 13/10 (2013). Cross-country OECD Okun coefficients span 0.27–0.55; UK fits centrally at ~0.4. Anchors `okun.coefficient`. https://www.imf.org/external/pubs/ft/wp/2013/wp1310.pdf
 - **Co-determination**: Jäger, Schoefer & Heining, *Labor in the Boardroom*, *Quarterly Journal of Economics* 136(2), 2021. Modest productivity effect from German codetermination. https://academic.oup.com/qje/article/136/2/669/6041122
 
 ### Migration and growth
@@ -197,11 +231,23 @@ This simulation tries to ground its numbers in real, citable research. The figur
 ### Green investment and climate
 
 - **Climate Change Committee, *Net Zero* and *Carbon Budgets***. Insulation programme costs (~£15bn/5y, ~£300 household savings). https://www.theccc.org.uk/
+- **CCC, *The Seventh Carbon Budget — Advice for the UK Government* (26 February 2025)**. Budget 2038–2042: 535 MtCO2e (87% below 1990 incl. international aviation/shipping). Net cost ≈ 0.2% of UK GDP/yr on average; required investment ~£26bn/yr to 2050. https://www.theccc.org.uk/publication/the-seventh-carbon-budget/
 - **CEBR, *Full Fibre: Economic Impact* (2022)**. Full fibre could add £59bn to GDP by 2025. https://cebr.com/
 
 ### Banking and financial stability
 
 - **Basel Committee on Banking Supervision**: 1pp higher capital requirement reduces crisis probability by ~0.5pp. https://www.bis.org/bcbs/
+- **Laeven & Valencia, *Systemic Banking Crises Database II***, *IMF Economic Review* 68(2): 307–361 (2020). 151 systemic crises 1970–2017; UK sub-systemic stress every 5–7 years. Anchors `risks.financialCrisis.base = 8%/yr`. https://link.springer.com/article/10.1057/s41308-020-00107-3
+- **BoE Staff WP 1019, *An Anatomy of the 2022 Gilt Market Crisis* (2023)**. 30-year gilt yield rose 120bp over 3 days post-mini-budget; LDI / pension-investor sector forced selling drove an additional 50–80bp. Anchors the LDI doom-loop event trigger. https://www.bankofengland.co.uk/working-paper/2023/an-anatomy-of-the-2022-gilt-market-crisis
+- **Chicago Fed Letter 480, *UK Pension Market Stress in 2022* (2023)**. UK DB pension schemes hold ~28% of long-end gilts. Used to size the simulation's LDI passive-demand discount on the term premium. https://www.chicagofed.org/publications/chicago-fed-letter/2023/480
+- **Brooke et al., *Measuring the Macroeconomic Costs and Benefits of Higher UK Bank Capital Requirements*, BoE Financial Stability Paper 35 (2015)**. Each 1pp higher CET1 reduces UK crisis probability by ~5% at current capital levels. https://www.bankofengland.co.uk/financial-stability-paper/2015/measuring-the-macroeconomic-costs-and-benefits
+
+### Risk events & base rates
+
+- **Madhav et al., *Pandemics: Risks, Impacts, and Mitigation*, in *Disease Control Priorities* (3rd ed., 2017)**. 3 influenza pandemics in the 20th century plus 2009 H1N1 and 2019 SARS-CoV-2 imply a long-run hazard ~5%/yr. Anchors `risks.pandemic.base`. https://www.ncbi.nlm.nih.gov/books/NBK525302/
+- **House of Commons Library, *NHS Industrial Action in England (2022–2024)***, briefing CBP-9775 (2024). ONS reports 1.16m working days lost to NHS strikes June–October 2022 alone. https://commonslibrary.parliament.uk/research-briefings/cbp-9775/
+- **Broadberry, Chadha, Lennard & Thomas, *Postwar UK Business Cycle Duration*, Economic History Review (2023)**. Average postwar UK business cycle length ≈ 16 years from peak to peak → recession onset hazard ≈ 6.25%/yr ≈ 1.6%/quarter. Anchors `risks.recession.base`. https://onlinelibrary.wiley.com/journal/14680289
+- **UKHSA Excess Mortality Reports**. 2022 had ~2,985 excess heat deaths; heatwave base rate trending up with climate. https://www.gov.uk/government/organisations/uk-health-security-agency
 
 ### Fiscal/political philosophy
 

@@ -48,12 +48,14 @@ import {
   updateUnemployment,
   updateBankRate,
   bondYieldFromBankRate,
+  updateMortgageRate,
   updateHousePriceIndex,
   updateEnergyPriceIndex,
   updateEquityIndex,
   updateRiskPremium,
   wealthEffectOnGrowth,
   deptSliderHooks,
+  applyFiscalMultipliers,
   computePcRegen,
   computePmRelationshipDelta,
   clampPc,
@@ -119,6 +121,10 @@ export function stepQuarter(game) {
   const preBondYield = game.bondYield;
 
   let n = { ...game };
+  // Reset transient per-quarter accumulators. thisQuarterEnergyShock is
+  // populated by resolveEvent when energy-shock events fire; pushed onto
+  // energyShockBuffer at end of step so the Ofgem cap reads it 2q later.
+  n.thisQuarterEnergyShock = 0;
   const prePoliticalCapital = n.politicalCapital;
   const prePmRelationship = n.pmRelationship;
   const preParliamentMood = n.parliamentMood;
@@ -224,6 +230,29 @@ export function stepQuarter(game) {
   const deptHooks = deptSliderHooks(n);
   n.growth = n.growth + deptHooks.growth;
 
+  // State-dependent OBR fiscal multipliers — NHS, Education, Welfare, Local,
+  // Infrastructure, Defence (level-deviation × multiplier / taper), plus
+  // VAT and income-tax channels. Recession-amplified (×1.7) when output gap
+  // < −2pp per Auerbach-Gorodnichenko (AEJ:Pol 2012). Partition with
+  // deptSliderHooks is enforced by an allowlist assertion in the function.
+  n.growth = n.growth + applyFiscalMultipliers(n);
+
+  // Migration → GDP elasticity (OBR EFO March 2024). The OBR figure is a
+  // ~5-year LEVEL effect for *additional* migration above baseline (200k
+  // extra/yr → +1.5% GDP at 2028-29). Sim baseline population growth is
+  // already reflected in the initial GDP trajectory, so apply the elasticity
+  // only to the POLICY DEVIATION from baseline pop-growth — currently driven
+  // by the immigrationCap and freeChildcare reforms via quarterlyPopulation-
+  // Growth. Spread per quarter via the fiscal-multiplier taper to keep the
+  // medium-term level-effect framing intact. Pre-wiring grep audit (May 2026)
+  // confirmed no other population→growth channel exists.
+  const baselinePopRate = v(PARAMS.population.quarterlyBaseline) / 4;       // %/quarter
+  const actualPopRate = quarterlyPopulationGrowth(n.reforms);               // %/quarter incl. reform deltas
+  const policyDeviationFraction = (actualPopRate - baselinePopRate) / 100;   // fraction
+  const policyDeltaThousands = policyDeviationFraction * n.population * 1000; // millions × 1000
+  const migrationTaper = v(PARAMS.fiscalMultipliers.taperHorizonQuarters);
+  n.growth = n.growth + policyDeltaThousands * v(PARAMS.migration.gdpElasticityPer1k) / migrationTaper;
+
   // Mean reversion toward potential + accumulated permanent shifts from
   // supply-side reforms. Transient reform bonuses (and event shocks) fade
   // back to anchor over ~4 quarters at rate 0.15.
@@ -254,7 +283,14 @@ export function stepQuarter(game) {
   n.inflation = n.inflation + deptHooks.inflation;
   n.bankRate = updateBankRate(n);
   n.bankRatePath = [...((n.bankRatePath || []).slice(-19)), n.bankRate];
+  // Effective mortgage rate (8-quarter-lagged blend + 30bp wedge) is computed
+  // after bankRatePath push so the lagged read can reach the just-updated rate.
+  // Drives the real-rate gap in updateHousePriceIndex from NEXT quarter onward.
+  n.mortgageRate = updateMortgageRate(n);
   n.bondYield = bondYieldFromBankRate(n);
+  // Parallel to bankRatePath; consumed by the LDI doom-loop gate in
+  // computeRiskMods (compares current bondYield against path[length-2]).
+  n.bondYieldPath = [...((n.bondYieldPath || []).slice(-19)), n.bondYield];
 
   // 7. Reform completions — note the +1 (globalQuarter hasn't been bumped yet)
   const completedReforms = [];
@@ -438,6 +474,18 @@ export function stepQuarter(game) {
   n.pendingEvent = eventToShow;
   n.pendingEvents = pendingEvents;
 
+  // Push the accumulated energy shock onto the FIFO buffer (oldest at index 0).
+  // updateEnergyPriceIndex reads buffer[length - lagQuarters] next quarter and
+  // applies passthrough × that value to the index forcing.
+  // INVARIANT: this push MUST happen after updateEnergyPriceIndex this step;
+  // updateEnergyPriceIndex reads the pre-push buffer so the lag points at the
+  // shock from `lag` quarters ago, not this quarter's freshly-injected shock.
+  {
+    const buf = n.energyShockBuffer || [0, 0, 0, 0];
+    n.energyShockBuffer = [...buf.slice(-3), n.thisQuarterEnergyShock || 0];
+  }
+  delete n.thisQuarterEnergyShock;
+
   n.quarter = n.quarter + 1;
   n.globalQuarter = n.globalQuarter + 1;
   n.committed = makeCommittedSnapshot(n);
@@ -495,7 +543,18 @@ export function resolveEvent(game, choice, { eventDef } = {}) {
   if (energyDelta) {
     // energyMixReform halves positive (shock) injections; reductions pass through unchanged.
     if (energyDelta > 0 && n.energyShockDamper) energyDelta *= n.energyShockDamper;
+    // Gas import dependence scales positive shock magnitudes (DESNZ DUKES 2024).
+    // Baseline 0.5 reproduces historical shock size; reform-driven reduction
+    // (energyMixReform → importDependenceFloor 0.4) scales injections to 0.8×.
+    if (energyDelta > 0) {
+      energyDelta *= v(PARAMS.energy.cap.gasImportDependence) / 0.5;
+    }
     n.energyPriceIndex = Math.max(50, Math.min(400, (n.energyPriceIndex ?? 100) + energyDelta));
+    // Record the gross positive shock magnitude for the energyShockBuffer
+    // (consumed two quarters later via Ofgem cap pass-through).
+    if (energyDelta > 0) {
+      n.thisQuarterEnergyShock = (n.thisQuarterEnergyShock ?? 0) + energyDelta;
+    }
   }
   let equityDelta = v(eff.equityIndex);
   if (equityDelta) {
