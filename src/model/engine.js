@@ -457,7 +457,8 @@ export function computeNetMigration(s) {
   // Anchored to NAIRU (real economic threshold), not the initial unemployment
   // value — so the slack penalty operates on the "tight vs slack labour market"
   // distinction that drives migration economics, not on Q1 happenstance.
-  const unempGap = (s.unemployment ?? 0) - (s.naturalUnemployment ?? 0);
+  const I = PARAMS.initial;
+  const unempGap = (s.unemployment ?? v(I.unemployment)) - (s.naturalUnemployment ?? v(I.naturalUnemployment));
   const labourPull = v(P.migrationUnempCoef) * unempGap;
   let reformDelta = 0;
   if (s.reforms?.immigrationCap?.status === 'complete') {
@@ -513,11 +514,6 @@ export function computeProductivityGrowthAnn(s = null) {
   return w * lagged + (1 - w) * (trend + drivers);
 }
 
-export function updateProductivityIndex(s) {
-  const growthAnn = computeProductivityGrowthAnn(s);
-  const prev = s.productivityIndex ?? 100;
-  return prev * (1 + growthAnn / 100 / 4);
-}
 
 // =============================================================================
 // Education index
@@ -605,7 +601,7 @@ export function updateWageIndex(s) {
   // Asymmetric Phillips: hot-labour only (unemp below NAIRU). When labour
   // is slack we do nothing — the slack penalty already enters via the
   // productivity passthrough term going negative if growth is weak.
-  const nairu = s.naturalUnemployment ?? 4.25;
+  const nairu = s.naturalUnemployment ?? v(PARAMS.initial.naturalUnemployment);
   const hotGap = Math.max(0, nairu - (s.unemployment ?? nairu));
   const phillipsTerm = v(W.phillipsCoef) * hotGap;
 

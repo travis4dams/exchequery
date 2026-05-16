@@ -1022,7 +1022,7 @@ export const CITATIONS = {
     note: 'Working-age share of UK resident population ~64% (~43.5m of 68m), broadly stable. ONS MYEB1 + projections.',
   },
   ons_inactivity_2025: {
-    parameter: 'population.participationRate',
+    parameter: 'initial.participationRate',
     value: 0.80,
     unit: 'fraction of working-age population in the labour force',
     confidence: 'sourced',
@@ -1178,7 +1178,7 @@ export const CITATIONS = {
     publisher: 'OBR',
     year: 2024,
     url: 'https://obr.uk/efo/economic-and-fiscal-outlook-march-2024/',
-    note: 'OBR EFO March 2024 high-migration scenario adds ~240k pa net migration vs central; sim rounds to +60k/q. The reform also lifts growth by 0.35pp permanent via the labour-supply channel — broadly consistent with OBR\'s scenario delta on real GDP at the 5-year horizon.',
+    note: 'OBR EFO March 2024 high-migration scenario adds ~240k pa net migration vs central; sim rounds to +60k/q (this is the netMigrationBaselineQ delta). The reform also lifts headline growth by 0.35pp permanent via its onComplete.growthBonus (a direct shift, separate from the migration→GDP elasticity channel); the +60k/q migration delta separately routes through migration.gdpElasticityPer1k × immigrantProductivityScalar (0.85). Combined, both effects are broadly consistent with OBR\'s scenario delta on real GDP at the 5-year horizon.',
   },
   mac_integration_2024: {
     parameter: 'population.integrationMigrationDeltaQ + integrationReform reform effects',
@@ -2503,7 +2503,7 @@ export const CITATIONS = {
     publisher: 'Office for Budget Responsibility',
     year: 2024,
     url: 'https://obr.uk/efo/economic-and-fiscal-outlook-march-2024/',
-    note: 'OBR EFO March 2024: "if annual net migration was around 200,000 higher or lower than the ONS projection of 315,000 in the medium term, it might raise or lower GDP by around 1½ per cent in 2028-29." Implies an elasticity of ~0.75% GDP per 100,000 *additional* migrants = 0.0075pp per 1k as a medium-term LEVEL effect on GDP. Scoped to reform-driven policy deltas only (immigrationCap, openMigration, integrationReform, freeChildcare, socialMediaBan, socialMediaAlgorithmBan), spread over the fiscal-multiplier taper. Health/unemployment-driven movement in births/deaths/netMigration is silent on this channel and routes through wages/inflation/HPI instead — mirroring the pre-Phase-4 single-channel framing.',
+    note: 'OBR EFO March 2024: "if annual net migration was around 200,000 higher or lower than the ONS projection of 315,000 in the medium term, it might raise or lower GDP by around 1½ per cent in 2028-29." Implies an elasticity of ~0.75% GDP per 100,000 *additional* migrants = 0.0075pp per 1k as a medium-term LEVEL effect on GDP. Scoped to reform-driven policy deltas only (immigrationCap, openMigration, integrationReform, freeChildcare), spread over the fiscal-multiplier taper. Multiplied at the gameStep wiring site by migration.immigrantProductivityScalar (0.85) — see bell_johnson_2023_mac for the Bell-Johnson / Hall-Manning evidence on the immigrant earnings ramp. Health/unemployment-driven movement in births/deaths/netMigration is silent on this channel and routes through wages/inflation/HPI instead — mirroring the pre-Phase-4 single-channel framing. (May 2026 audit retired the socialMediaBan/socialMediaAlgorithmBan births channel; they no longer contribute to this aggregation.)',
   },
   obr_dynamic_scoring_2023: {
     parameter: 'fiscalMultipliers.cdel (1.0), rdel (0.6), ame (0.6), taperHorizonQuarters (20)',
@@ -2645,7 +2645,7 @@ export const CITATIONS = {
     authors: ['Laurence Ball'],
     year: 2009,
     url: 'https://www.nber.org/papers/w14818',
-    note: 'Ball (2009) documents that NAIRU adjusts sluggishly to unemployment shocks in advanced economies — prolonged labour-market deteriorations drift the equilibrium upward and prolonged tight markets drift it downward, with adjustment over multiple years. Sim implements this as a quarterly drift fraction (0.015/q) — a ~12-quarter half-life convergence to live unemployment. Cited from Finding 9 of the May 2026 realism audit.',
+    note: 'Ball (2009) documents that NAIRU adjusts sluggishly to unemployment shocks in advanced economies — prolonged labour-market deteriorations drift the equilibrium upward and prolonged tight markets drift it downward, with adjustment over multiple years. Sim implements this as a quarterly drift fraction (0.015/q): the gap to NAIRU shrinks geometrically with factor (1 − 0.015), so a constant gap has a half-life of ln(0.5)/ln(0.985) ≈ 46 quarters (~11.5 years) — consistent with Ball\'s "multiple years" framing. Cited from Finding 9 of the May 2026 realism audit.',
   },
   nairu_band_judgement: {
     parameter: 'nairu.floor (3.5) and nairu.cap (6.5)',
@@ -2730,7 +2730,7 @@ export const CITATIONS = {
     parameter: 'productivity.laggedWeight (0.5) — AR(1) blend on annual productivity growth',
     confidence: 'judgement',
     title: 'GDP / productivity decomposition methodology',
-    note: 'Designer-set lagged-weight on the annual productivity-growth AR(1) blend. Mirrors the gdpDecomposition.laggedProductivityWeight value that was previously defined but unused (Finding 7 of audit). 0.5 produces a moderately sticky productivity index: a permanent driver shock takes ~4 quarters to mostly transmit and the index resists single-quarter noise.',
+    note: 'Designer-set lagged-weight on the annual productivity-growth AR(1) blend. 0.5 produces a moderately sticky productivity index: a permanent driver shock takes ~4 quarters to mostly transmit and the index resists single-quarter noise. Wired in May 2026 (Finding 7 of audit) — productivity was previously a fixed-trend stub disconnected from policy levers.',
   },
   bell_johnson_2023_mac: {
     parameter: 'migration.immigrantProductivityScalar (0.85 — 5-yr average productivity gradient)',

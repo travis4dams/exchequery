@@ -42,7 +42,6 @@ import {
   computeNetMigration,
   computeWorkforce,
   computeEmployment,
-  updateProductivityIndex,
   computeProductivityGrowthAnn,
   updateEducationIndex,
   updateNAIRU,
@@ -338,17 +337,23 @@ export function stepQuarter(game) {
 
   // 6d-prod: productivity index. Annual growth blends a lagged AR(1) term
   //     with the OBR trend plus driver contributions from R&D / education /
-  //     infrastructure. We compute growth once, write it for the next-quarter
-  //     lag, and apply it to the index.
+  //     infrastructure. We compute growth once, apply it to the index, and
+  //     defer the lag-write until AFTER updateWageIndex runs — that function
+  //     re-calls computeProductivityGrowthAnn(s) for the wage passthrough,
+  //     so n.lastProductivityGrowthAnn must still hold the PRIOR quarter's
+  //     value when the wage block reads it.
   const prodGrowthAnn = computeProductivityGrowthAnn(n);
   const prevProductivityIndex = n.productivityIndex ?? 100;
   n.productivityIndex = prevProductivityIndex * (1 + prodGrowthAnn / 100 / 4);
-  n.lastProductivityGrowthAnn = prodGrowthAnn;
 
   // 6d-wage: wage index — Phillips + productivity passthrough + education
   //     premium + mean reversion. realWageIndex tracks deflation by CPI
   //     since Q1, updated lazily once inflation is known.
   n.wageIndex = updateWageIndex(n);
+
+  // 6d-prod-commit: persist this quarter's productivity growth for the next
+  //     quarter's AR(1) lag read. Must happen AFTER updateWageIndex.
+  n.lastProductivityGrowthAnn = prodGrowthAnn;
 
   // 6d-labour: workforce / employment identity. Reads fresh unemployment.
   n.workforce = computeWorkforce(n);
