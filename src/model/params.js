@@ -137,9 +137,10 @@ export const PARAMS = {
     // Income tax + NI partial scaling against the wage bill (wageIndex/100
     // × employment). VAT, corp tax, and "other" continue to scale entirely
     // with GDP. wageBillAnchor is the Q1 wageIndex/100 × employment product
-    // (= 1.0 × (67.5 × 0.640 × 0.80 × 0.956) ≈ 33.04); pinning it here
-    // keeps wageScale=1 at game start so Q1 revenue matches the prior
-    // pure-GDP scaling to within ~0.002% (fp slack vs the rounded anchor).
+    // (= 1.0 × population × workingAgeShare × participationRate × (1 −
+    // unemployment/100) ≈ 33.04); pinning it here keeps wageScale=1 at
+    // game start so Q1 revenue matches the prior pure-GDP scaling to
+    // within ~0.002% (fp slack vs the rounded anchor).
     incomeTaxWageShare: cited(0.70, 'hmrc_wage_share_of_it'),
     niWageShare:        cited(0.95, 'hmrc_ni_wage_base'),
     wageBillAnchor:     cited(33.04, 'ons_compensation_employees'),
@@ -785,11 +786,10 @@ export const PARAMS = {
   },
 
   // ===========================================================================
-  // GDP decomposition — productivity trend & lag weights. Phase 3 wires the
-  // composedGrowth = productivityGrowth + employmentGrowth seed. Exposes
-  // the productivity index for the UI without rewriting headline GDP —
-  // the structural line shows what trend growth would be under just the
-  // labour-supply identity.
+  // GDP decomposition — feeds composedGrowth = productivityGrowth +
+  // employmentGrowth, exposed on the Markets tab. Does NOT rewrite
+  // headline GDP; the structural line shows what trend growth would be
+  // under just the labour-supply identity.
   // ===========================================================================
   gdpDecomposition: {
     productivityTrend:         cited(0.6,  'obr_productivity_trend'),       // pp/yr

@@ -580,10 +580,10 @@ export function updateWageIndex(s) {
 // don't push CPI up. Called from updateInflation in stepQuarter, where
 // s.wageIndex is the freshly-recomputed this-quarter value and
 // wageIndexPath has NOT yet been pushed for this quarter — so path[length-1]
-// is the prior quarter's wage index. Returns 0 until the path has the
-// one-quarter lookback it needs (game start has path=[100]; after Q1
-// stepQuarter the path is length-2 and the spiral can compute Q-on-Q
-// growth from Q2 onward).
+// is the prior quarter's wage index. The `< 2` gate is one quarter stricter
+// than the math requires (path=[100] would give a defined prev=100): it
+// suppresses Q1 so the spiral only fires once stepQuarter has run at least
+// one full cycle and pushed a real wage observation onto the path.
 export function wageSpiralContribution(s) {
   const W = PARAMS.wages;
   const D = PARAMS.gdpDecomposition;

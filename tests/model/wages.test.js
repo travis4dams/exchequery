@@ -106,17 +106,29 @@ describe('wage spiral feeds inflation', () => {
     hot.wageIndexPath = [99.4, 100];   // path mirrors cold
     hot.wageIndex = 102;               // 8% ann — fires the spiral
 
-    expect(updateInflation(hot)).toBeGreaterThan(updateInflation(cold) + 0.05);
+    // Spiral contribution = spiralCoef (0.10) × (gap − trigger) = 0.10 × 1.4
+    // = 0.14 pp added to updateInflation's forcing term. The Phillips
+    // persistence (~0.85) damps the forcing by (1 − persistence) ≈ 0.15,
+    // so the inflation delta lands around 0.14 × 0.15 ≈ 0.021. Threshold
+    // 0.015 leaves margin for retuning either coefficient while still
+    // failing loudly if wageSpiralTerm is dropped from the forcing sum.
+    expect(updateInflation(hot)).toBeGreaterThan(updateInflation(cold) + 0.015);
   });
 });
 
 describe('asymmetric Phillips monotonicity', () => {
-  it('a 4pp-hot labour market raises wages more than 2× a 1pp-hot market', () => {
-    const lo = freshState(); lo.unemployment = lo.naturalUnemployment - 1;
-    const hi = freshState(); hi.unemployment = hi.naturalUnemployment - 4;
-    const dLo = updateWageIndex(lo) - lo.wageIndex;
-    const dHi = updateWageIndex(hi) - hi.wageIndex;
-    expect(dHi).toBeGreaterThan(2 * dLo);
+  // Isolate the Phillips contribution by subtracting the neutral (NAIRU)
+  // wage-index delta, which captures the constant AR/trend baseline. The
+  // Phillips term itself is linear in hotGap, so the 4pp delta should be
+  // exactly 4× the 1pp delta — comfortably above the 2× threshold.
+  it('the Phillips contribution at 4pp hot is more than 2× the 1pp-hot contribution', () => {
+    const neutral = freshState();  neutral.unemployment = neutral.naturalUnemployment;
+    const lo = freshState();       lo.unemployment      = lo.naturalUnemployment - 1;
+    const hi = freshState();       hi.unemployment      = hi.naturalUnemployment - 4;
+    const baseline = updateWageIndex(neutral) - neutral.wageIndex;
+    const phillipsLo = (updateWageIndex(lo) - lo.wageIndex) - baseline;
+    const phillipsHi = (updateWageIndex(hi) - hi.wageIndex) - baseline;
+    expect(phillipsHi).toBeGreaterThan(2 * phillipsLo);
   });
 });
 

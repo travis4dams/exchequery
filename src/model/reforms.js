@@ -14,6 +14,14 @@
 //                                    // pay settlements.
 //     quarters: number,              // time to complete
 //     prereq: string[],              // reform IDs that must be complete
+//     excludesComplete?: string[],   // reform IDs whose completion PERMANENTLY
+//                                    // blocks this one. Checked via
+//                                    // getExclusionBlocker(); a blocked proposal
+//                                    // is DISCARDED at the engine commit gate
+//                                    // (not deferred onto next quarter).
+//                                    // Symmetric by convention — if A excludes
+//                                    // B then B should exclude A; covered by
+//                                    // the symmetry test in reformExclusion.test.
 //     passReq: { coalition: { value, citationId } },
 //     capacityLoad: number,          // 1–8; how much reform-capacity this
 //                                    // reform occupies while in flight or
