@@ -237,17 +237,21 @@ export function stepQuarter(game) {
   // deptSliderHooks is enforced by an allowlist assertion in the function.
   n.growth = n.growth + applyFiscalMultipliers(n);
 
-  // Migration → GDP elasticity (OBR EFO March 2024). Labour-supply impulse
-  // from net population change. Pre-wiring grep audit (May 2026) confirmed
-  // no other population→growth channel exists, so this is the sole route.
-  // OBR quotes the elasticity as a medium-term LEVEL effect (1.5% GDP from
-  // 200k extra annual migration in 2028-29 ≈ 0.0075pp/1k over a ~5-year
-  // horizon). Spread per quarter via the fiscal-multiplier taper to keep the
-  // steady-state growth response in the right magnitude.
-  const popDeltaMillions = n.population - prePopulation;
-  const popDeltaThousands = popDeltaMillions * 1000;
+  // Migration → GDP elasticity (OBR EFO March 2024). The OBR figure is a
+  // ~5-year LEVEL effect for *additional* migration above baseline (200k
+  // extra/yr → +1.5% GDP at 2028-29). Sim baseline population growth is
+  // already reflected in the initial GDP trajectory, so apply the elasticity
+  // only to the POLICY DEVIATION from baseline pop-growth — currently driven
+  // by the immigrationCap and freeChildcare reforms via quarterlyPopulation-
+  // Growth. Spread per quarter via the fiscal-multiplier taper to keep the
+  // medium-term level-effect framing intact. Pre-wiring grep audit (May 2026)
+  // confirmed no other population→growth channel exists.
+  const baselinePopRate = v(PARAMS.population.quarterlyBaseline) / 4;       // %/quarter
+  const actualPopRate = quarterlyPopulationGrowth(n.reforms);               // %/quarter incl. reform deltas
+  const policyDeviationFraction = (actualPopRate - baselinePopRate) / 100;   // fraction
+  const policyDeltaThousands = policyDeviationFraction * n.population * 1000; // millions × 1000
   const migrationTaper = v(PARAMS.fiscalMultipliers.taperHorizonQuarters);
-  n.growth = n.growth + popDeltaThousands * v(PARAMS.migration.gdpElasticityPer1k) / migrationTaper;
+  n.growth = n.growth + policyDeltaThousands * v(PARAMS.migration.gdpElasticityPer1k) / migrationTaper;
 
   // Mean reversion toward potential + accumulated permanent shifts from
   // supply-side reforms. Transient reform bonuses (and event shocks) fade
@@ -473,6 +477,9 @@ export function stepQuarter(game) {
   // Push the accumulated energy shock onto the FIFO buffer (oldest at index 0).
   // updateEnergyPriceIndex reads buffer[length - lagQuarters] next quarter and
   // applies passthrough × that value to the index forcing.
+  // INVARIANT: this push MUST happen after updateEnergyPriceIndex this step;
+  // updateEnergyPriceIndex reads the pre-push buffer so the lag points at the
+  // shock from `lag` quarters ago, not this quarter's freshly-injected shock.
   {
     const buf = n.energyShockBuffer || [0, 0, 0, 0];
     n.energyShockBuffer = [...buf.slice(-3), n.thisQuarterEnergyShock || 0];

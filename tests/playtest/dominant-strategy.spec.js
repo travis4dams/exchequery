@@ -64,8 +64,16 @@ describe(`dominant-strategy playtest (${TRIALS} games)`, () => {
     console.log('ULTRA_AGGREGATE ' + JSON.stringify(ultraStats));
   }, 600_000);
 
-  it('cheese ends with lower cohesion than do-nothing (exploit defeated)', () => {
-    expect(cheeseStats.meanFinalCohesion).toBeLessThan(doNothingStats.meanFinalCohesion);
+  it('cheese is defeated — either collapses faster than do-nothing or ends with lower cohesion', () => {
+    // Anti-exploit signal. Pre-audit: cheese drifted to lower cohesion over the
+    // full 20-quarter term (survived ~100%) — the cohesion comparison worked.
+    // Post-audit (May 2026): the deficit-yield kicker doubled (Fed IFDP 1011),
+    // so cheese's huge structural deficits now blow bond yields past the 8%
+    // markets-revolt ceiling within ~Q17, well before cohesion has time to
+    // drift. Both failure modes count as "exploit defeated"; assert either.
+    const survivedLess = cheeseStats.survivalRate < doNothingStats.survivalRate;
+    const cohesionLower = cheeseStats.meanFinalCohesion < doNothingStats.meanFinalCohesion;
+    expect(survivedLess || cohesionLower).toBe(true);
   });
 
   it('do-nothing baseline produces results for every trial', () => {
@@ -86,8 +94,13 @@ describe(`dominant-strategy playtest (${TRIALS} games)`, () => {
     expect(supplyStats.meanFinalHousePriceIndex).toBeLessThan(doNothingStats.meanFinalHousePriceIndex - 3);
   });
 
-  it('cheesePlusFlex still ends below do-nothing on cohesion (flex does not rescue cheese)', () => {
-    expect(flexStats.meanFinalCohesion).toBeLessThan(doNothingStats.meanFinalCohesion);
+  it('cheesePlusFlex still defeated — flex does not rescue cheese (same dual signal)', () => {
+    // Same anti-exploit framing as the cheese assertion above. Post-audit,
+    // adding labourFlexibility to cheese does NOT save it from bond-market
+    // collapse — yields still blow through 8% before cohesion has time to drift.
+    const survivedLess = flexStats.survivalRate < doNothingStats.survivalRate;
+    const cohesionLower = flexStats.meanFinalCohesion < doNothingStats.meanFinalCohesion;
+    expect(survivedLess || cohesionLower).toBe(true);
   });
 
   it('cheesePlusFlex carries a higher risk premium than supplySideBuilder', () => {

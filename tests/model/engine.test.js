@@ -361,16 +361,20 @@ describe('Fiscal multipliers — level-deviation (OBR + Auerbach-Gorodnichenko)'
 });
 
 describe('Mortgage pass-through (BoE MLAR 2022 + MPR Nov 2025)', () => {
-  it('updateMortgageRate blends current + lagged Bank Rate + wedge', () => {
+  it('updateMortgageRate blends current + lagged Bank Rate + wedge (length-1-lag indexing)', () => {
     const wedge = v(PARAMS.monetary.mortgagePassthrough.wedgeBps) / 100;
     const fixedShare = v(PARAMS.monetary.mortgagePassthrough.fixedShare);
     const lag = v(PARAMS.monetary.mortgagePassthrough.lagQuarters);
-    // Synthetic path: 10 entries with bank rate 3.0; current 5.0. Lagged index
-    // is path[length - lag] = path[10 - 8] = path[2] = 3.0. Expected blend:
-    // 0.5 × 5.0 + 0.5 × 3.0 + 0.3 = 4.3 (with default params).
-    const path = Array(10).fill(3.0);
-    const s = { ...freshState(), bankRate: 5.0, bankRatePath: path };
-    const expected = fixedShare * 5.0 + (1 - fixedShare) * path[path.length - lag] + wedge;
+    // Construct a varied path so the index off-by-one is detectable.
+    // bankRatePath includes the current quarter at length-1 (gameStep pushes
+    // before updateMortgageRate). At lag=8 with length=12, the "8 quarters
+    // ago" entry is path[length-1-lag] = path[3]. Mark every position
+    // distinctly: path[i] = i. Lagged read should be path[3] = 3.0.
+    const path = Array.from({ length: 12 }, (_, i) => i);
+    const s = { ...freshState(), bankRate: 11.0, bankRatePath: path };
+    const expectedLagged = path[path.length - 1 - lag];
+    expect(expectedLagged).toBe(3);  // sanity: path[12-1-8]=path[3]=3
+    const expected = fixedShare * 11.0 + (1 - fixedShare) * expectedLagged + wedge;
     expect(updateMortgageRate(s)).toBeCloseTo(expected, 6);
   });
 

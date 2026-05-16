@@ -452,8 +452,11 @@ export function updateMortgageRate(s) {
   const lag = v(M.lagQuarters);
   const wedge = v(M.wedgeBps) / 100;
   const fixedShare = v(M.fixedShare);
+  // bankRatePath includes the current quarter at index length-1 (gameStep
+  // pushes before calling this function), so "lag quarters ago" lives at
+  // path[length-1-lag]. With lag=8: path[length-9] = 8 quarters ago.
   const path = s.bankRatePath || [];
-  const laggedRate = path[Math.max(0, path.length - lag)] ?? s.bankRate;
+  const laggedRate = path[Math.max(0, path.length - 1 - lag)] ?? s.bankRate;
   return fixedShare * s.bankRate + (1 - fixedShare) * laggedRate + wedge;
 }
 
