@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, FileText, Calendar, AlertTriangle, BookOpen, LineChart, Landmark } from 'lucide-react';
+import { Crown, ChevronRight, RotateCcw, Receipt, Hammer, Calendar, BookOpen, LineChart, Landmark } from 'lucide-react';
 
 import {
   PARAMS,
@@ -39,8 +39,6 @@ import { FinalModal } from './components/modals/FinalModal.jsx';
 import { OverviewTab } from './components/OverviewTab.jsx';
 import { BudgetTab } from './components/BudgetTab.jsx';
 import { ReformsTab } from './components/ReformsTab.jsx';
-import { RisksTab } from './components/RisksTab.jsx';
-import { LedgerTab } from './components/LedgerTab.jsx';
 import { MarketsTab } from './components/MarketsTab.jsx';
 import { AboutTab } from './components/AboutTab.jsx';
 import { PoliticsTab } from './components/PoliticsTab.jsx';
@@ -123,11 +121,11 @@ export default function ChancellorSim() {
   const dCohesion = projectedCohesion - coalitionCohesion;
   const dBalance = projectedBalance - balance;
   const dGDP = projection.gdp - game.gdp;
-  const dGrowth = projection.growth - game.growth;
   const dGilts = projection.bondYield - game.bondYield;
   const dInflation = projection.inflation - game.inflation;
   const dGini = projection.gini - game.gini;
   const dPC = projection.politicalCapital - game.politicalCapital;
+  const dHealth = projection.healthIndex - game.healthIndex;
   const inflationTowardTarget =
     Math.abs(projection.inflation - game.inflationTarget) < Math.abs(game.inflation - game.inflationTarget);
   const deficit = -balance;
@@ -294,50 +292,51 @@ export default function ChancellorSim() {
             </div>
           </div>
 
-          {/* Secondary metrics: same 5-stat strip. Tighter on mobile,
-              wider monospace on desktop. */}
+          {/* Secondary metrics: Growth is already implied under GDP above,
+              so this strip carries Health (the social proxy), Gini, Inflation,
+              Gilts, and PC. */}
           <div className="grid grid-cols-5 gap-2 pt-3">
-            <Stat label="Growth" value={`${game.growth.toFixed(1)}%`}
-                  color={game.growth > 1.5 ? 'text-signal-good' : game.growth > 0 ? 'text-stone-200' : 'text-signal-bad'}
-                  delta={dGrowth} deltaThreshold={0.1} decimals={1} />
-            <Stat label="Gilts" value={`${game.bondYield.toFixed(1)}%`}
-                  color={game.bondYield < 4 ? 'text-signal-good' : game.bondYield < 5.5 ? 'text-stone-200' : 'text-signal-bad'}
-                  delta={dGilts} deltaThreshold={0.1} decimals={2} worseUp />
-            <Stat label="Inflation" value={`${game.inflation.toFixed(1)}%`}
-                  color={Math.abs(game.inflation - game.inflationTarget) < 0.5 ? 'text-signal-good' : Math.abs(game.inflation - game.inflationTarget) < 1.5 ? 'text-accent-400' : 'text-signal-bad'}
-                  delta={dInflation} deltaThreshold={0.1} decimals={2} deltaGood={inflationTowardTarget} />
+            <Stat label="Health" value={game.healthIndex.toFixed(0)}
+                  color={game.healthIndex >= 55 ? 'text-signal-good' : game.healthIndex >= 45 ? 'text-stone-200' : 'text-signal-bad'}
+                  delta={dHealth} deltaThreshold={0.3} decimals={1} />
             <Stat label="Gini" value={game.gini.toFixed(1)}
                   color={game.gini < 34 ? 'text-signal-good' : game.gini < 36 ? 'text-stone-200' : 'text-signal-bad'}
                   delta={dGini} deltaThreshold={0.1} decimals={2} worseUp />
+            <Stat label="Inflation" value={`${game.inflation.toFixed(1)}%`}
+                  color={Math.abs(game.inflation - game.inflationTarget) < 0.5 ? 'text-signal-good' : Math.abs(game.inflation - game.inflationTarget) < 1.5 ? 'text-accent-400' : 'text-signal-bad'}
+                  delta={dInflation} deltaThreshold={0.1} decimals={2} deltaGood={inflationTowardTarget} />
+            <Stat label="Gilts" value={`${game.bondYield.toFixed(1)}%`}
+                  color={game.bondYield < 4 ? 'text-signal-good' : game.bondYield < 5.5 ? 'text-stone-200' : 'text-signal-bad'}
+                  delta={dGilts} deltaThreshold={0.1} decimals={2} worseUp />
             <Stat label="PC" value={game.politicalCapital.toFixed(0)}
                   color={game.politicalCapital >= 50 ? 'text-accent-400' : game.politicalCapital >= 25 ? 'text-stone-200' : 'text-signal-bad'}
                   delta={dPC} deltaThreshold={0.5} decimals={0} />
           </div>
         </Container>
 
-        {/* Tab strip — horizontal scroller on mobile, evenly distributed on
-            wider screens. Active tab gets a brass underline. */}
+        {/* Tab strip — icons-only on mobile to save width, icons+labels on md+.
+            With 6 tabs the strip now fits 360px-wide phones without scrolling. */}
         <Container size="wide" className="!px-1 md:!px-5">
-          <div className="flex border-t border-treasury-800/60 overflow-x-auto">
+          <div className="flex border-t border-treasury-800/60">
             {[
               {id: 'overview', label: 'Overview', icon: Calendar},
               {id: 'budget', label: 'Budget', icon: Receipt},
               {id: 'reforms', label: 'Reforms', icon: Hammer},
               {id: 'politics', label: 'Politics', icon: Landmark},
               {id: 'markets', label: 'Markets', icon: LineChart},
-              {id: 'risks', label: 'Risks', icon: AlertTriangle},
-              {id: 'ledger', label: 'Ledger', icon: FileText},
               {id: 'about', label: 'About', icon: BookOpen},
             ].map(t => {
               const active = tab === t.id;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)} aria-pressed={active}
-                        className={`flex-1 min-w-[68px] py-2.5 md:py-3 text-[11px] md:text-[12px] font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+                        aria-label={t.label} title={t.label}
+                        className={`flex-1 py-2.5 md:py-3 text-[11px] md:text-[12px] font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
                           active
                             ? 'border-accent-500 text-accent-400'
                             : 'border-transparent text-stone-500 hover:text-stone-300 hover:border-treasury-700'
                         }`}>
-                  <t.icon size={12} /> <span className="whitespace-nowrap">{t.label}</span>
+                  <t.icon size={14} />
+                  <span className="hidden md:inline whitespace-nowrap">{t.label}</span>
                 </button>
               );
             })}
@@ -346,8 +345,15 @@ export default function ChancellorSim() {
       </div>
 
       <Container size="wide" className="pt-5 md:pt-8 pb-32 md:pb-28">
-        {tab === 'overview' && <OverviewTab game={game} committed={committed}
-          deficitGDP={deficitGDP} debtRatio={debtRatio} />}
+        {tab === 'overview' && (
+          <OverviewTab
+            game={game} committed={committed}
+            deficitGDP={deficitGDP} debtRatio={debtRatio}
+            revenue={revenue} spending={spending}
+            balance={balance} balanceDiff={balanceDiff}
+            riskMods={riskMods}
+          />
+        )}
         {tab === 'budget' && <BudgetTab game={game} committed={committed} set={set} />}
         {tab === 'reforms' && (
           <ReformsTab game={game} coalitionCohesion={coalitionCohesion}
@@ -358,11 +364,6 @@ export default function ChancellorSim() {
         )}
         {tab === 'politics' && <PoliticsTab game={game} projectedDeltas={projectedDeltas} />}
         {tab === 'markets' && <MarketsTab game={game} spending={spending} />}
-        {tab === 'risks' && <RisksTab riskMods={riskMods} />}
-        {tab === 'ledger' && (
-          <LedgerTab game={game} revenue={revenue} spending={spending} balance={balance}
-            deficitGDP={deficitGDP} balanceDiff={balanceDiff} committed={committed} debtRatio={debtRatio} />
-        )}
         {tab === 'about' && <AboutTab />}
       </Container>
 
