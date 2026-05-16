@@ -1149,7 +1149,7 @@ export const CITATIONS = {
     parameter: 'education.persistence / meanReversionTo / meanReversionRate / reform bumps',
     confidence: 'judgement',
     title: 'Education index methodology',
-    note: 'educationIndex is a 0-100 designer-set scalar measuring system-wide attainment / skill base. Persistence 0.90, mean reverts toward 60 at 0.05/q. Reform completions add one-shot bumps (skillsTraining +2, uniReform +1.5, freeChildcare +1.0). Calibrated to plausible 10-year ranges given UK PISA/skills evidence.',
+    note: 'educationIndex is a 0-100 designer-set scalar measuring system-wide attainment / skill base. Persistence 0.90, mean reverts toward 60 at 0.05/q. Reform completions add one-shot bumps (skillsBudget +2, uniReform +1.5, freeChildcare +1.0). Calibrated to plausible 10-year ranges given UK PISA/skills evidence.',
   },
   obr_productivity_trend: {
     parameter: 'gdpDecomposition.productivityTrend',
@@ -1162,17 +1162,8 @@ export const CITATIONS = {
     url: 'https://obr.uk/publications/fiscal-sustainability-report/',
     note: 'OBR\'s long-run productivity-growth assumption sits at 0.6-0.8 pp/yr (FSR 2024 / EFO March 2024). The simulation uses 0.6 — at the cautious end of the range — as the productivity component of composedGrowth.',
   },
-  productivity_lag_judgement: {
-    parameter: 'gdpDecomposition.laggedProductivityWeight',
-    value: 0.5,
-    unit: 'AR(1)',
-    confidence: 'judgement',
-    title: 'Productivity index persistence',
-    note: 'Productivity changes persist; designer-set AR weight 0.5 means a shock decays over ~2 years (half-life), consistent with cyclical productivity behaviour but not as sticky as wages.',
-  },
-
   // ===========================================================================
-  // Phase-3 reforms: openMigration, integrationReform, socialMediaBan,
+  // State-branch reforms: openMigration, integrationReform, socialMediaBan,
   // socialMediaAlgorithmBan
   // ===========================================================================
   obr_open_migration: {

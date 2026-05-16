@@ -395,8 +395,9 @@ function WholeEconomyStrip({ game, committed }) {
   const energyDelta = committed ? game.energyPriceIndex - committed.energyPriceIndex : null;
   const inflationDelta = committed ? game.inflation - committed.inflation : null;
   const equityDelta = committed ? (game.equityIndex ?? 100) - (committed.equityIndex ?? 100) : null;
-  // Real-wage and jobs panels — present once Phase-2 wiring is in place
-  // (game.realWageIndex / game.employment seeded by makeInitialState).
+  // realWageIndex / employment are seeded by makeInitialState. Guards
+  // below treat them as required for live games; the null branch keeps
+  // the panels from rendering on stripped test snapshots.
   const realWage = game.realWageIndex;
   const realWageDelta = (committed && committed.realWageIndex != null)
     ? realWage - committed.realWageIndex : null;

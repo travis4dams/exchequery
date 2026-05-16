@@ -34,19 +34,21 @@ function ChannelCard({ label, valueK, path, tone, driver }) {
   );
 }
 
-// Driver attribution — derives a one-line story from current state. Order
-// is "biggest swing first" so the player sees what's actually moving the
-// channel rather than a fixed template.
+// Driver attribution — threshold-gated narrative. Reform flag is reported
+// first when active, then health/labour drift if it crosses a minimum
+// magnitude. Small contributions are dropped so the driver line stays a
+// single sentence.
 function birthsDriver(game) {
   const P = PARAMS.population;
+  const I = PARAMS.initial;
   const baseline = v(P.birthsBaselineQ);
-  const healthDrift = v(P.birthsHealthCoef) * (game.healthIndex - 50);
+  const healthDrift = v(P.birthsHealthCoef) * (game.healthIndex - v(I.healthIndex));
   const childcareOn = game.reforms?.freeChildcare?.status === 'complete';
   const parts = [];
   if (childcareOn) parts.push('free childcare lifting fertility');
   if (Math.abs(healthDrift) >= 2) {
     parts.push(healthDrift > 0
-      ? 'population health above neutral'
+      ? 'population health above baseline'
       : 'health pressures weighing on births');
   }
   if (!parts.length) return `Tracking baseline ~${baseline.toFixed(0)}k/q.`;
@@ -57,7 +59,7 @@ function deathsDriver(game) {
   const P = PARAMS.population;
   const I = PARAMS.initial;
   const baseline = v(P.deathsBaselineQ);
-  const healthDrift = v(P.deathsHealthCoef) * (game.healthIndex - 50);
+  const healthDrift = v(P.deathsHealthCoef) * (game.healthIndex - v(I.healthIndex));
   const nhsDrift    = v(P.deathsNHSCoef) * (game.spendNHS - v(I.spendNHS));
   const parts = [];
   if (Math.abs(healthDrift) >= 2) {

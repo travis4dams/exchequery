@@ -23,9 +23,8 @@ describe('Q1 calibration: wageScale=1 by construction', () => {
   it('wageBillAnchor matches Q1 (wageIndex/100 × employment)', () => {
     const s = freshState();
     const q1WageBill = (s.wageIndex / 100) * s.employment;
-    // Tolerance: anchor is rounded in citations to 33.28; actual Q1 is
-    // 68 × 0.640 × 0.80 × 0.956 = 33.275 — agrees to 2 decimal places.
-    expect(q1WageBill).toBeCloseTo(v(PARAMS.revenue.wageBillAnchor), 1);
+    // 67.5 × 0.640 × 0.80 × (1 − 4.4/100) = 33.0394 ≈ 33.04 (cited anchor).
+    expect(q1WageBill).toBeCloseTo(v(PARAMS.revenue.wageBillAnchor), 2);
   });
 
   it('Q1 income tax + NI agree with the pure-GDP-scale legacy formula', () => {
@@ -37,8 +36,35 @@ describe('Q1 calibration: wageScale=1 by construction', () => {
     const legacyIT = incomeBase * gdpScale;
     const legacyNI = v(R.ni) * gdpScale;
     const live = calcRevenue(s);
-    expect(live.incomeTax).toBeCloseTo(legacyIT, 1);
-    expect(live.ni).toBeCloseTo(legacyNI, 1);
+    // 4dp on a £1bn-order number = drift below £100k, matching the
+    // ≈ 0.002% wageBillAnchor calibration slack (33.0394 vs cited 33.04).
+    expect(live.incomeTax).toBeCloseTo(legacyIT, 2);
+    expect(live.ni).toBeCloseTo(legacyNI, 2);
+  });
+});
+
+describe('Q2 share identification: a wage-bill bump moves IT/NI by the cited share', () => {
+  // At Q1 wageScale = gdpScale, so the 70/30 IT and 95/5 NI shares are
+  // unidentified by Q1 alone (any blend recovers the same result). A
+  // perturbation that moves wageScale away from gdpScale pins the shares.
+  it('a +5% wage-bill bump scales income tax by ≈ 0.70 × 5%', () => {
+    const base = freshState();
+    const bumped = { ...base, wageIndex: base.wageIndex * 1.05 };  // GDP unchanged
+    const baseRev = calcRevenue(base);
+    const bumpedRev = calcRevenue(bumped);
+    const itLift = (bumpedRev.incomeTax - baseRev.incomeTax) / baseRev.incomeTax;
+    const expected = v(PARAMS.revenue.incomeTaxWageShare) * 0.05;
+    expect(itLift).toBeCloseTo(expected, 3);
+  });
+
+  it('a +5% wage-bill bump scales NI by ≈ 0.95 × 5%', () => {
+    const base = freshState();
+    const bumped = { ...base, wageIndex: base.wageIndex * 1.05 };
+    const baseRev = calcRevenue(base);
+    const bumpedRev = calcRevenue(bumped);
+    const niLift = (bumpedRev.ni - baseRev.ni) / baseRev.ni;
+    const expected = v(PARAMS.revenue.niWageShare) * 0.05;
+    expect(niLift).toBeCloseTo(expected, 3);
   });
 });
 
@@ -70,7 +96,7 @@ describe('legacy state fallback', () => {
     const fallback = calcRevenue(stripped);
     // Equal because both should evaluate to the same all-gdpScale total at Q1
     // (wageBlend = gdpBlend when wageScale = gdpScale).
-    expect(fallback.incomeTax).toBeCloseTo(live.incomeTax, 1);
-    expect(fallback.ni).toBeCloseTo(live.ni, 1);
+    expect(fallback.incomeTax).toBeCloseTo(live.incomeTax, 2);
+    expect(fallback.ni).toBeCloseTo(live.ni, 2);
   });
 });

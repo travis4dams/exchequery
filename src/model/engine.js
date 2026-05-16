@@ -50,6 +50,18 @@ export function calcReformLoadInFlight(s) {
   return load;
 }
 
+// Mutual-exclusion lookup — returns the id of a completed reform that
+// blocks `reform` via its excludesComplete list, or null if none.
+// Single source of truth for both the engine commit gate (gameStep) and
+// the picker UI (ChancellorSim); also used by playtest strategies so
+// dominant-strategy assertions don't waste their top slot on a reform
+// the engine will silently discard.
+export function getExclusionBlocker(reform, state) {
+  return reform?.excludesComplete?.find(
+    (excId) => state.reforms[excId]?.status === 'complete'
+  ) ?? null;
+}
+
 // =============================================================================
 // Approval & cohesion
 // =============================================================================
@@ -484,16 +496,16 @@ export function computeEmployment(s) {
   return wf * (1 - (s.unemployment ?? 0) / 100);
 }
 
-// Annualised productivity growth in pp/yr. Phase 2 keeps this minimal — the
-// trend with a small lag toward the previous quarter's annualised reading.
-// Phase 3 wires composedGrowth = productivityGrowth + employmentGrowth.
-export function computeProductivityGrowthAnn(s) {
-  const D = PARAMS.gdpDecomposition;
-  return v(D.productivityTrend);
+// Annualised productivity growth in pp/yr. Currently the unconditional OBR
+// trend; the wage-passthrough term in updateWageIndex subtracts the trend
+// so a future state-dependent version can be wired in without breaking
+// the passthrough sign.
+export function computeProductivityGrowthAnn() {
+  return v(PARAMS.gdpDecomposition.productivityTrend);
 }
 
 export function updateProductivityIndex(s) {
-  const growthAnn = computeProductivityGrowthAnn(s);
+  const growthAnn = computeProductivityGrowthAnn();
   const prev = s.productivityIndex ?? 100;
   return prev * (1 + growthAnn / 100 / 4);
 }
@@ -547,7 +559,7 @@ export function updateWageIndex(s) {
   const hotGap = Math.max(0, nairu - (s.unemployment ?? nairu));
   const phillipsTerm = v(W.phillipsCoef) * hotGap;
 
-  const productivityGrowth = computeProductivityGrowthAnn(s);
+  const productivityGrowth = computeProductivityGrowthAnn();
   const prodPassthrough = v(W.productivityPassthrough)
                         * (productivityGrowth - v(D.productivityTrend));
 
@@ -565,15 +577,20 @@ export function updateWageIndex(s) {
 // CPI contribution from above-trend wage growth (one-sided spiral). Fires
 // only when wage growth exceeds nominal trend by more than spiralTriggerGap
 // — so trend-rate wage growth, routine Phillips firings, and noisy quarters
-// don't push CPI up. Reads the most-recent annualised wage-growth
-// observation off the path; safe to call before any path entry exists.
+// don't push CPI up. Called from updateInflation in stepQuarter, where
+// s.wageIndex is the freshly-recomputed this-quarter value and
+// wageIndexPath has NOT yet been pushed for this quarter — so path[length-1]
+// is the prior quarter's wage index. The `< 2` gate is one quarter stricter
+// than the math requires (path=[100] would give a defined prev=100): it
+// suppresses Q1 so the spiral only fires once stepQuarter has run at least
+// one full cycle and pushed a real wage observation onto the path.
 export function wageSpiralContribution(s) {
   const W = PARAMS.wages;
   const D = PARAMS.gdpDecomposition;
   const path = s.wageIndexPath || [];
   if (path.length < 2) return 0;
   const cur = s.wageIndex ?? path[path.length - 1];
-  const prev = path[path.length - 2];
+  const prev = path[path.length - 1];
   const wageGrowthAnn = 4 * (cur / prev - 1) * 100;
   const inflTarget = s.inflationTarget ?? 2;
   const nominalTrendAnn = v(D.productivityTrend) + inflTarget;
@@ -1286,6 +1303,8 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     // Seeded at productivityTrend for Q1; recomputed each quarter once
     // employment has been refreshed against fresh unemployment.
     composedGrowth: v(PARAMS.gdpDecomposition.productivityTrend),
+    productivityGrowthAnn: v(PARAMS.gdpDecomposition.productivityTrend),
+    employmentGrowthAnn: 0,
     cpiSinceQ1: 1.0,
     educationIndexPath:   [v(PARAMS.education.initial)],
     wageIndexPath:        [v(PARAMS.wages.initial)],
