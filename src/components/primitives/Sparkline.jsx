@@ -9,16 +9,39 @@ import React from 'react';
 // midline) and render a faint horizontal rule at y=0. Used for the
 // balance-ratio chart where the line tracking toward zero communicates
 // "the books are closing."
+//
+// Pass `overlay` (a second points array) to render a second series in the
+// same viewport with its own independent (hidden) y-axis — useful for
+// pairing a level series with a delta/balance series that needs a centered
+// zero rule of its own. overlayZeroAxis defaults true (matches the canonical
+// "balance overlaid on debt" use case).
+function scaleFor(points, { zeroAxis, zeroAxisFloor, height }) {
+  let lo, hi;
+  if (zeroAxis) {
+    const M = Math.max(Math.abs(Math.min(...points)), Math.abs(Math.max(...points)), zeroAxisFloor);
+    lo = -M; hi = M;
+  } else {
+    lo = Math.min(...points);
+    hi = Math.max(...points);
+  }
+  const range = hi - lo || 1;
+  return { lo, hi, range, toY: (v) => height - ((v - lo) / range) * (height - 4) - 2 };
+}
+
 export function Sparkline({
   points,
+  overlay = null,
   width = 120,
   height = 28,
   color = 'var(--accent-400, #fbbf24)',
+  overlayColor = 'var(--signal-bad)',
   responsive = false,
   strokeWidth = 1.5,
   dotRadius = 2.5,
   zeroAxis = false,
   zeroAxisFloor = 0.5,
+  overlayZeroAxis = true,
+  overlayZeroAxisFloor = 0.5,
   zeroAxisColor = 'rgba(255,255,255,0.15)',
   className = '',
 }) {
@@ -29,29 +52,40 @@ export function Sparkline({
     return <svg width={width} height={height} className={`flex-shrink-0 ${className}`.trim()} />;
   }
 
-  let lo, hi;
-  if (zeroAxis) {
-    const M = Math.max(Math.abs(Math.min(...points)), Math.abs(Math.max(...points)), zeroAxisFloor);
-    lo = -M;
-    hi = M;
-  } else {
-    lo = Math.min(...points);
-    hi = Math.max(...points);
-  }
-  const range = hi - lo || 1;
+  const primary = scaleFor(points, { zeroAxis, zeroAxisFloor, height });
   const xs = points.map((_, i) => (i / (points.length - 1)) * width);
-  const ys = points.map(p => height - ((p - lo) / range) * (height - 4) - 2);
+  const ys = points.map(p => primary.toY(p));
   const d = points.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
-  const zeroY = zeroAxis ? height - ((0 - lo) / range) * (height - 4) - 2 : null;
+
+  let dO = null, xsO, ysO, secondary;
+  if (overlay && overlay.length >= 2) {
+    secondary = scaleFor(overlay, { zeroAxis: overlayZeroAxis, zeroAxisFloor: overlayZeroAxisFloor, height });
+    xsO = overlay.map((_, i) => (i / (overlay.length - 1)) * width);
+    ysO = overlay.map(p => secondary.toY(p));
+    dO = overlay.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xsO[i].toFixed(1)} ${ysO[i].toFixed(1)}`).join(' ');
+  }
+
+  // The zero rule comes from whichever axis is zero-anchored. The overlay
+  // wins when both are set since it's the typical "balance" series whose
+  // approach to zero the rule is meant to highlight.
+  let zeroY = null;
+  if (secondary && overlayZeroAxis) zeroY = secondary.toY(0);
+  else if (zeroAxis) zeroY = primary.toY(0);
 
   const inner = (
     <>
-      {zeroAxis && (
+      {zeroY !== null && (
         <line x1="0" x2={width} y1={zeroY} y2={zeroY}
               stroke={zeroAxisColor} strokeWidth="0.75" strokeDasharray="2 2" />
       )}
       <path d={d} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r={dotRadius} fill={color} />
+      {dO && (
+        <>
+          <path d={dO} fill="none" stroke={overlayColor} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={xsO[xsO.length - 1]} cy={ysO[ysO.length - 1]} r={dotRadius} fill={overlayColor} />
+        </>
+      )}
     </>
   );
   if (responsive) {

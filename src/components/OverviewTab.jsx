@@ -130,32 +130,28 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
       <div className="font-display text-2xl md:text-3xl font-medium tabular-nums text-stone-100 leading-none">
         £{(game.debt/1000).toFixed(2)}tn
       </div>
+      {/* Debt (left axis, brass) overlaid with Balance £bn (right axis,
+          hidden, centered zero rule). Both axes share the x-window so
+          the lines read together. */}
       {(game.debtRatioPath || []).length >= 2 && (
         <div className="w-full mt-3">
-          <Sparkline points={game.debtRatioPath} width={400} height={48} responsive
-                     color="var(--accent-400)" strokeWidth={1.75} dotRadius={2.5} />
-          <div className="flex justify-between text-[9px] text-stone-500 mt-0.5 font-mono tabular-nums">
-            <span>start {game.debtRatioPath[0].toFixed(0)}%</span>
-            <span>now {debtRatio}% debt</span>
-          </div>
-        </div>
-      )}
-      {/* Balance chart — raw £bn with a centered zero rule. Deficit sits
-          below, surplus above; closing the gap trends the line toward
-          zero. Tracks the committed books, not the live sliders. */}
-      {balancePath.length >= 2 && (
-        <div className="w-full mt-2">
           <Sparkline
-            points={balancePath}
-            width={400} height={36} responsive
-            color={stableBalance >= 0 ? 'var(--signal-good)' : 'var(--signal-bad)'}
-            strokeWidth={1.5} dotRadius={2.5}
-            zeroAxis zeroAxisFloor={10}
+            points={game.debtRatioPath}
+            overlay={balancePath.length >= 2 ? balancePath : null}
+            overlayColor={stableBalance >= 0 ? 'var(--signal-good)' : 'var(--signal-bad)'}
+            overlayZeroAxis overlayZeroAxisFloor={10}
+            width={400} height={64} responsive
+            color="var(--accent-400)" strokeWidth={1.75} dotRadius={2.5}
           />
           <div className="flex justify-between text-[9px] text-stone-500 mt-0.5 font-mono tabular-nums">
-            <span>Balance</span>
+            <span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: 'var(--accent-400)' }} />
+              Debt now {debtRatio}%
+            </span>
             <span className={stableBalance >= 0 ? 'text-signal-good' : 'text-signal-bad'}>
-              now {fmtSigned(stableBalance)}
+              Balance {fmtSigned(stableBalance)}
+              <span className="inline-block w-1.5 h-1.5 rounded-full ml-1 align-middle"
+                    style={{ background: stableBalance >= 0 ? 'var(--signal-good)' : 'var(--signal-bad)' }} />
             </span>
           </div>
         </div>
@@ -188,29 +184,52 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
   );
 }
 
-function GdpChart({ game }) {
-  const points = game.gdpPath || [];
-  const current = game.gdp;
-  const first = points.length > 0 ? points[0] : null;
-  const pctChange = first && first !== 0 ? ((current - first) / first) * 100 : null;
+function ProsperityChart({ game, onPopulationClick }) {
+  const gdpPath = game.gdpPath || [];
+  const popPath = game.populationPath || [];
+  // GDP per capita in £/person: gdp is £bn, pop is millions, so the ratio
+  // is in £k/person — scale ×1000 for £/person.
+  const perCapitaPath = gdpPath.map((g, i) => (g / (popPath[i] || game.population)) * 1000);
+  const currentPerCap = (game.gdp / game.population) * 1000;
+  const firstPerCap = perCapitaPath.length > 0 ? perCapitaPath[0] : null;
+  const perCapPct = firstPerCap && firstPerCap !== 0 ? ((currentPerCap - firstPerCap) / firstPerCap) * 100 : null;
+  const popM = game.population;
+  const popFirst = popPath.length > 0 ? popPath[0] : null;
+  const popDelta = popFirst != null ? popM - popFirst : null;
   return (
     <Card variant="raised" padding="md" className="h-full">
       <Card.Header>
-        <Card.Eyebrow>Nominal GDP (£bn)</Card.Eyebrow>
+        <Card.Eyebrow>GDP per capita</Card.Eyebrow>
         <div className="flex items-baseline gap-2">
           <div className="text-stone-100 text-[15px] md:text-[17px] font-mono font-semibold tabular-nums">
-            {current.toFixed(0)}
+            £{(currentPerCap/1000).toFixed(1)}k
           </div>
-          {pctChange !== null && <Delta value={pctChange} threshold={0.05} suffix="%" />}
+          {perCapPct !== null && <Delta value={perCapPct} threshold={0.05} suffix="%" />}
         </div>
       </Card.Header>
       <div className="w-full">
-        <Sparkline points={points} width={600} height={140} responsive
-                   color="var(--accent-400)" strokeWidth={2} dotRadius={3} />
+        <Sparkline
+          points={perCapitaPath}
+          overlay={popPath.length >= 2 ? popPath : null}
+          overlayColor="#a78bfa"
+          overlayZeroAxis={false}
+          width={600} height={140} responsive
+          color="var(--accent-400)" strokeWidth={2} dotRadius={3}
+        />
       </div>
       <div className="flex justify-between text-[9px] text-stone-500 mt-1 font-mono tabular-nums">
-        <span>{first !== null ? `start ${first.toFixed(0)}` : ''}</span>
-        <span>now {current.toFixed(0)}</span>
+        <span>
+          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: 'var(--accent-400)' }} />
+          GDP/cap £{(currentPerCap/1000).toFixed(1)}k
+        </span>
+        <button onClick={onPopulationClick}
+                className="hover:text-stone-300 transition-colors inline-flex items-center gap-1">
+          <span className="inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: '#a78bfa' }} />
+          Pop {popM.toFixed(1)}m
+          {popDelta !== null && Math.abs(popDelta * 1000) >= 5 && (
+            <Delta value={popDelta * 1000} threshold={5} decimals={0} suffix="k" />
+          )}
+        </button>
       </div>
     </Card>
   );
@@ -320,9 +339,7 @@ function MetricPanel({ label, value, delta, deltaProps, color, points, sparkColo
   );
 }
 
-function WholeEconomyStrip({ game, committed, onPopulationClick }) {
-  const popM = game.population;
-  const popDelta = committed ? popM - committed.population : null;
+function WholeEconomyStrip({ game, committed }) {
   const unempDelta = committed ? game.unemployment - committed.unemployment : null;
   const hpiDelta = committed ? game.housePriceIndex - committed.housePriceIndex : null;
   const energyDelta = committed ? game.energyPriceIndex - committed.energyPriceIndex : null;
@@ -331,7 +348,7 @@ function WholeEconomyStrip({ game, committed, onPopulationClick }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2 px-1">Wider Economy</div>
-      <Grid cols={{ base: 2, md: 3, lg: 6 }} gap="sm">
+      <Grid cols={{ base: 2, md: 3, lg: 5 }} gap="sm">
         <MetricPanel
           label="Unemployment"
           value={`${game.unemployment.toFixed(1)}%`}
@@ -339,14 +356,6 @@ function WholeEconomyStrip({ game, committed, onPopulationClick }) {
           deltaProps={{ worseUp: true, threshold: 0.1 }}
           color={game.unemployment < 4.5 ? 'text-signal-good' : game.unemployment < 6 ? 'text-stone-200' : 'text-signal-bad'}
           points={game.unemploymentPath}
-        />
-        <MetricPanel
-          label="Population"
-          value={`${popM.toFixed(1)}m`}
-          delta={popDelta !== null ? popDelta * 1000 : null}
-          deltaProps={{ threshold: 5, decimals: 0, suffix: 'k' }}
-          points={game.populationPath}
-          onClick={onPopulationClick}
         />
         <MetricPanel
           label="Housing Index"
@@ -476,9 +485,9 @@ export function OverviewTab({
 
   return (
     <Stack gap="lg">
-      {/* Row A — fiscal panel + GDP. The fiscal panel leads with debt; deficit
-          sits as a secondary line within it. View-full-ledger lives on the
-          fiscal panel; GDP gets the right column. */}
+      {/* Row A — fiscal panel + prosperity. Left card: debt + balance
+          overlaid with their own hidden axes. Right card: GDP per capita
+          + population overlaid. View-full-ledger sits on the fiscal panel. */}
       <Grid cols={{ base: 1, lg: 2 }} gap="md">
         <DebtPanel
           game={game} debtRatio={debtRatio}
@@ -486,18 +495,14 @@ export function OverviewTab({
           spending={spending} committed={committed}
           onOpenLedger={onOpenLedger}
         />
-        <GdpChart game={game} />
+        <ProsperityChart game={game} onPopulationClick={() => setShowPopDetail(true)} />
       </Grid>
 
       {/* Row B — Impending risks (only renders when something is pending) */}
       <ImpendingRisks riskMods={riskMods || {}} quarter={game.quarter} />
 
-      {/* Row C — Whole-economy context */}
-      <WholeEconomyStrip
-        game={game}
-        committed={committed}
-        onPopulationClick={() => setShowPopDetail(true)}
-      />
+      {/* Row C — Whole-economy context (population moved up to ProsperityChart) */}
+      <WholeEconomyStrip game={game} committed={committed} />
 
       {/* Row D — Reforms + Recent events */}
       <TwoCol
