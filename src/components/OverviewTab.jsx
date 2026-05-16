@@ -3,6 +3,7 @@ import { REFORMS, PARAMS, EVENT_DEFINITIONS } from '../model/index.js';
 import { Sparkline } from './primitives/Sparkline.jsx';
 import { Card } from './primitives/Card.jsx';
 import { Grid, Stack, TwoCol } from './primitives/Layout.jsx';
+import { MeterBar } from './primitives/MeterBar.jsx';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 const TERM_LENGTH = v(PARAMS.termLength);
@@ -110,10 +111,7 @@ function TermHero({ term, yearInTerm, yearQ, qToElection, quarter, termProgress 
           </div>
         </div>
       </div>
-      <div className="h-1.5 bg-treasury-950 rounded-pill overflow-hidden shadow-inset-well">
-        <div className="h-full bg-gradient-to-r from-accent-600 to-accent-400 transition-all duration-500"
-             style={{width: `${termProgress}%`}} />
-      </div>
+      <MeterBar value={termProgress} tone="accent" />
       <div className="text-[10px] text-stone-500 mt-1.5 font-mono tabular-nums">
         Quarter {quarter} of {TERM_LENGTH}
       </div>
@@ -140,10 +138,7 @@ function ReformsCard({ allReforms }) {
                   {r.queued ? `${r.total}Q · queued` : `${r.remaining}Q remaining`}
                 </span>
               </div>
-              <div className="h-1.5 bg-treasury-950 rounded-pill overflow-hidden shadow-inset-well">
-                <div className={`h-full transition-all duration-500 ${r.queued ? 'bg-sky-500/50' : 'bg-gradient-to-r from-accent-600 to-accent-400'}`}
-                     style={{width: `${r.progress}%`}} />
-              </div>
+              <MeterBar value={r.progress} tone={r.queued ? 'info' : 'accent'} />
             </div>
           ))}
         </div>
@@ -283,17 +278,15 @@ function DebtCard({ game, spending, debtRatio }) {
 // Compact risk/opportunity row — used inside TailRisksCard.
 function RiskRow({ id, probability, tone }) {
   const title = EVENT_DEFINITIONS[id]?.title || id;
-  const barClass = tone === 'crisis'
-    ? (probability > 30 ? 'bg-signal-bad' : probability > 15 ? 'bg-accent-500' : 'bg-stone-600')
-    : 'bg-signal-good';
+  const barTone = tone === 'crisis'
+    ? (probability > 30 ? 'bad' : probability > 15 ? 'warn' : 'neutral')
+    : 'good';
+  // Probability bars use a 1.5× visual amplification so 67% reads as full.
   return (
     <div className="flex items-center justify-between gap-2 py-1">
       <span className="text-[11px] text-stone-300 truncate">{title}</span>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <div className="w-14 h-1 bg-treasury-950 rounded-pill overflow-hidden shadow-inset-well">
-          <div className={`h-full transition-all duration-500 ${barClass}`}
-               style={{width: `${Math.min(100, probability * 1.5)}%`}} />
-        </div>
+        <MeterBar value={probability * 1.5} tone={barTone} size="xs" className="w-14" />
         <span className="text-[10px] font-mono tabular-nums text-stone-400 w-8 text-right">
           {Math.round(probability)}%
         </span>

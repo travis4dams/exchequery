@@ -15,6 +15,7 @@ import { CitationLink } from './primitives/CitationLink.jsx';
 import { BlocInfoModal } from './modals/BlocInfoModal.jsx';
 import { Card } from './primitives/Card.jsx';
 import { Stack, TwoCol, Grid } from './primitives/Layout.jsx';
+import { MeterBar } from './primitives/MeterBar.jsx';
 
 // Palette for the bloc pie charts. Coalition blocs get warm hues; others
 // get cooler/neutral tones so the visual split lines up with the rest of
@@ -92,13 +93,7 @@ function PartyLegend({ counts, governingParty }) {
 }
 
 function MoodBar({ value, ok = 60, warn = 45 }) {
-  const color = value >= ok ? 'bg-signal-good' : value >= warn ? 'bg-accent-500' : 'bg-signal-bad';
-  return (
-    <div className="h-1.5 bg-treasury-950 rounded-pill overflow-hidden shadow-inset-well">
-      <div className={`h-full ${color} transition-all duration-500`}
-           style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
-    </div>
-  );
+  return <MeterBar value={value} mood ok={ok} warn={warn} />;
 }
 
 function PoliticsCapitalCard({ pc, parliamentMood, pmRelationship, pcLog }) {

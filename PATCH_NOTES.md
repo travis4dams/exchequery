@@ -9,6 +9,7 @@ section accumulates on the `dev` branch between releases.
 ## [Unreleased]
 
 ### New
+- **Reforms tab redesigned.** On desktop the reform branches scroll in the main column while Reform Capacity, the Queued summary, and any OBR-band hint sit in a sticky right rail beside them. On mobile the rail stacks underneath as before. Reform cards adopt the new toned signal-card treatment (green when complete, amber when in flight, sky when queued, faded when blocked). Completed reforms collapse into a 2-column grid inside the details panel.
 - **Politics tab redesigned.** The 632-seat hemicycle is now the centrepiece — large and central on desktop, with Political Capital and the Bloc Composition pies in a side rail beside it. Voter Blocs sit in their own card; Happiest/Unhappiest MPs pair into two columns; PC Log and the searchable constituency list collapse into details panels. The constituency list spreads across 2 or 3 columns on wider screens. Hemicycle math and dot-saturation logic unchanged.
 - **Overview is now the dashboard.** The Risks and Ledger tabs are gone; their content has been folded into Overview. You'll find Revenue + Spending tables side-by-side, the Surplus/Deficit summary and National Debt card below them, and a Crisis Risks + Opportunities pair at the bottom — all in one scroll.
 - **Six tabs, not eight.** The tab strip is icons-only on mobile (saving width — it now fits a 360px phone without scrolling) and icons + labels on desktop.
