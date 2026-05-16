@@ -1006,7 +1006,7 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
   const I = PARAMS.initial;
   const parliament = makeInitialParliament({ blocSupport: initialBlocSupport });
   const { governingPartyMood, chamberMood } = aggregateParliamentMood(parliament.seatMoodById, parliament);
-  return {
+  const state = {
     quarter: 1, term: 1, globalQuarter: 1,
     gdp: v(I.gdp), realGDP: v(I.realGDP),
     population: v(I.population),
@@ -1043,17 +1043,22 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     housePriceIndex: v(I.housePriceIndex),
     energyPriceIndex: v(I.energyPriceIndex),
     housingSupply: v(I.housingSupply),
-    housePricePath: [],
-    energyPricePath: [],
+    // Seed paths with the initial value so the very first push produces a
+    // 2-point series (line renders at Q2 instead of Q3). Index-100 series
+    // also seed at their baseline so the chart is consistent.
+    housePricePath: [v(I.housePriceIndex)],
+    energyPricePath: [v(I.energyPriceIndex)],
     phillipsSlopeMultiplier: 1,
     equityIndex: v(I.equityIndex),
-    equityPath: [],
-    gdpPath: [],
-    debtRatioPath: [],
-    deficitRatioPath: [],
-    unemploymentPath: [],
-    healthIndexPath: [],
-    populationPath: [],
+    equityPath: [v(I.equityIndex)],
+    gdpPath: [v(I.gdp)],
+    realGDPPath: [v(I.realGDP)],
+    debtRatioPath: [v(I.debt) / v(I.gdp) * 100],
+    deficitRatioPath: [v(I.deficit) / v(I.gdp) * 100],
+    unemploymentPath: [v(I.unemployment)],
+    healthIndexPath: [v(I.healthIndex)],
+    populationPath: [v(I.population)],
+    inflationPath: [v(I.inflation)],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],
@@ -1070,6 +1075,12 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     pcLog: [],
     yieldBreachedLastQuarter: false,
   };
+  // Reseed the deficit-ratio path from the *computed* balance so the
+  // chart's first point matches the live calcBalance reading rather
+  // than the PARAMS.initial.deficit summary citation (the two differ
+  // by ~£1bn due to revenue/spending rounding).
+  state.deficitRatioPath = [-calcBalance(state) / state.gdp * 100];
+  return state;
 }
 
 // =============================================================================
