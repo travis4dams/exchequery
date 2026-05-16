@@ -1164,6 +1164,7 @@ export function makeCommittedSnapshot(s) {
     wageIndex: s.wageIndex, realWageIndex: s.realWageIndex,
     productivityIndex: s.productivityIndex, educationIndex: s.educationIndex,
     workforce: s.workforce, employment: s.employment,
+    composedGrowth: s.composedGrowth,
     births: s.births, deaths: s.deaths, netMigration: s.netMigration,
   };
 }
@@ -1263,12 +1264,17 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     productivityIndex: 100,
     workforce: v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate),
     employment: v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate) * (1 - v(I.unemployment) / 100),
+    // composedGrowth = productivity growth + employment growth (annualised).
+    // Seeded at productivityTrend for Q1; recomputed each quarter once
+    // employment has been refreshed against fresh unemployment.
+    composedGrowth: v(PARAMS.gdpDecomposition.productivityTrend),
     cpiSinceQ1: 1.0,
     educationIndexPath:   [v(PARAMS.education.initial)],
     wageIndexPath:        [v(PARAMS.wages.initial)],
     realWageIndexPath:    [v(PARAMS.wages.initial)],
     productivityIndexPath:[100],
     employmentPath:       [v(I.population) * v(PARAMS.population.workingAgeShare) * v(PARAMS.population.participationRate) * (1 - v(I.unemployment) / 100)],
+    composedGrowthPath:   [v(PARAMS.gdpDecomposition.productivityTrend)],
     riskPremium: v(I.riskPremium),
     permanentGrowthShift: 0,
     cohesionHistory: [],

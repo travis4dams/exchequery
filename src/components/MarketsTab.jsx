@@ -166,6 +166,31 @@ export function MarketsTab({ game, spending }) {
           />
         )}
 
+        {game.composedGrowth != null && (
+          <Panel
+            icon={TrendingUp}
+            title="Structural growth"
+            metric={
+              <Metric value={`${game.composedGrowth.toFixed(2)}%`}
+                      color={game.composedGrowth > game.growth ? 'text-signal-good' : 'text-stone-100'}
+                      sub={<>Productivity {(game.productivityIndex && game.productivityIndexPath?.length >= 2
+                        ? (4 * (game.productivityIndex / game.productivityIndexPath[game.productivityIndexPath.length - 2] - 1) * 100).toFixed(2)
+                        : '0.60')}pp · Employment {(game.composedGrowth - (game.productivityIndex && game.productivityIndexPath?.length >= 2
+                        ? (4 * (game.productivityIndex / game.productivityIndexPath[game.productivityIndexPath.length - 2] - 1) * 100)
+                        : 0.60)).toFixed(2)}pp · Headline {game.growth.toFixed(2)}%</>} />
+            }
+            sparklinePoints={game.composedGrowthPath || []}
+            sparklineColor="#22d3ee"
+            footer={<>
+              Productivity trend + employment growth (annualised). The
+              structural line ignores cyclical drags / fiscal-multiplier
+              hooks / mean-reversion — it shows what trend growth would
+              be under just the labour-supply identity.{' '}
+              <CitationLink id="obr_productivity_trend" label="OBR" />
+            </>}
+          />
+        )}
+
         <Panel
           icon={Home}
           title="Housing Market"
