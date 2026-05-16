@@ -122,7 +122,6 @@ export default function ChancellorSim() {
   );
   const projectedBalance = useMemo(() => calcBalance(projection), [projection]);
   const dCohesion = projectedCohesion - coalitionCohesion;
-  const dBalance = projectedBalance - balance;
   const dGDP = projection.gdp - game.gdp;
   const dGilts = projection.bondYield - game.bondYield;
   const dInflation = projection.inflation - game.inflation;
@@ -135,6 +134,11 @@ export default function ChancellorSim() {
   const deficitGDP = deficit / game.gdp * 100;
   const debtRatio = (game.debt / game.gdp * 100).toFixed(0);
   const committed = game.committed;
+  // Header big-balance shows the *committed* books so it doesn't jitter
+  // as sliders move; slider effects + next quarter's macro drift land in
+  // the projection caret instead. Falls back to live balance pre-commit.
+  const displayBalance = committed?.balance ?? balance;
+  const dBalance = projectedBalance - displayBalance;
   const yearQ = ((game.quarter - 1) % 4) + 1;
   const yearInTerm = Math.ceil(game.quarter / 4);
 
@@ -280,7 +284,7 @@ export default function ChancellorSim() {
                 Cohesion
                 <ProjectionCaret value={dCohesion} threshold={0.1} decimals={1} worseUp={false} />
               </div>
-              <div className={`font-display text-3xl md:text-4xl font-medium tabular-nums leading-none ${
+              <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${
                 coalitionCohesion >= REELECT_THRESHOLD ? 'text-signal-good' : coalitionCohesion >= 28 ? 'text-accent-400' : 'text-signal-bad'
               }`}>{coalitionCohesion.toFixed(0)}%</div>
               <div className="text-[10px] text-stone-500 mt-1">Overall {overallApproval.toFixed(0)}% · Floor {COALITION_FLOOR}%</div>
@@ -304,11 +308,11 @@ export default function ChancellorSim() {
                 <ProjectionCaret value={dBalance} threshold={0.5} decimals={0} worseUp={false} />
                 Balance
               </div>
-              <div className={`text-xl md:text-2xl font-bold font-mono tabular-nums leading-none ${balance >= 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
-                {fmtSigned(balance)}
+              <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${displayBalance >= 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
+                {fmtSigned(displayBalance)}
               </div>
               <div className={`text-[10px] mt-1 ${deficitGDP < 2 ? 'text-signal-good' : deficitGDP < 4 ? 'text-accent-400' : 'text-signal-bad'}`}>
-                {balance >= 0 ? 'Surplus' : `${deficitGDP.toFixed(1)}% deficit · Debt ${debtRatio}%`}
+                {displayBalance >= 0 ? 'Surplus' : `${(-displayBalance / game.gdp * 100).toFixed(1)}% deficit · Debt ${debtRatio}%`}
               </div>
             </div>
           </div>

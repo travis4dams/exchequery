@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, ExternalLink, X } from 'lucide-react';
 import { REFORMS, PARAMS, EVENT_DEFINITIONS } from '../model/index.js';
 import { Sparkline } from './primitives/Sparkline.jsx';
 import { Card } from './primitives/Card.jsx';
@@ -24,33 +24,52 @@ const CRISIS_EVENTS = [
   'pensionFundCrisis', 'cabinetScandal', 'devolutionDispute',
 ];
 
-// UI copy — short driver hint that points the player at the lever they
-// can pull. Not in the model: this is presentation, not calculation.
-const EVENT_DRIVER_HINT = {
-  nhsStrike: 'NHS underfunded',
-  teacherStrike: 'Education underfunded',
-  councilBankruptcy: 'Local Gov underfunded',
-  civilUnrest: 'Justice underfunded',
-  diplomaticIsolation: 'FCDO underfunded',
-  independenceMovement: 'Devolved transfers squeezed',
-  fuelPoverty: 'Welfare squeezed',
-  careCrisis: 'Welfare squeezed',
-  housingCrisis: 'Welfare / planning gap',
-  recession: 'Cycle late',
-  financialCrisis: 'Bond markets stressed',
-  giltStrike: 'Gilt yields spiking',
-  sovereignRatingAction: 'Debt sustainability eroded',
-  ldiDoomLoop: 'LDI demand fragile',
-  pensionFundCrisis: 'DB pension stress',
-  sterlingSlide: 'Sterling under pressure',
-  equityCrash: 'Equity overheated',
-  commercialPropertyCrash: 'Property prices stretched',
-  rateHikeShock: 'Tightening cycle',
-  monetaryPolicyError: 'MPC misstep',
-  wagePriceSpiral: 'Wage-price feedback',
-  inflationSurprise: 'Inflation upside',
-  cabinetScandal: 'Government discipline',
-  devolutionDispute: 'Devolved transfers squeezed',
+// UI copy — what the player can do to mitigate. Concrete in-game levers.
+// Not in the model: this is presentation, not calculation.
+const EVENT_MITIGATION = {
+  // Department under-funding risks → raise the slider above its baseline.
+  nhsStrike:             'Raise NHS spending above £204bn baseline.',
+  teacherStrike:         'Raise Education spending above £95bn baseline.',
+  councilBankruptcy:     'Raise Local Gov spending above £140bn baseline.',
+  civilUnrest:           'Raise Justice spending above £55bn baseline.',
+  diplomaticIsolation:   'Raise FCDO spending above £15bn baseline.',
+  independenceMovement:  'Raise Devolved transfers above £71bn baseline.',
+  fuelPoverty:           'Raise Welfare spending; consider energy reforms.',
+  careCrisis:            'Raise Welfare spending and NHS; consider Social Care reform.',
+  housingCrisis:         'Pass Planning Reform or raise Welfare; address supply.',
+  generalStrike:         'Complete Civil Service Rebuild reform; ease pay pressure.',
+  pandemic:              'Complete Preventative Health to halve pandemic impact.',
+  energyShock:           'Pass energy-mix reforms; build the shock damper.',
+  aiDisplacement:        'Pass Skills Budget reform to retrain workers.',
+  // Macro-financial risks → fiscal discipline.
+  recession:             'Cut deficit; rebuild buffers before the cycle turns.',
+  financialCrisis:       'Reduce deficit; pass OBR Independence; calm gilts.',
+  giltStrike:            'Cut deficit; pass OBR Independence to narrow premium.',
+  sovereignRatingAction: 'Reduce debt/GDP trajectory and deficit.',
+  ldiDoomLoop:           'Avoid sudden rate hikes; build pension regulatory damper.',
+  pensionFundCrisis:     'Pass pension-stability reform; stabilise long-gilts.',
+  sterlingSlide:         'Hold rates steady; calm bond markets.',
+  equityCrash:           'Pass equity-stability reform; avoid corp tax shocks.',
+  commercialPropertyCrash:'Steady real rates; pass property-market reforms.',
+  rateHikeShock:         'Keep inflation near target; let MPC stay on glide path.',
+  monetaryPolicyError:   'Pass BoE-mandate reforms; reduce inflation volatility.',
+  wagePriceSpiral:       'Pass labour-flexibility reforms; cool the labour market.',
+  inflationSurprise:     'Keep fiscal stance neutral; let MPC respond.',
+  // Political risks.
+  cabinetScandal:        'Manage parliament mood; cancel divisive reforms in flight.',
+  devolutionDispute:     'Raise Devolved transfers; engage with the nations.',
+  // Climate / external.
+  flood:                 'Raise DEFRA spending; flood-defence reforms.',
+  heatwave:              'Raise NHS spending; pass climate-adaptation reforms.',
+  droughtStress:         'Raise DEFRA; infrastructure for water resilience.',
+  supplyChainShock:      'Pass trade-resilience reforms; maintain reserves.',
+  cyberAttack:           'Raise Justice/cyber-security spending.',
+  coldSnap:              'Raise Welfare (fuel poverty buffer) and NHS.',
+  // Internal political mechanics.
+  housePriceCorrection:  'Stabilise real rates; calm housing supply policy.',
+  planningRevolt:        'Pass planning reform with bloc buy-in.',
+  allyCrisis:            'Manage coalition cohesion; recalibrate concessions.',
+  labourShortage:        'Pass immigration / skills reforms.',
 };
 
 const RISK_WARN = 15;
@@ -75,91 +94,66 @@ function Delta({ value, threshold = 0.1, worseUp = false, decimals = 1, suffix =
 
 const fmtSigned = (n) => (n >= 0 ? '+' : '−') + (Math.abs(n) >= 1000 ? `£${(Math.abs(n)/1000).toFixed(1)}tn` : `£${Math.abs(n).toFixed(0)}bn`);
 
-// === Row A: Fiscal triptych =================================================
+// === Row A: Fiscal panel (debt + deficit combined) + GDP chart ==============
 
-function DebtPanel({ game, debtRatio, spending }) {
+function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, onOpenLedger }) {
+  // Debt-ratio delta vs prior committed value, for the "vs last Q" caret.
+  const debtRatioNum = (game.debt / game.gdp) * 100;
+  const debtRatioDelta = committed
+    ? debtRatioNum - (committed.debt / committed.gdp * 100)
+    : null;
+  const deficitColor = balance >= 0
+    ? 'text-signal-good'
+    : deficitGDP < 2 ? 'text-accent-300' : 'text-signal-bad';
+  const deficitLabel = balance >= 0
+    ? 'Surplus'
+    : deficitGDP < 2 ? 'Sustainable deficit' : 'Deficit';
   return (
     <Card variant="raised" padding="md" className="h-full">
       <Card.Header>
         <Card.Eyebrow>National Debt</Card.Eyebrow>
-        <Card.Meta>{debtRatio}% GDP</Card.Meta>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-stone-300 text-[11px] font-mono tabular-nums">{debtRatio}% GDP</span>
+          <Delta value={debtRatioDelta} worseUp threshold={0.1} suffix="pp" decimals={1} />
+        </div>
       </Card.Header>
       <div className="font-display text-2xl md:text-3xl font-medium tabular-nums text-stone-100 leading-none">
         £{(game.debt/1000).toFixed(2)}tn
-      </div>
-      <div className="mt-2 text-[10px] text-stone-500 font-mono space-y-0.5">
-        <div className="flex justify-between">
-          <span>Gilt yield (market)</span>
-          <span className="text-stone-300 tabular-nums">{game.bondYield.toFixed(2)}%</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Effective rate on stock</span>
-          <span className="text-stone-300 tabular-nums">{game.effectiveServicingRate.toFixed(2)}%</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Annual interest cost</span>
-          <span className="text-signal-bad tabular-nums">£{spending.debtInterest.toFixed(0)}bn</span>
-        </div>
       </div>
       {(game.debtRatioPath || []).length >= 2 && (
         <div className="w-full mt-3">
           <Sparkline points={game.debtRatioPath} width={400} height={48} responsive
                      color="var(--accent-400)" strokeWidth={1.75} dotRadius={2.5} />
           <div className="flex justify-between text-[9px] text-stone-500 mt-0.5 font-mono tabular-nums">
-            <span>start</span>
+            <span>start {game.debtRatioPath[0].toFixed(0)}%</span>
             <span>now {debtRatio}%</span>
           </div>
         </div>
       )}
-    </Card>
-  );
-}
-
-function DeficitPanel({ game, balance, deficitGDP, balanceDiff, spending }) {
-  const tone = balance >= 0 ? 'good' : deficitGDP < 2 ? 'warn' : 'bad';
-  const valueColor = balance >= 0 ? 'text-signal-good' : deficitGDP < 2 ? 'text-accent-300' : 'text-signal-bad';
-  const heading = balance >= 0 ? 'Surplus' : deficitGDP < 2 ? 'Sustainable Deficit' : 'Deficit';
-  // Top 3 spending categories driving the bottom line.
-  const drivers = [
-    ['Departmental', spending.departmental],
-    ['Pensions & locked', spending.fixed],
-    ['Reform ongoing', spending.reformOngoing],
-    ['Debt interest', spending.debtInterest],
-  ].filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  return (
-    <Card variant="signal" tone={tone} padding="md" className="h-full">
-      <Card.Header>
-        <Card.Eyebrow className={tone === 'good' ? 'text-signal-good' : tone === 'warn' ? 'text-accent-400' : 'text-signal-bad'}>
-          {heading}
-        </Card.Eyebrow>
-        {balanceDiff !== null && Math.abs(balanceDiff) >= 0.5 && (
-          <Card.Meta className={`font-mono tabular-nums ${balanceDiff > 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
-            {balanceDiff > 0 ? '+' : ''}{balanceDiff.toFixed(0)} vs Q{game.quarter - 1}
-          </Card.Meta>
-        )}
-      </Card.Header>
-      <div className={`font-display text-2xl md:text-3xl font-medium tabular-nums leading-none ${valueColor}`}>
-        {fmtSigned(balance)}
-      </div>
-      <div className="text-[10px] text-stone-500 mt-1">
-        {deficitGDP.toFixed(1)}% of GDP
-        {deficitGDP < 2 && balance < 0 && ' · OBR-sustainable'}
-      </div>
-      {(game.deficitRatioPath || []).length >= 2 && (
-        <div className="w-full mt-3">
-          <Sparkline points={game.deficitRatioPath} width={400} height={42} responsive
-                     color="var(--accent-400)" strokeWidth={1.75} dotRadius={2.5} />
+      <div className="mt-3 pt-3 border-t border-treasury-800/70 space-y-0.5 text-[10px] font-mono">
+        <div className="flex justify-between">
+          <span className="text-stone-400">{deficitLabel}</span>
+          <span className={`tabular-nums ${deficitColor}`}>
+            {fmtSigned(balance)} · {deficitGDP.toFixed(1)}% GDP
+          </span>
         </div>
-      )}
-      <div className="mt-3 pt-2 border-t border-treasury-800/70 space-y-0.5 text-[10px] font-mono">
-        <div className="text-stone-500 uppercase tracking-wider mb-0.5">Top spend lines</div>
-        {drivers.map(([label, value]) => (
-          <div key={label} className="flex justify-between">
-            <span className="text-stone-400">{label}</span>
-            <span className="text-stone-300 tabular-nums">£{value.toFixed(0)}bn</span>
-          </div>
-        ))}
+        <div className="flex justify-between">
+          <span className="text-stone-400">Gilt yield (market)</span>
+          <span className="text-stone-300 tabular-nums">{game.bondYield.toFixed(2)}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone-400">Effective rate on stock</span>
+          <span className="text-stone-300 tabular-nums">{game.effectiveServicingRate.toFixed(2)}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone-400">Annual interest cost</span>
+          <span className="text-signal-bad tabular-nums">£{spending.debtInterest.toFixed(0)}bn</span>
+        </div>
       </div>
+      <button onClick={onOpenLedger}
+              className="mt-3 inline-flex items-center gap-1 text-[11px] text-accent-400 hover:text-accent-300 transition-colors">
+        View full ledger <ExternalLink size={11} />
+      </button>
     </Card>
   );
 }
@@ -194,52 +188,78 @@ function GdpChart({ game }) {
 
 // === Row B: Impending risks =================================================
 
-function RiskBadge({ id, probability }) {
+function RiskBadge({ id, probability, onDismiss }) {
   const critical = probability >= RISK_CRITICAL;
   const tone = critical ? 'bad' : 'warn';
-  const labelColor = critical ? 'text-signal-bad' : 'text-accent-400';
   const iconCls = critical ? 'text-signal-bad animate-pulse-soft' : 'text-accent-400';
   const title = EVENT_DEFINITIONS[id]?.title || id;
-  const hint = EVENT_DRIVER_HINT[id];
+  const mitigation = EVENT_MITIGATION[id];
   return (
     <Card variant="signal" tone={tone} padding="sm">
-      <div className="flex items-center gap-2.5">
-        <AlertTriangle size={14} className={`flex-shrink-0 ${iconCls}`} />
+      <div className="flex items-start gap-2.5">
+        <AlertTriangle size={14} className={`flex-shrink-0 mt-0.5 ${iconCls}`} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline justify-between gap-2">
             <span className="text-[12px] font-semibold text-stone-100 truncate">{title}</span>
-            <span className={`text-[10px] uppercase tracking-wider font-semibold ${labelColor} flex-shrink-0`}>
-              {critical ? 'Critical' : 'Watch'}
+            <span className="text-[11px] font-mono tabular-nums text-stone-300 flex-shrink-0">
+              {Math.round(probability)}%
             </span>
           </div>
-          {hint && <div className="text-[10px] text-stone-500 mt-0.5 truncate">{hint}</div>}
+          {mitigation && (
+            <div className="text-[10px] text-stone-400 mt-1 leading-snug">{mitigation}</div>
+          )}
+          <div className="mt-1.5">
+            <MeterBar value={Math.min(100, probability * 1.5)}
+                      tone={critical ? 'bad' : 'warn'} size="xs" />
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <MeterBar value={Math.min(100, probability * 1.5)}
-                    tone={critical ? 'bad' : 'warn'} size="xs"
-                    className="w-16" />
-          <span className="text-[11px] font-mono tabular-nums text-stone-300 w-10 text-right">
-            {Math.round(probability)}%
-          </span>
-        </div>
+        {onDismiss && (
+          <button onClick={onDismiss}
+                  aria-label="Dismiss until next quarter"
+                  title="Dismiss until next quarter"
+                  className="text-stone-500 hover:text-stone-200 transition-colors flex-shrink-0 p-1 -m-1">
+            <X size={12} />
+          </button>
+        )}
       </div>
     </Card>
   );
 }
 
-function ImpendingRisks({ riskMods }) {
+function ImpendingRisks({ riskMods, quarter }) {
+  // Per-quarter dismissals — reset whenever the quarter rolls over so a
+  // dismissed risk re-surfaces if it's still impending next time.
+  const [dismissed, setDismissed] = useState(() => new Set());
+  useEffect(() => { setDismissed(new Set()); }, [quarter]);
+
   const items = CRISIS_EVENTS
-    .filter(k => (riskMods[k] || 0) >= RISK_WARN)
+    .filter(k => (riskMods[k] || 0) >= RISK_WARN && !dismissed.has(k))
     .sort((a, b) => (riskMods[b] || 0) - (riskMods[a] || 0));
   if (items.length === 0) return null;
+  const criticalCount = items.filter(k => riskMods[k] >= RISK_CRITICAL).length;
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2 px-1 flex items-center gap-2">
-        <AlertTriangle size={10} className="text-accent-500" />
+        <AlertTriangle size={10} className={criticalCount > 0 ? 'text-signal-bad' : 'text-accent-500'} />
         Impending Risks
+        <span className="text-stone-400 font-mono tabular-nums">
+          {items.length}
+          {criticalCount > 0 && <span className="text-signal-bad"> · {criticalCount} critical</span>}
+        </span>
       </div>
       <Stack gap="sm">
-        {items.map(id => <RiskBadge key={id} id={id} probability={riskMods[id]} />)}
+        {items.map(id => (
+          <RiskBadge
+            key={id}
+            id={id}
+            probability={riskMods[id]}
+            onDismiss={() => setDismissed(prev => {
+              const next = new Set(prev);
+              next.add(id);
+              return next;
+            })}
+          />
+        ))}
       </Stack>
     </div>
   );
@@ -426,24 +446,21 @@ export function OverviewTab({
 
   return (
     <Stack gap="lg">
-      {/* Row A — Fiscal triptych */}
-      <div>
-        <Grid cols={{ base: 1, lg: 3 }} gap="md">
-          <DebtPanel game={game} debtRatio={debtRatio} spending={spending} />
-          <DeficitPanel game={game} balance={balance} deficitGDP={deficitGDP}
-                        balanceDiff={balanceDiff} spending={spending} />
-          <GdpChart game={game} />
-        </Grid>
-        <div className="mt-2 flex justify-end">
-          <button onClick={onOpenLedger}
-                  className="inline-flex items-center gap-1 text-[11px] text-accent-400 hover:text-accent-300 transition-colors">
-            View full ledger <ExternalLink size={11} />
-          </button>
-        </div>
-      </div>
+      {/* Row A — fiscal panel + GDP. The fiscal panel leads with debt; deficit
+          sits as a secondary line within it. View-full-ledger lives on the
+          fiscal panel; GDP gets the right column. */}
+      <Grid cols={{ base: 1, lg: 2 }} gap="md">
+        <DebtPanel
+          game={game} debtRatio={debtRatio}
+          balance={balance} deficitGDP={deficitGDP}
+          spending={spending} committed={committed}
+          onOpenLedger={onOpenLedger}
+        />
+        <GdpChart game={game} />
+      </Grid>
 
       {/* Row B — Impending risks (only renders when something is pending) */}
-      <ImpendingRisks riskMods={riskMods || {}} />
+      <ImpendingRisks riskMods={riskMods || {}} quarter={game.quarter} />
 
       {/* Row C — Whole-economy context */}
       <WholeEconomyStrip
