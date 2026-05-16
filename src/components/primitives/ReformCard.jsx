@@ -87,10 +87,19 @@ export function ReformCard({
           </div>
           <div className="text-[10px] md:text-[11px] text-stone-500 leading-snug">{reform.blurb}</div>
         </div>
-        {/* Cap + PC cluster — always in the top-right of unfinished cards so
-            costs are scannable down the list. */}
+        {/* Duration + Cap + PC cluster — pinned top-right of unfinished
+            cards so costs are scannable down the list. */}
         {!isComplete && (
           <div className="flex items-stretch gap-2 flex-shrink-0">
+            <div className="text-center min-w-[28px]" title={`${reform.quarters} quarters to complete`}>
+              <div className="text-stone-500 leading-tight flex items-center justify-center h-[12px]">
+                <Clock size={10} />
+              </div>
+              <div className="text-[15px] font-mono font-semibold tabular-nums leading-tight text-stone-200">
+                {reform.quarters}
+              </div>
+            </div>
+            <div className="w-px bg-treasury-800 self-stretch" aria-hidden />
             <div className="text-center min-w-[28px]" title="Reform capacity load">
               <div className="text-[9px] uppercase tracking-wider text-stone-500 leading-tight">Cap</div>
               <div className={`text-[15px] font-mono font-semibold tabular-nums leading-tight ${capColor}`}>{load}</div>
@@ -145,7 +154,7 @@ export function ReformCard({
         <div className="mt-2 pt-2 border-t border-treasury-800/70">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[10px] text-stone-500 font-mono">
-              £{cost}bn · {reform.quarters}Q
+              £{cost}bn
               {passReqCoal > 0 && (
                 <span className={meetsCoal ? 'text-stone-500 ml-2' : 'text-accent-500 ml-2'}>
                   · {passReqCoal}% coal.{!meetsCoal ? ' (×1.5)' : ''}
