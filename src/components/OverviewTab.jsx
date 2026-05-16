@@ -185,26 +185,26 @@ function DebtPanel({ game, debtRatio, balance, deficitGDP, spending, committed, 
 }
 
 function ProsperityChart({ game, onPopulationClick }) {
-  const gdpPath = game.gdpPath || [];
   const realPath = game.realGDPPath || [];
   const popPath = game.populationPath || [];
-  // All three lines plotted as Q1=100 indices so the nominal/real/per-capita
-  // wedges are visually comparable on a shared scale. Real GDP per capita
-  // factors out both inflation and population growth — the "living standard"
-  // line; the gap to real GDP is the demographic drag.
-  const baseNom = gdpPath[0];
+  // Two lines indexed to Q1=100: real GDP (the productive-capacity track)
+  // and real GDP per capita (factors out the demographic drag — the living
+  // standard line). The gap between them is the population-growth wedge.
   const baseReal = realPath[0];
   const basePerCap = baseReal && popPath[0] ? baseReal / popPath[0] : null;
-  const nomIdx = baseNom ? gdpPath.map(g => g / baseNom * 100) : [];
   const realIdx = baseReal ? realPath.map(g => g / baseReal * 100) : [];
   const realPerCapIdx = (basePerCap && realPath.length === popPath.length)
     ? realPath.map((g, i) => (g / popPath[i]) / basePerCap * 100)
     : [];
-  const currentNom = nomIdx[nomIdx.length - 1] ?? 100;
   const currentReal = realIdx[realIdx.length - 1] ?? 100;
   const currentPerCap = realPerCapIdx[realPerCapIdx.length - 1] ?? 100;
   // Living-standard headline: real GDP per capita in absolute £/person.
   const livingStd = (game.realGDP / game.population) * 1000;
+  // Net population change for the breakdown row, taken from the stable
+  // historical path so it doesn't react to live sliders.
+  const popNetChange = popPath.length >= 2
+    ? popPath[popPath.length - 1] - popPath[popPath.length - 2]
+    : 0;
   return (
     <Card variant="raised" padding="md" className="h-full">
       <Card.Header>
@@ -220,32 +220,64 @@ function ProsperityChart({ game, onPopulationClick }) {
       </Card.Header>
       <div className="w-full">
         <Sparkline
-          points={nomIdx}
-          overlays={[
-            { points: realIdx, color: '#94a3b8' },
-            { points: realPerCapIdx, color: '#a78bfa' },
-          ]}
-          width={600} height={140} responsive
+          points={realIdx}
+          overlays={[{ points: realPerCapIdx, color: '#a78bfa' }]}
+          width={600} height={120} responsive
           color="var(--accent-400)" strokeWidth={2} dotRadius={3}
         />
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-stone-500 mt-1 font-mono tabular-nums">
         <span>
           <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: 'var(--accent-400)' }} />
-          Nominal {currentNom.toFixed(1)}
+          Real GDP {currentReal.toFixed(1)}
         </span>
         <span>
-          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: '#94a3b8' }} />
-          Real {currentReal.toFixed(1)}
-        </span>
-        <button onClick={onPopulationClick}
-                className="hover:text-stone-300 transition-colors inline-flex items-center gap-1">
-          <span className="inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: '#a78bfa' }} />
+          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: '#a78bfa' }} />
           Real / capita {currentPerCap.toFixed(1)}
-        </button>
-        <span className="ml-auto">indexed Q1 = 100 · Pop {game.population.toFixed(1)}m</span>
+        </span>
+        <span className="ml-auto">indexed Q1 = 100</span>
       </div>
+      {/* Population growth breakdown — net is tracked today; the
+          births/deaths/migration decomposition lands when the model
+          exposes those channels. Clicking opens the detail modal. */}
+      <button onClick={onPopulationClick}
+              className="mt-3 pt-3 border-t border-treasury-800/70 w-full text-left hover:bg-treasury-900/30 transition-colors -mx-1 px-1 rounded">
+        <div className="flex items-baseline justify-between mb-1.5">
+          <Card.Eyebrow>Population</Card.Eyebrow>
+          <span className="text-stone-300 text-[11px] font-mono tabular-nums">
+            {game.population.toFixed(2)}m
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          <PopStat label="Net" value={popNetChange} unit="k" tone={popNetChange >= 0 ? 'good' : 'bad'} />
+          <PopStat label="Births" value={null} placeholder />
+          <PopStat label="Deaths" value={null} placeholder />
+          <PopStat label="Migration" value={null} placeholder />
+        </div>
+      </button>
     </Card>
+  );
+}
+
+function PopStat({ label, value, unit = 'k', tone, placeholder = false }) {
+  // Net pop change comes in as Δ million; show as k (×1000).
+  const formatted = value == null
+    ? '—'
+    : (() => {
+      const k = value * 1000;
+      const sign = k >= 0 ? '+' : '−';
+      return `${sign}${Math.abs(k).toFixed(0)}${unit}`;
+    })();
+  const colorCls = placeholder
+    ? 'text-stone-600'
+    : tone === 'good' ? 'text-signal-good' : tone === 'bad' ? 'text-signal-bad' : 'text-stone-200';
+  return (
+    <div>
+      <div className="text-[9px] uppercase tracking-wider text-stone-500">{label}</div>
+      <div className={`text-[12px] font-mono font-semibold tabular-nums ${colorCls}`}>
+        {formatted}
+      </div>
+    </div>
   );
 }
 
