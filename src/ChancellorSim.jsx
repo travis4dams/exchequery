@@ -138,12 +138,12 @@ export default function ChancellorSim() {
   const debtRatio = (game.debt / game.gdp * 100).toFixed(0);
   const committed = game.committed;
   // Header big-balance shows the *committed* books so it doesn't jitter
-  // as sliders move; slider effects + next quarter's macro drift land in
-  // the projection caret instead. Pre-commit (Q1), falls back to the
-  // initial-state baseline balance rather than the live balance —
-  // otherwise the "stable" number isn't stable.
+  // as sliders move; the caret captures the slider-driven delta against
+  // that committed baseline so a 1pp VAT move reads as the full ~£10bn
+  // swing, not the heavily-attenuated next-quarter projection delta.
+  // Pre-commit (Q1) falls back to the initial-state baseline balance.
   const displayBalance = committed?.balance ?? INITIAL_BALANCE;
-  const dBalance = projectedBalance - displayBalance;
+  const dBalance = balance - displayBalance;
   const yearQ = ((game.quarter - 1) % 4) + 1;
   const yearInTerm = Math.ceil(game.quarter / 4);
 
