@@ -51,6 +51,7 @@ import {
   makeCommittedSnapshot,
   reformCapacityLoad,
   calcReformCapacity,
+  getExclusionBlocker,
   updateInflation,
   updateUnemployment,
   updateBankRate,
@@ -153,12 +154,12 @@ export function stepQuarter(game) {
   for (const id of n.proposedReforms) {
     const reform = REFORMS[id];
     if (!reform) continue;
-    // Mutual-exclusion gate — discards (no re-queue) if any reform listed in
-    // excludesComplete has already completed. Placed between capacity and
-    // PC so excluded items don't tie up PC pending.
-    if (reform.excludesComplete?.some((excId) => n.reforms[excId]?.status === 'complete')) {
+    // Mutual-exclusion gate — discards (no re-queue) if a reform listed in
+    // excludesComplete has already completed. Placed BEFORE capacity and
+    // PC so excluded items don't consume either budget.
+    const blocker = getExclusionBlocker(reform, n);
+    if (blocker) {
       skippedReforms.push(reform.name);
-      const blocker = reform.excludesComplete.find((excId) => n.reforms[excId]?.status === 'complete');
       const blockerName = REFORMS[blocker]?.name || blocker;
       n.log = [...n.log, { q: n.quarter, text: `Blocked (${blockerName} already passed): ${reform.name}` }];
       continue;
@@ -273,7 +274,7 @@ export function stepQuarter(game) {
   // open-migration / integration reforms. The natural-cycle effects on
   // pop channels remain in state (and visible in the modal) but flow
   // through the macro via wages/inflation/HPI, not via this elasticity —
-  // mirroring the pre-Phase-4 single-channel approach.
+  // matching the single-channel framing the elasticity was calibrated on.
   const P = PARAMS.population;
   let reformDeltaK = 0;
   if (n.reforms?.freeChildcare?.status === 'complete')         reformDeltaK += v(P.childcareBirthsBoostQ);
@@ -336,13 +337,13 @@ export function stepQuarter(game) {
   // n.growth; the employment-supply contribution above already routes
   // policy deltas into headline growth via the OBR elasticity.
   const prevProductivityIndex = game.productivityIndex ?? 100;
-  const productivityGrowthAnn = prevProductivityIndex > 0
+  n.productivityGrowthAnn = prevProductivityIndex > 0
     ? 4 * (n.productivityIndex / prevProductivityIndex - 1) * 100
     : v(PARAMS.gdpDecomposition.productivityTrend);
-  const employmentGrowthAnn = prevEmployment > 0
+  n.employmentGrowthAnn = prevEmployment > 0
     ? 4 * (n.employment / prevEmployment - 1) * 100
     : 0;
-  n.composedGrowth = productivityGrowthAnn + employmentGrowthAnn;
+  n.composedGrowth = n.productivityGrowthAnn + n.employmentGrowthAnn;
 
   n.inflation = updateInflation(n);
   // Update cumulative CPI since Q1 (used for realWageIndex deflation).

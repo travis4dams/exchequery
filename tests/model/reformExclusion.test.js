@@ -8,6 +8,7 @@ import {
   PARAMS,
   makeInitialState,
   stepQuarter,
+  getExclusionBlocker,
 } from '../../src/model/index.js';
 import { withSeededRandom } from '../playtest/rng.js';
 
@@ -67,6 +68,56 @@ describe('engine commit-loop gate', () => {
     s.politicalCapital = 80;
     s = withSeededRandom(11, () => stepQuarter(s));
     expect(s.reforms.integrationReform?.status).toBe('inProgress');
+  });
+});
+
+describe('getExclusionBlocker — single source of truth', () => {
+  // The engine commit gate, the ReformsTab picker, and the playtest
+  // strategies all route their excludesComplete check through this helper
+  // so the three call sites cannot drift. Exercises the helper directly
+  // so a refactor that changes its return shape breaks here, not in three
+  // separate misbehaviours.
+  it('returns null when no excludesComplete entry is complete', () => {
+    const s = freshState();
+    expect(getExclusionBlocker(REFORMS.openMigration, s)).toBeNull();
+  });
+
+  it('returns the blocker id when a listed reform is complete', () => {
+    const s = freshState();
+    s.reforms = {
+      immigrationCap: {
+        status: 'complete', startedQ: 1, completesQ: 1,
+        reformDef: REFORMS.immigrationCap,
+      },
+    };
+    expect(getExclusionBlocker(REFORMS.openMigration, s)).toBe('immigrationCap');
+  });
+
+  it('does not fire on in-progress reforms (only "complete" status blocks)', () => {
+    const s = freshState();
+    s.reforms = {
+      immigrationCap: {
+        status: 'inProgress', startedQ: 1, completesQ: 5,
+        reformDef: REFORMS.immigrationCap,
+      },
+    };
+    expect(getExclusionBlocker(REFORMS.openMigration, s)).toBeNull();
+  });
+
+  it('exclusion pairs are symmetric', () => {
+    // For any reform A that excludes B on completion, B should exclude A.
+    // Asymmetric pairs create order-dependent gates (whoever passes first
+    // blocks the other, but not vice versa) — usually a config bug.
+    const pairs = [];
+    for (const [aid, a] of Object.entries(REFORMS)) {
+      for (const bid of (a.excludesComplete || [])) {
+        const b = REFORMS[bid];
+        if (!b) continue;
+        const reverse = (b.excludesComplete || []).includes(aid);
+        if (!reverse) pairs.push(`${aid} excludes ${bid}, but ${bid} does not exclude ${aid}`);
+      }
+    }
+    expect(pairs).toEqual([]);
   });
 });
 

@@ -173,11 +173,7 @@ export function MarketsTab({ game, spending }) {
             metric={
               <Metric value={`${game.composedGrowth.toFixed(2)}%`}
                       color={game.composedGrowth > game.growth ? 'text-signal-good' : 'text-stone-100'}
-                      sub={<>Productivity {(game.productivityIndex && game.productivityIndexPath?.length >= 2
-                        ? (4 * (game.productivityIndex / game.productivityIndexPath[game.productivityIndexPath.length - 2] - 1) * 100).toFixed(2)
-                        : '0.60')}pp · Employment {(game.composedGrowth - (game.productivityIndex && game.productivityIndexPath?.length >= 2
-                        ? (4 * (game.productivityIndex / game.productivityIndexPath[game.productivityIndexPath.length - 2] - 1) * 100)
-                        : 0.60)).toFixed(2)}pp · Headline {game.growth.toFixed(2)}%</>} />
+                      sub={<>Productivity {(game.productivityGrowthAnn ?? 0).toFixed(2)}pp · Employment {(game.employmentGrowthAnn ?? 0).toFixed(2)}pp · Headline {game.growth.toFixed(2)}%</>} />
             }
             sparklinePoints={game.composedGrowthPath || []}
             sparklineColor="#22d3ee"
