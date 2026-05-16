@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle2, Clock, ArrowRight, Lock, AlertCircle, Eye, Undo2, XCircle } from 'lucide-react';
+import { Card } from './Card.jsx';
+import { MeterBar } from './MeterBar.jsx';
 
 const unwrap = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
@@ -14,6 +16,17 @@ function stanceTag(stance) {
   return labels.join(' · ');
 }
 
+// State → Card tone mapping. Mirrors the bordered/tinted treatment the
+// old hardcoded class branches gave each lifecycle state.
+function pickTone({ isComplete, isInProgress, isProposed, capacityBlocked, canStart, meetsCoal }) {
+  if (isComplete)        return { tone: 'good', titleColor: 'text-signal-good' };
+  if (isInProgress)      return { tone: 'warn', titleColor: 'text-accent-300' };
+  if (isProposed)        return { tone: 'info', titleColor: 'text-signal-info' };
+  if (capacityBlocked)   return { tone: 'neutral', titleColor: 'text-stone-300', dim: true };
+  if (canStart && meetsCoal) return { tone: 'neutral', titleColor: 'text-stone-200' };
+  return { tone: 'neutral', titleColor: 'text-stone-400', dim: true };
+}
+
 export function ReformCard({
   id, reform, status, isProposed, onPropose, onUnpropose, onCancel,
   canStart, prereqMet = true, fitsCapacity = true, load = 1,
@@ -22,7 +35,7 @@ export function ReformCard({
 }) {
   const isInProgress = status?.status === 'inProgress';
   const isComplete = status?.status === 'complete';
-  const progress = isInProgress ? ((currentQ - status.startedQ) / reform.quarters) : 0;
+  const progress = isInProgress ? ((currentQ - status.startedQ) / reform.quarters) * 100 : 0;
   const passReqCoal = unwrap(reform.passReq?.coalition) || 0;
   const meetsCoal = coalitionCohesion >= passReqCoal;
   const ctrl = reform.controversial;
@@ -43,50 +56,49 @@ export function ReformCard({
     onCancel?.();
   };
 
+  const { tone, titleColor, dim } = pickTone({
+    isComplete, isInProgress, isProposed, capacityBlocked, canStart, meetsCoal,
+  });
+
   return (
-    <div className={`p-3 rounded-md border mb-2 transition-colors ${
-      isComplete ? 'border-emerald-700/50 bg-emerald-950/15' :
-      isInProgress ? 'border-amber-700/50 bg-amber-950/15' :
-      isProposed ? 'border-sky-700/60 bg-sky-950/20' :
-      capacityBlocked ? 'border-stone-700/70 bg-stone-800/30 opacity-75' :
-      canStart && meetsCoal ? 'border-stone-700 bg-stone-900/40' :
-      'border-stone-800 bg-stone-950/40 opacity-60'
-    }`}>
+    <Card variant="signal" tone={tone} padding="md"
+          className={`mb-2 ${dim ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            {isComplete && <CheckCircle2 size={11} className="text-emerald-500 flex-shrink-0" />}
-            {isInProgress && <Clock size={11} className="text-amber-500 flex-shrink-0" />}
-            {isProposed && <ArrowRight size={11} className="text-sky-400 flex-shrink-0" />}
-            {!isComplete && !isInProgress && !isProposed && !canStart && <Lock size={11} className="text-stone-600 flex-shrink-0" />}
-            {ctrl && !isComplete && !isInProgress && !isProposed && <AlertCircle size={10} className="text-amber-500 flex-shrink-0" title="Contested policy" />}
-            <span className={`text-[12px] font-semibold ${
-              isComplete ? 'text-emerald-300' :
-              isInProgress ? 'text-amber-300' :
-              isProposed ? 'text-sky-300' : 'text-stone-200'
-            }`}>{reform.name}</span>
+            {isComplete    && <CheckCircle2 size={11} className="text-signal-good flex-shrink-0" />}
+            {isInProgress  && <Clock size={11} className="text-accent-400 flex-shrink-0" />}
+            {isProposed    && <ArrowRight size={11} className="text-signal-info flex-shrink-0" />}
+            {!isComplete && !isInProgress && !isProposed && !canStart && (
+              <Lock size={11} className="text-stone-600 flex-shrink-0" />
+            )}
+            {ctrl && !isComplete && !isInProgress && !isProposed && (
+              <AlertCircle size={10} className="text-accent-500 flex-shrink-0" title="Contested policy" />
+            )}
+            <span className={`text-[12px] md:text-[13px] font-semibold ${titleColor}`}>{reform.name}</span>
           </div>
-          <div className="text-[10px] text-stone-500 leading-snug">{reform.blurb}</div>
+          <div className="text-[10px] md:text-[11px] text-stone-500 leading-snug">{reform.blurb}</div>
         </div>
       </div>
+
       {isInProgress && (
         <div className="mb-2">
-          <div className="h-1 bg-stone-800 rounded-full overflow-hidden">
-            <div className="h-full bg-amber-500" style={{width: `${progress * 100}%`}} />
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <div className="text-[10px] text-stone-500">
+          <MeterBar value={progress} tone="warn" />
+          <div className="flex items-center justify-between mt-1.5">
+            <div className="text-[10px] text-stone-500 font-mono tabular-nums">
               {reform.quarters - (currentQ - status.startedQ)}Q remaining of {reform.quarters}Q · Load {load}
             </div>
             <div className="flex items-center gap-2">
               {onInspect && (
-                <button onClick={onInspect} className="text-stone-500 hover:text-stone-300" title="Inspect reform">
+                <button onClick={onInspect}
+                        className="text-stone-500 hover:text-stone-200 transition-colors"
+                        title="Inspect reform">
                   <Eye size={12} />
                 </button>
               )}
               {onCancel && (
                 <button onClick={handleCancel}
-                  className={`text-[10px] flex items-center gap-1 ${confirmCancel ? 'text-rose-300' : 'text-stone-500 hover:text-rose-400'}`}>
+                  className={`text-[10px] flex items-center gap-1 transition-colors ${confirmCancel ? 'text-signal-bad' : 'text-stone-500 hover:text-signal-bad'}`}>
                   <XCircle size={9} /> {confirmCancel ? 'Tap to confirm' : 'Cancel'}
                 </button>
               )}
@@ -94,40 +106,43 @@ export function ReformCard({
           </div>
         </div>
       )}
+
       {isProposed && (
-        <div className="mb-2 flex items-center justify-between bg-sky-950/30 rounded px-2 py-1">
-          <span className="text-[10px] text-sky-300">Queued · Load {load} · starts next quarter</span>
-          <button onClick={onUnpropose} className="text-[10px] text-sky-300 hover:text-sky-200 flex items-center gap-1">
+        <div className="mb-2 flex items-center justify-between bg-sky-950/30 rounded-md px-2 py-1">
+          <span className="text-[10px] text-signal-info">Queued · Load {load} · starts next quarter</span>
+          <button onClick={onUnpropose} className="text-[10px] text-signal-info hover:text-sky-200 flex items-center gap-1 transition-colors">
             <Undo2 size={9} /> Undo
           </button>
         </div>
       )}
+
       {!isComplete && !isInProgress && !isProposed && (
-        <div className="mt-2 pt-2 border-t border-stone-800">
-          <div className="flex items-center justify-between">
-            <div className="text-[10px] text-stone-500">
+        <div className="mt-2 pt-2 border-t border-treasury-800/70">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10px] text-stone-500 font-mono">
               £{cost}bn · {reform.quarters}Q
               {passReqCoal > 0 && (
-                <span className={meetsCoal ? 'text-stone-500 ml-2' : 'text-amber-500 ml-2'}>
+                <span className={meetsCoal ? 'text-stone-500 ml-2' : 'text-accent-500 ml-2'}>
                   · {passReqCoal}% coal.{!meetsCoal ? ' (×1.5)' : ''}
                 </span>
               )}
-              <span className={capacityBlocked ? 'text-rose-400 ml-2' : 'text-stone-500 ml-2'}>· Load {load}</span>
+              <span className={capacityBlocked ? 'text-signal-bad ml-2' : 'text-stone-500 ml-2'}>· Load {load}</span>
               {pcBreakdown && (
                 <span
-                  className={`ml-2 ${canAffordPc ? 'text-amber-400' : 'text-rose-400'}`}
+                  className={`ml-2 ${canAffordPc ? 'text-accent-400' : 'text-signal-bad'}`}
                   title={`Base ${pcBreakdown.base} × ${pcBreakdown.rebellionFactor.toFixed(2)} rebellion${pcBreakdown.cohesionTriggered ? ` × ${pcBreakdown.cohesionFactor.toFixed(2)} cohesion` : ''} (${pcBreakdown.opposed}/${pcBreakdown.govTotal} MPs opposed)`}
                 >
                   · {pcBreakdown.total.toFixed(0)} PC
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <button onClick={onInspect} className="text-stone-500 hover:text-stone-300">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button onClick={onInspect}
+                      className="text-stone-500 hover:text-stone-200 transition-colors">
                 <Eye size={12} />
               </button>
               <button onClick={onPropose} disabled={!canStart || !meetsCoal || !canAffordPc}
-                className="text-[11px] font-semibold px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 disabled:bg-stone-800 disabled:text-stone-600 text-stone-950">
+                className="text-[11px] font-semibold px-3 py-1 rounded bg-accent-600 hover:bg-accent-500 active:bg-accent-700 disabled:bg-treasury-800 disabled:text-stone-600 text-treasury-950 transition-colors">
                 Propose
               </button>
             </div>
@@ -139,14 +154,15 @@ export function ReformCard({
           )}
         </div>
       )}
+
       {capacityBlocked && (
-        <div className="text-[10px] text-amber-400/80 mt-1.5">No capacity — too many reforms in flight.</div>
+        <div className="text-[10px] text-accent-400/80 mt-1.5">No capacity — too many reforms in flight.</div>
       )}
       {!canAffordPc && !isComplete && !isInProgress && !isProposed && (
-        <div className="text-[10px] text-rose-400/80 mt-1.5">
+        <div className="text-[10px] text-signal-bad mt-1.5">
           Insufficient political capital — need {pcBreakdown?.total.toFixed(0)}, have {availablePc.toFixed(0)}.
         </div>
       )}
-    </div>
+    </Card>
   );
 }
