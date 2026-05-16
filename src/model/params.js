@@ -72,7 +72,7 @@ export const PARAMS = {
     spendDevolved: cited(71, 'devolved_block_grant_baseline'),      // Scotland + Wales + NI
     bankRate: cited(4.5, 'boe_current_bank_rate'),                  // %
     inflationTarget: cited(2.0, 'boe_inflation_target_remit'),       // % (mandated)
-    naturalUnemployment: cited(4.0, 'boe_nairu_estimate'),           // % (NAIRU)
+    naturalUnemployment: cited(4.25, 'boe_nairu_estimate'),          // % (NAIRU — Carney TSC 2017, ResFound 2024)
     politicalCapitalStart: cited(60, 'pc_regen_methodology'),       // honeymoon-but-not-full
     pmRelationshipStart: cited(60, 'pm_relationship_methodology'),  // honeymoon
     pmRelationshipReelectReset: cited(60, 'pm_relationship_methodology'),
@@ -136,25 +136,52 @@ export const PARAMS = {
   // Monetary policy — Bank of England reaction function (Taylor rule)
   // ===========================================================================
   monetary: {
-    neutralRate: cited(3.5, 'boe_neutral_rate'),                   // % nominal anchor
+    neutralRate: cited(4.0, 'boe_neutral_rate'),                   // % nominal anchor (Mercatus 2025 survey-based UK r*)
     taylorInflationCoef: cited(1.5, 'taylor_rule_classic'),         // pp Bank Rate per pp inflation gap
     taylorUnempCoefDual: cited(0.5, 'taylor_rule_classic'),         // pp Bank Rate per pp unemployment gap (only under dual mandate)
-    bankRateInertia: cited(0.5, 'boe_smoothing_methodology'),       // weight on prior-quarter Bank Rate
+    bankRateInertia: cited(0.75, 'coibion_gorodnichenko_inertia_2012'), // weight on prior-quarter Bank Rate (Coibion-Gorodnichenko 2012)
     bankRateClampLow: cited(0, 'boe_rate_history'),                 // % floor
     bankRateClampHigh: cited(12, 'boe_rate_history'),               // % ceiling
     termPremium: cited(0.3, 'boe_term_premium'),                    // pp added to Bank Rate to derive base bond yield
-    deficitYieldCoef: cited(0.003, 'monetary_deficit_yield_judgement'), // pp on yield per £bn annual deficit
+    deficitYieldCoef: cited(0.006, 'monetary_deficit_yield_judgement'), // pp on yield per £bn annual deficit (Fed IFDP 1011 2010)
     yieldSmooth: cited(0.5, 'boe_smoothing_methodology'),           // weight on prior-quarter yield
     raisedInflationTarget: cited(3.0, 'inflation_target_review_judgement'), // value used by inflationTargetReview reform
     inflationTargetReviewYieldShock: cited(0.3, 'inflation_target_review_judgement'), // pp on bondYield on commit
+
+    // Passive-demand discount on term premium (Chicago Fed Letter 480, 2023).
+    // effectiveTermPremium = termPremium - passiveDemandWeight × equity.ldi.longGiltDemandShare.
+    passiveDemandWeight: cited(0.5, 'chicago_fed_480_ldi_2023'),     // judgement; halves the maximal LDI-demand discount
+
+    // QE/QT yield-effect coefficients. qeYieldEffectPerBn is consumed by the
+    // LDI doom-loop "Emergency QE" choice; qtYieldEffectPerBn is staged for a
+    // future QT-shrinking event.
+    qeYieldEffectPerBn: cited(0.5, 'joyce_tong_woods_qe_2011'),     // bp gilt yield per £bn of QE
+    qtYieldEffectPerBn: cited(0.3, 'boe_qb_2022_q1_qt'),            // bp gilt yield per £bn of QT (asymm; not yet consumed)
+
+    // Mortgage pass-through lag — house prices read s.mortgageRate, not s.bankRate.
+    // updateMortgageRate(s) = fixedShare × bankRate + (1−fixedShare) × bankRate from
+    // lagQuarters ago + wedgeBps / 100. With UK 86% fixed-rate share (BoE MLAR Q3 2022)
+    // and 2-year dominant fix, lag=8 quarters captures the dominant maturity.
+    mortgagePassthrough: {
+      lagQuarters: cited(8,   'boe_mlar_mortgage_fixing_2022'),
+      wedgeBps:    cited(30,  'boe_mpr_mortgage_wedge_2025'),
+      fixedShare:  cited(0.5, 'boe_mlar_mortgage_fixing_2022'),
+    },
   },
 
   // ===========================================================================
-  // Phillips curve — inflation reaction to slack and demand
+  // Phillips curve — inflation reaction to slack and demand.
+  // Asymmetric slope per Bunn et al. (BoE WP 1107, 2025): hot-labour-market
+  // slope ~3× the slack-side slope. Trend-inflation modifier amplifies the
+  // Phillips term when CPI exceeds threshold (menu-cost mechanism).
+  // engine.js updateInflation branches on (NAIRU − unemployment) sign.
   // ===========================================================================
   phillips: {
     persistence: cited(0.85, 'obr_inflation_persistence'),          // weight on prior-quarter inflation
-    slope: cited(0.3, 'boe_phillips_slope'),                        // pp inflation per pp (NAIRU − unemployment)
+    slopePositive: cited(0.19, 'bunn_phillips_curvature_2025'),     // pp inflation per pp slack when unemployment < NAIRU (hot)
+    slopeNegative: cited(0.06, 'bunn_phillips_curvature_2025'),     // pp inflation per pp slack when unemployment > NAIRU (slack)
+    trendInflationModifier: cited(1.5, 'bunn_phillips_curvature_2025'), // multiplier on Phillips term when inflation > threshold
+    trendInflationThreshold: cited(4.0, 'bunn_phillips_curvature_2025'), // % CPI above which modifier activates
     vatImpulseCoef: cited(-0.6, 'phillips_demand_judgement'),       // pp inflation per pp VAT (negative = cut adds inflation)
     basicImpulseCoef: cited(-0.05, 'phillips_demand_judgement'),    // pp inflation per pp basic-rate
     growthDriftCoef: cited(0.05, 'phillips_demand_judgement'),      // pp inflation per pp (growth − trend)
@@ -167,7 +194,7 @@ export const PARAMS = {
     coefficient: cited(0.4, 'okun_uk_estimate'),                    // pp unemployment per pp growth gap (annual)
     trendGrowth: cited(1.5, 'okun_uk_estimate'),                    // %, anchor for output gap
     rateChannel: cited(0.1, 'okun_rate_channel_judgement'),         // pp unemployment per pp real-rate gap (annual)
-    neutralRealRate: cited(1.5, 'okun_rate_channel_judgement'),     // %, anchor for real rate
+    neutralRealRate: cited(2.0, 'okun_rate_channel_judgement'),     // %, anchor for real rate (4.0% nominal neutral − 2% target)
   },
 
   // ===========================================================================
@@ -197,7 +224,7 @@ export const PARAMS = {
   housing: {
     cpiWeight: cited(0.16, 'ons_cpih_weights'),                     // CPIH housing weight
     priceWageElasticity: cited(0.4, 'ifs_housing_wages'),           // pp HPI per pp wage growth signal
-    priceRateElasticity: cited(-2.0, 'boe_housing_rates'),          // pp HPI per pp real-rate gap
+    priceRateElasticity: cited(-6.0, 'boe_housing_rates'),          // pp HPI per pp real-rate gap (Miles-Monro BoE WP 837 2019)
     supplyResponsePerKpa: cited(-0.1, 'barker_review'),             // pp HPI per k pa supply above baseline
     baseSupplyKpa: cited(220, 'mhclg_housing_starts'),              // baseline net additions pa
     supplyReformBoostKpa: cited(60, 'barker_review'),               // additional pa once housingSupplyTarget completes
@@ -217,6 +244,16 @@ export const PARAMS = {
     importDependenceFloor: cited(0.4, 'energy_mix_methodology'),    // floor after energyMixReform
     cpiContributionScale: cited(10, 'energy_mix_methodology'),      // scales (idx/100 − 1) into pp-CPI; tunable
     shockReformDamper: cited(0.5, 'ccc_seventh_carbon_budget'),     // multiplier applied to energyShock injections once energyMixReform complete
+
+    // Ofgem cap dynamics — consumed by updateEnergyPriceIndex via the
+    // energyShockBuffer (FIFO, oldest at index 0). cap contribution at quarter T
+    // reads buffer[length − lagQuarters], scaled by passthrough. Gas-import-
+    // dependence scales incoming shock magnitudes in resolveEvent.
+    cap: {
+      passthrough:         cited(0.85, 'ofgem_cap_passthrough'),    // fraction of wholesale shock passing through cap
+      lagQuarters:         cited(2,    'ofgem_cap_passthrough'),    // 6-month Ofgem lookback
+      gasImportDependence: cited(0.5,  'desnz_dukes_2024'),         // fraction of UK gas demand met by imports
+    },
   },
 
   // ===========================================================================
@@ -240,6 +277,14 @@ export const PARAMS = {
     wealthEffectCap: cited(0.1, 'damodaran_equity_risk_premium'),   // pp growth cap per quarter
     pensionDamper: cited(0.7, 'pensions_dashboards_methodology'),   // multiplier on equity-shock injections once pensionConsolidation completes
     cityRegulationDamper: cited(0.6, 'bcbs_macroprudential_capital'), // multiplier on cohesion-volatility coef once cityRegulation completes
+
+    // LDI / DB-pension structural demand for long-end gilts. Consumed in two
+    // places: (1) the LDI doom-loop event gate in computeRiskMods; (2) the
+    // passive-demand discount on the term premium in bondYieldFromBankRate.
+    ldi: {
+      longGiltDemandShare:       cited(0.28, 'chicago_fed_480_ldi_2023'),  // share of long-end gilt market
+      doomLoopYieldDeltaTrigger: cited(150,  'event_ldi_doom_loop'),       // bp/quarter trigger threshold
+    },
   },
 
   // ===========================================================================
@@ -478,7 +523,7 @@ export const PARAMS = {
       base: cited(12, 'council_bankruptcy_base'),
       perBnLocalUnderfunded: cited(1.8, 'council_bankruptcy_local_response'),
     },
-    financialCrisis: { base: cited(6, 'financial_crisis_base') },
+    financialCrisis: { base: cited(8, 'financial_crisis_base') },
     generalStrike: {
       base: cited(8, 'general_strike_base'),
       basicRateRiseKick: cited(8, 'general_strike_tax_response'),    // applied if taxIncomeBasic > 22
@@ -537,8 +582,8 @@ export const PARAMS = {
       activeBase: cited(25, 'event_sovereign_rating_action'),
     },
     recession: {
-      base:            cited(1, 'recession_business_cycle_judgement'),  // % per quarter baseline
-      overheatingCoef: cited(4, 'recession_business_cycle_judgement'),  // % per (growthGap × inflGap) pp-product
+      base:            cited(1.6, 'recession_business_cycle_judgement'),  // % per quarter baseline (Broadberry et al. EHR 2023: 16-yr cycle ≈ 6.25%/yr)
+      overheatingCoef: cited(4,   'recession_business_cycle_judgement'),  // % per (growthGap × inflGap) pp-product
     },
     civilUnrest: {
       base: cited(2, 'civil_unrest_base'),
@@ -555,7 +600,7 @@ export const PARAMS = {
 
     // Red Box expansion events
     pandemic: {
-      base: cited(6, 'event_pandemic'),                               // ~once-per-decade base
+      base: cited(5, 'event_pandemic'),                               // ~5%/yr long-run hazard per Madhav et al. (2017)
       perBnNhsUnderfunded: cited(0.4, 'event_pandemic'),              // pp probability per £bn NHS spend under anchor
     },
     teacherStrike: {
@@ -609,6 +654,19 @@ export const PARAMS = {
       perBnLocalUnderfunded: cited(0.5, 'event_devolution_dispute'),
     },
 
+    // LDI doom-loop (BoE Staff WP 1019, 2023). Gated event: activates when
+    // (currentBondYield − previousQuarterBondYield) × 100 > yieldDeltaTrigger
+    // AND longGiltDemandShare × 100 > ldiShareThreshold. The 30-year gilt rose
+    // 120bp over 3 days post-2022 mini-budget — sim uses 150bp/quarter as a
+    // conservative trigger to filter routine yield moves.
+    ldiDoomLoop: {
+      base:               cited(0,   'event_ldi_doom_loop'),
+      yieldDeltaTrigger:  cited(150, 'event_ldi_doom_loop'),       // bp/quarter rise threshold
+      ldiShareThreshold:  cited(25,  'event_ldi_doom_loop'),       // % of long-end gilt market
+      activeBase:         cited(40,  'event_ldi_doom_loop'),       // pp/yr when active
+      qeSize:             cited(100, 'joyce_tong_woods_qe_2011'),  // £bn — representative BoE QE round size
+    },
+
     clampMin: cited(1, 'risk_caps_judgement'),
     clampMax: cited(90, 'risk_caps_judgement'),
   },
@@ -620,6 +678,40 @@ export const PARAMS = {
     quarterlyBaseline: cited(0.15, 'ons_baseline_quarterly_pop'),   // % per quarter
     immigrationCapDelta: cited(-0.4, 'obr_migration_cap'),          // per quarter when capped
     childcareDelta: cited(0.05, 'resolution_childcare'),            // per quarter when free childcare
+  },
+
+  // ===========================================================================
+  // Migration → GDP elasticity.
+  // Consumed by gameStep.js growth block: labour-supply impulse =
+  // popDeltaThousands × gdpElasticityPer1k. Replaces the prior implicit channel
+  // (population scaling fixed-cost spending only, no growth response) with an
+  // explicit elastic channel per OBR EFO March 2024.
+  // ===========================================================================
+  migration: {
+    gdpElasticityPer1k: cited(0.0075, 'obr_efo_march_2024_migration'),  // pp GDP per 1k net migrants
+  },
+
+  // ===========================================================================
+  // State-dependent fiscal multipliers (OBR dynamic scoring + Auerbach-Gorodnichenko).
+  // Consumed by engine.js applyFiscalMultipliers — level-deviation interpretation.
+  // Each quarter the growth impulse for spending category X is:
+  //   multiplier × (currentSpend − baselineSpend) / nominalGDP × 100 / taperHorizonQuarters
+  // Categories covered: NHS, Education, Welfare, Local, Infra, Defence (via CDEL/
+  // RDEL/AME assignment), plus VAT and income tax (sign reversed for tax rises).
+  // R&D, FCDO, DEFRA, Justice, Devolved continue through deptSliderHooks — the
+  // partition is enforced by an allowlist assertion in applyFiscalMultipliers.
+  // Recession amplification: at output gap < recessionGapThreshold, multiply
+  // the per-quarter impulse by recessionModifier.
+  // ===========================================================================
+  fiscalMultipliers: {
+    cdel:                  cited(1.0,  'obr_dynamic_scoring_2023'),
+    rdel:                  cited(0.6,  'obr_dynamic_scoring_2023'),
+    ame:                   cited(0.6,  'obr_dynamic_scoring_2023'),
+    vat:                   cited(0.35, 'obr_june_2010_multipliers'),
+    incomeTax:             cited(0.3,  'obr_june_2010_multipliers'),
+    recessionModifier:     cited(1.7,  'auerbach_gorodnichenko_multipliers_2012'),
+    recessionGapThreshold: cited(-2.0, 'auerbach_gorodnichenko_multipliers_2012'),  // pp output gap below which recession amp activates
+    taperHorizonQuarters:  cited(20,   'obr_dynamic_scoring_2023'),
   },
 
   // ===========================================================================

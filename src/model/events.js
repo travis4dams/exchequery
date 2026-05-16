@@ -516,6 +516,47 @@ export const EVENT_DEFINITIONS = {
       { label: 'Negotiate targeted package (£1bn)', effect: { debt: cited(1, 'event_devolution_dispute'), blocs: blocs('event_devolution_dispute', { northern: 2, publicSector: 2 }), log: 'Targeted package agreed: NHS Wales, ferries, hospitals.' } },
     ],
   },
+  ldiDoomLoop: {
+    title: 'LDI Doom Loop',
+    body: 'A sharp move higher in long gilt yields has triggered collateral calls across DB pension liability-driven-investment funds. Pension trustees are forced sellers; the BoE\'s Financial Policy Committee is convening hourly. Echoes of 28 September 2022 — 30-year yields rose 120bp in 3 days post-mini-budget; pension funds were "hours from being wound up" (Cunliffe).',
+    tone: 'bad',
+    citationId: 'event_ldi_doom_loop',
+    choices: [
+      {
+        label: 'Emergency BoE QE (£100bn temporary purchase programme)',
+        effect: {
+          // bondYield delta = -(qeYieldEffectPerBn × qeSize / 100). With defaults
+          // 0.5 × 100 / 100 = 0.5pp compression. Cited via Joyce-Tong-Woods 2011.
+          bondYield: cited(-0.5, 'event_ldi_doom_loop_qe'),
+          // BoE QE expands the central-bank balance sheet, not PSND. Debt
+          // impact is zero by design — the log message explains this so
+          // players don't think debt-not-moving is a bug.
+          equityIndex: cited(2, 'event_ldi_doom_loop'),
+          riskPremium: cited(-0.3, 'event_ldi_doom_loop'),
+          blocs: blocs('event_ldi_doom_loop', { business: 1, professional: 1 }),
+          log: 'Emergency QE programme of £100bn launched (off-balance-sheet; PSND unchanged). Long gilt yields fell sharply. Pension trustees relieved.',
+        },
+      },
+      {
+        label: 'Emergency fiscal retrench (signal credible consolidation)',
+        effect: {
+          growth: cited(-0.8, 'event_ldi_doom_loop'),
+          bondYield: cited(-0.2, 'event_ldi_doom_loop'),
+          blocs: blocs('event_ldi_doom_loop', { workingClass: -2, middleClass: -1, pensioners: -1, business: 1 }),
+          log: 'Spending review pulled forward and tax thresholds frozen on the spot. Markets calmed; voters did not.',
+        },
+      },
+      {
+        label: 'Let the market clear',
+        effect: {
+          bondYield: cited(0.5, 'event_ldi_doom_loop'),
+          riskPremium: cited(1.0, 'event_ldi_doom_loop'),
+          blocs: blocs('event_ldi_doom_loop', { business: -2, professional: -2, pensioners: -1 }),
+          log: 'You let the dust settle. Some LDI funds wound up; pension trustees furious; risk premium widened.',
+        },
+      },
+    ],
+  },
 };
 
 // Reform-driven risk modifiers that aren't expressible declaratively on a
