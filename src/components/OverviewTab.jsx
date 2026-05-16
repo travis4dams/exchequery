@@ -1,11 +1,29 @@
 import React from 'react';
-import { REFORMS, PARAMS } from '../model/index.js';
+import { REFORMS, PARAMS, EVENT_DEFINITIONS } from '../model/index.js';
 import { Sparkline } from './primitives/Sparkline.jsx';
 import { Card } from './primitives/Card.jsx';
 import { Grid, Stack, TwoCol } from './primitives/Layout.jsx';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 const TERM_LENGTH = v(PARAMS.termLength);
+
+const CRISIS_EVENTS = [
+  'nhsStrike', 'energyShock', 'fuelPoverty', 'housingCrisis', 'councilBankruptcy',
+  'financialCrisis', 'generalStrike', 'careCrisis', 'flood', 'heatwave', 'allyCrisis',
+  'labourShortage', 'rateHikeShock', 'wagePriceSpiral', 'monetaryPolicyError',
+  'housePriceCorrection', 'planningRevolt', 'equityCrash', 'giltStrike', 'sovereignRatingAction',
+  'recession',
+  'pandemic', 'teacherStrike', 'droughtStress', 'supplyChainShock', 'cyberAttack',
+  'coldSnap', 'aiDisplacement', 'sterlingSlide', 'commercialPropertyCrash',
+  'pensionFundCrisis', 'cabinetScandal', 'devolutionDispute',
+];
+
+const OPPORTUNITY_EVENTS = [
+  'investmentSurge', 'exportBoom', 'productivityJump', 'taxBeats', 'demographicDividend', 'tradeDeal',
+  'scientificBreakthrough', 'fintechIpo', 'inflationSurprise',
+];
+
+const fmtSigned = (n) => (n >= 0 ? '+' : '−') + (Math.abs(n) >= 1000 ? `£${(Math.abs(n)/1000).toFixed(1)}tn` : `£${Math.abs(n).toFixed(0)}bn`);
 
 function fmtSignedPp(d, decimals = 1) {
   const sign = d >= 0 ? '+' : '−';
@@ -103,7 +121,7 @@ function TermHero({ term, yearInTerm, yearQ, qToElection, quarter, termProgress 
   );
 }
 
-function ReformsCard({ allReforms, term, qToElection }) {
+function ReformsCard({ allReforms }) {
   return (
     <Card variant="raised" padding="md" className="h-full">
       <Card.Header>
@@ -155,7 +173,187 @@ function EventsCard({ log }) {
   );
 }
 
-export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
+function LedgerTable({ eyebrow, rows, total, totalColor, negativeRows, committed }) {
+  return (
+    <Card variant="raised" padding="md" className="h-full">
+      <Card.Header>
+        <Card.Eyebrow>{eyebrow}</Card.Eyebrow>
+        {committed && <Card.Meta>Last Q → Now</Card.Meta>}
+      </Card.Header>
+      <div className="space-y-1.5 text-[12px] font-mono">
+        {rows.filter(([_, cur]) => cur > 0).map(([label, cur, prev]) => {
+          const labelClass = negativeRows?.includes(label) ? 'text-signal-bad' : 'text-stone-400';
+          const valueDelta = prev !== undefined && cur !== prev;
+          const valueClass = valueDelta
+            ? (negativeRows?.includes(label)
+                ? (cur > prev ? 'text-signal-bad' : 'text-signal-good')
+                : (cur > prev ? 'text-signal-good' : 'text-signal-bad'))
+            : '';
+          return (
+            <div key={label} className="flex justify-between items-baseline">
+              <span className={labelClass}>{label}</span>
+              <div className="flex items-baseline gap-2">
+                {prev !== undefined && Math.abs(cur - prev) >= 0.5 && (
+                  <span className="text-stone-600 text-[10px] tabular-nums">{prev.toFixed(0)} →</span>
+                )}
+                <span className={`tabular-nums ${valueClass}`}>{cur.toFixed(0)}</span>
+              </div>
+            </div>
+          );
+        })}
+        <div className="flex justify-between items-baseline border-t border-treasury-800 pt-1.5 mt-1.5 font-semibold">
+          <span className="text-stone-200">Total</span>
+          <div className="flex items-baseline gap-2">
+            {total.prev !== undefined && Math.abs(total.cur - total.prev) >= 0.5 && (
+              <span className="text-stone-600 text-[10px] tabular-nums">{total.prev.toFixed(0)} →</span>
+            )}
+            <span className={`tabular-nums ${totalColor}`}>{total.cur.toFixed(0)}</span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function BalanceCard({ game, balance, deficitGDP, balanceDiff }) {
+  const tone = balance >= 0 ? 'good' : deficitGDP < 2 ? 'warn' : 'bad';
+  const valueColor = balance >= 0 ? 'text-signal-good' : deficitGDP < 2 ? 'text-accent-300' : 'text-signal-bad';
+  const labelColor = balance >= 0 ? 'text-signal-good' : deficitGDP < 2 ? 'text-accent-400' : 'text-signal-bad';
+  const heading = balance >= 0 ? 'Surplus' : deficitGDP < 2 ? 'Sustainable Deficit' : 'Deficit';
+  return (
+    <Card variant="signal" tone={tone} padding="md">
+      <div className={`text-[10px] uppercase tracking-wider flex justify-between mb-1 ${labelColor}`}>
+        <span>{heading}</span>
+        {balanceDiff !== null && Math.abs(balanceDiff) >= 0.5 && (
+          <span className={`font-mono tabular-nums ${balanceDiff > 0 ? 'text-signal-good' : 'text-signal-bad'}`}>
+            {balanceDiff > 0 ? '+' : ''}{balanceDiff.toFixed(0)} vs Q{game.quarter - 1}
+          </span>
+        )}
+      </div>
+      <div className={`font-display text-3xl md:text-4xl font-medium tabular-nums ${valueColor}`}>
+        {fmtSigned(balance)}
+      </div>
+      <div className="text-[10px] text-stone-500 mt-1.5">
+        {deficitGDP.toFixed(1)}% of GDP · GDP £{(game.gdp/1000).toFixed(2)}tn
+        {deficitGDP < 2 && balance < 0 && ' · OBR-sustainable'}
+      </div>
+    </Card>
+  );
+}
+
+function DebtCard({ game, spending, debtRatio }) {
+  return (
+    <Card variant="raised" padding="md">
+      <Card.Header>
+        <Card.Eyebrow>National Debt</Card.Eyebrow>
+      </Card.Header>
+      <div className="space-y-1.5 text-[12px] font-mono">
+        <div className="flex justify-between">
+          <span className="text-stone-400">Outstanding debt</span>
+          <span className="text-stone-200 tabular-nums">
+            £{(game.debt/1000).toFixed(2)}tn ({debtRatio}% GDP)
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone-400">Gilt yield (market)</span>
+          <span className="text-stone-200 tabular-nums">{game.bondYield.toFixed(2)}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone-400">Effective rate on stock</span>
+          <span className="text-stone-200 tabular-nums">{game.effectiveServicingRate.toFixed(2)}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone-400">Annual interest cost</span>
+          <span className="text-signal-bad tabular-nums">£{spending.debtInterest.toFixed(0)}bn</span>
+        </div>
+        {game.pendingSurplus > 0 && (
+          <div className="flex justify-between border-t border-treasury-800 pt-1.5 mt-1.5">
+            <span className="text-signal-good">Pending surplus (unallocated)</span>
+            <span className="text-signal-good tabular-nums">£{game.pendingSurplus.toFixed(0)}bn</span>
+          </div>
+        )}
+      </div>
+      <div className="text-[10px] text-stone-500 mt-3 leading-snug">
+        Effective rate ({game.effectiveServicingRate.toFixed(1)}%) drifts toward the live gilt yield as gilts mature and are re-issued.
+      </div>
+    </Card>
+  );
+}
+
+// Compact risk/opportunity row — used inside TailRisksCard.
+function RiskRow({ id, probability, tone }) {
+  const title = EVENT_DEFINITIONS[id]?.title || id;
+  const barClass = tone === 'crisis'
+    ? (probability > 30 ? 'bg-signal-bad' : probability > 15 ? 'bg-accent-500' : 'bg-stone-600')
+    : 'bg-signal-good';
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className="text-[11px] text-stone-300 truncate">{title}</span>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="w-14 h-1 bg-treasury-950 rounded-pill overflow-hidden shadow-inset-well">
+          <div className={`h-full transition-all duration-500 ${barClass}`}
+               style={{width: `${Math.min(100, probability * 1.5)}%`}} />
+        </div>
+        <span className="text-[10px] font-mono tabular-nums text-stone-400 w-8 text-right">
+          {Math.round(probability)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TailRisksCard({ riskMods }) {
+  const crisis = CRISIS_EVENTS
+    .filter(k => riskMods[k] > 1)
+    .sort((a, b) => riskMods[b] - riskMods[a]);
+  const opps = OPPORTUNITY_EVENTS
+    .filter(k => riskMods[k] > 1)
+    .sort((a, b) => riskMods[b] - riskMods[a]);
+  if (crisis.length === 0 && opps.length === 0) {
+    return null;
+  }
+  return (
+    <TwoCol
+      ratio="even"
+      gap="md"
+      main={
+        <Card variant="raised" padding="md" className="h-full">
+          <Card.Header>
+            <Card.Eyebrow className="text-signal-bad">Crisis Risks</Card.Eyebrow>
+            <Card.Meta>annual probabilities</Card.Meta>
+          </Card.Header>
+          {crisis.length === 0 ? (
+            <div className="text-[11px] text-stone-500 italic">None active.</div>
+          ) : (
+            <div className="divide-y divide-treasury-800/60">
+              {crisis.map(k => <RiskRow key={k} id={k} probability={riskMods[k]} tone="crisis" />)}
+            </div>
+          )}
+        </Card>
+      }
+      side={
+        <Card variant="raised" padding="md" className="h-full">
+          <Card.Header>
+            <Card.Eyebrow className="text-signal-good">Opportunities</Card.Eyebrow>
+            <Card.Meta>annual probabilities</Card.Meta>
+          </Card.Header>
+          {opps.length === 0 ? (
+            <div className="text-[11px] text-stone-500 italic">None active.</div>
+          ) : (
+            <div className="divide-y divide-treasury-800/60">
+              {opps.map(k => <RiskRow key={k} id={k} probability={riskMods[k]} tone="opportunity" />)}
+            </div>
+          )}
+        </Card>
+      }
+    />
+  );
+}
+
+export function OverviewTab({
+  game, committed, deficitGDP, debtRatio,
+  revenue, spending, balance, balanceDiff, riskMods,
+}) {
   const yearQ = ((game.quarter - 1) % 4) + 1;
   const yearInTerm = Math.ceil(game.quarter / 4);
   const qToElection = Math.max(0, TERM_LENGTH - game.quarter + 1);
@@ -202,6 +400,21 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
     };
   });
   const allReforms = [...inFlight, ...queued];
+
+  const revenueRows = [
+    ['Income tax',         revenue.incomeTax,   committed?.revenue.incomeTax],
+    ['National Insurance', revenue.ni,          committed?.revenue.ni],
+    ['Corporation tax',    revenue.corpTax,     committed?.revenue.corpTax],
+    ['VAT',                revenue.vat,         committed?.revenue.vat],
+    ['Other',              revenue.other,       committed?.revenue.other],
+    ['Reform receipts',    revenue.reformBonus, committed?.revenue.reformBonus],
+  ];
+  const spendingRows = [
+    ['Departmental',      spending.departmental,  committed?.spending.departmental],
+    ['Pensions + locked', spending.fixed,         committed?.spending.fixed],
+    ['Reform ongoing',    spending.reformOngoing, committed?.spending.reformOngoing],
+    ['Debt interest',     spending.debtInterest,  committed?.spending.debtInterest],
+  ];
 
   return (
     <Stack gap="lg">
@@ -288,6 +501,45 @@ export function OverviewTab({ game, committed, deficitGDP, debtRatio }) {
         main={<ReformsCard allReforms={allReforms} />}
         side={<EventsCard log={game.log} />}
       />
+
+      {/* Fiscal position — Revenue + Spending side-by-side, Balance + Debt below. */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-stone-500 mb-2 px-1">Fiscal Position</div>
+        <Stack gap="md">
+          <TwoCol
+            ratio="even"
+            gap="md"
+            main={
+              <LedgerTable
+                eyebrow="Revenue (£bn pa)"
+                rows={revenueRows}
+                total={{ cur: revenue.total, prev: committed?.revenue.total }}
+                totalColor="text-signal-good"
+                committed={committed}
+              />
+            }
+            side={
+              <LedgerTable
+                eyebrow="Spending (£bn pa)"
+                rows={spendingRows}
+                total={{ cur: spending.total, prev: committed?.spending.total }}
+                totalColor="text-signal-bad"
+                negativeRows={['Debt interest']}
+                committed={committed}
+              />
+            }
+          />
+          <TwoCol
+            ratio="even"
+            gap="md"
+            main={<BalanceCard game={game} balance={balance} deficitGDP={deficitGDP} balanceDiff={balanceDiff} />}
+            side={<DebtCard game={game} spending={spending} debtRatio={debtRatio} />}
+          />
+        </Stack>
+      </div>
+
+      {/* Tail risks — only rendered when at least one risk or opportunity is non-zero. */}
+      {riskMods && <TailRisksCard riskMods={riskMods} />}
     </Stack>
   );
 }
