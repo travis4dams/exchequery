@@ -60,10 +60,18 @@ export function ReformCard({
     isComplete, isInProgress, isProposed, capacityBlocked, canStart, meetsCoal,
   });
 
+  const capColor = capacityBlocked ? 'text-signal-bad' : 'text-stone-200';
+  const pcColor = !pcBreakdown ? 'text-stone-200'
+    : !canAffordPc ? 'text-signal-bad'
+    : 'text-accent-400';
+  const pcTitle = pcBreakdown
+    ? `Base ${pcBreakdown.base} × ${pcBreakdown.rebellionFactor.toFixed(2)} rebellion${pcBreakdown.cohesionTriggered ? ` × ${pcBreakdown.cohesionFactor.toFixed(2)} cohesion` : ''} (${pcBreakdown.opposed}/${pcBreakdown.govTotal} MPs opposed)`
+    : undefined;
+
   return (
     <Card variant="signal" tone={tone} padding="md"
           className={`mb-2 ${dim ? 'opacity-70' : ''}`}>
-      <div className="flex items-start justify-between gap-2 mb-1.5">
+      <div className="flex items-start justify-between gap-3 mb-1.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
             {isComplete    && <CheckCircle2 size={11} className="text-signal-good flex-shrink-0" />}
@@ -79,6 +87,23 @@ export function ReformCard({
           </div>
           <div className="text-[10px] md:text-[11px] text-stone-500 leading-snug">{reform.blurb}</div>
         </div>
+        {/* Cap + PC cluster — always in the top-right of unfinished cards so
+            costs are scannable down the list. */}
+        {!isComplete && (
+          <div className="flex items-stretch gap-2 flex-shrink-0">
+            <div className="text-center min-w-[28px]" title="Reform capacity load">
+              <div className="text-[9px] uppercase tracking-wider text-stone-500 leading-tight">Cap</div>
+              <div className={`text-[15px] font-mono font-semibold tabular-nums leading-tight ${capColor}`}>{load}</div>
+            </div>
+            <div className="w-px bg-treasury-800 self-stretch" aria-hidden />
+            <div className="text-center min-w-[32px]" title={pcTitle}>
+              <div className="text-[9px] uppercase tracking-wider text-stone-500 leading-tight">PC</div>
+              <div className={`text-[15px] font-mono font-semibold tabular-nums leading-tight ${pcColor}`}>
+                {pcBreakdown ? pcBreakdown.total.toFixed(0) : '—'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {isInProgress && (
@@ -86,7 +111,7 @@ export function ReformCard({
           <MeterBar value={progress} tone="warn" />
           <div className="flex items-center justify-between mt-1.5">
             <div className="text-[10px] text-stone-500 font-mono tabular-nums">
-              {reform.quarters - (currentQ - status.startedQ)}Q remaining of {reform.quarters}Q · Load {load}
+              {reform.quarters - (currentQ - status.startedQ)}Q remaining of {reform.quarters}Q
             </div>
             <div className="flex items-center gap-2">
               {onInspect && (
@@ -109,7 +134,7 @@ export function ReformCard({
 
       {isProposed && (
         <div className="mb-2 flex items-center justify-between bg-sky-950/30 rounded-md px-2 py-1">
-          <span className="text-[10px] text-signal-info">Queued · Load {load} · starts next quarter</span>
+          <span className="text-[10px] text-signal-info">Queued · starts next quarter</span>
           <button onClick={onUnpropose} className="text-[10px] text-signal-info hover:text-sky-200 flex items-center gap-1 transition-colors">
             <Undo2 size={9} /> Undo
           </button>
@@ -124,15 +149,6 @@ export function ReformCard({
               {passReqCoal > 0 && (
                 <span className={meetsCoal ? 'text-stone-500 ml-2' : 'text-accent-500 ml-2'}>
                   · {passReqCoal}% coal.{!meetsCoal ? ' (×1.5)' : ''}
-                </span>
-              )}
-              <span className={capacityBlocked ? 'text-signal-bad ml-2' : 'text-stone-500 ml-2'}>· Load {load}</span>
-              {pcBreakdown && (
-                <span
-                  className={`ml-2 ${canAffordPc ? 'text-accent-400' : 'text-signal-bad'}`}
-                  title={`Base ${pcBreakdown.base} × ${pcBreakdown.rebellionFactor.toFixed(2)} rebellion${pcBreakdown.cohesionTriggered ? ` × ${pcBreakdown.cohesionFactor.toFixed(2)} cohesion` : ''} (${pcBreakdown.opposed}/${pcBreakdown.govTotal} MPs opposed)`}
-                >
-                  · {pcBreakdown.total.toFixed(0)} PC
                 </span>
               )}
             </div>
