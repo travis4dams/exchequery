@@ -24,15 +24,18 @@ function freshState() {
   });
 }
 
-describe('population baselines reproduce legacy net growth', () => {
-  it('sums to ~25k/q on Q1 neutral state', () => {
+describe('population baselines reproduce OBR-central net growth', () => {
+  it('sums to ~95k/q on Q1 neutral state (rebased May 2026)', () => {
     // Health and NHS anchors equal initial state → those terms are 0 at Q1.
-    // Migration responds to (unemployment − NAIRU); at Q1 unemp=4.4, NAIRU=4.25,
-    // the small slack-side drag pulls net slightly under the strict 25k/q.
+    // After the May 2026 audit rebase, netMigrationBaselineQ = 80 (OBR
+    // central path) and migrationUnempCoef = -30. Migration responds to
+    // (unemployment − NAIRU); at Q1 unemp=4.4, NAIRU=4.7, the small tight-
+    // labour pull adds ~+9 k/q. Births−deaths ≈ 148 − 140 = 8 k/q natural.
+    // Total Q1 net ≈ 97 k/q.
     const s = freshState();
     const net = computeBirths(s) - computeDeaths(s) + computeNetMigration(s);
-    expect(net).toBeGreaterThan(20);
-    expect(net).toBeLessThan(30);
+    expect(net).toBeGreaterThan(85);
+    expect(net).toBeLessThan(110);
   });
 
   it('makeInitialState seeds births/deaths/netMigration at baseline', () => {
@@ -100,7 +103,7 @@ describe('stepQuarter integration', () => {
     expect(s1.netMigrationPath.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('Q1→Q20 doNothing population tracks legacy baseline (±2%)', () => {
+  it('Q1→Q20 doNothing population tracks OBR-central baseline (±0.5m)', () => {
     let s = freshState();
     for (let q = 0; q < 20; q += 1) {
       s = withSeededRandom(q + 1, () => stepQuarter(s));
@@ -109,10 +112,13 @@ describe('stepQuarter integration', () => {
       s.pendingEvents = [];
       s.pendingSummary = null;
     }
-    const expectedPopGrowth = 20 * 0.025;  // 20 quarters × ~25k/q = +0.5m
+    // Post-audit (May 2026): net migration baseline 80 k/q + ~8 k/q natural
+    // = ~88-97 k/q over the run depending on NAIRU hysteresis drift.
+    // 20 quarters × ~0.095 m/q ≈ +1.9m.
+    const expectedPopGrowth = 20 * 0.095;
     const actualGrowth = s.population - v(PARAMS.initial.population);
-    // Tolerance allows for health/NHS/unemployment drift and the small
-    // slack-side migration drag (unemp slightly above NAIRU at Q1).
-    expect(Math.abs(actualGrowth - expectedPopGrowth)).toBeLessThan(0.15);
+    // Wider tolerance vs the Phase-1 test reflects NAIRU drift (which moves
+    // the migration response via the unemp-NAIRU gap) and health/NHS drift.
+    expect(Math.abs(actualGrowth - expectedPopGrowth)).toBeLessThan(0.5);
   });
 });

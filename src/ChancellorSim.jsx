@@ -76,14 +76,16 @@ export default function ChancellorSim() {
 
   useEffect(() => {
     try {
-      // v8 is the current save shape. v6/v7 predate the population/wages/jobs
-      // state branches added in v0.4.0 — their absence would cascade through
-      // calcRevenue (silently falls back to GDP-only scaling), wage spiral
-      // (NaN), and the population modal (renders Q1 baselines as if live).
-      // Cheaper to drop than to migrate field-by-field.
+      // v9 is the current save shape (May 2026 realism-audit follow-up).
+      // v8 predates the audit's state-variable expansion (naturalUnemployment
+      // hysteresis, participationRate state, lastProductivityGrowthAnn) and
+      // its absence cascades into the wage / Phillips / migration paths via
+      // ?? fallbacks. v6/v7 already dropped at the v8 boundary. Cheaper to
+      // drop v8 than to migrate field-by-field.
       localStorage.removeItem('chancellor_v6_save');
       localStorage.removeItem('chancellor_v7_save');
-      const saved = localStorage.getItem('chancellor_v8_save');
+      localStorage.removeItem('chancellor_v8_save');
+      const saved = localStorage.getItem('chancellor_v9_save');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (!Array.isArray(parsed.pendingEvents)) {
@@ -94,14 +96,14 @@ export default function ChancellorSim() {
         setShowIntro(false);
       }
     } catch (e) {
-      console.warn('chancellor_v8_save: failed to load, starting fresh', e);
+      console.warn('chancellor_v9_save: failed to load, starting fresh', e);
     }
   }, []);
 
   useEffect(() => {
     if (game.quarter > 1 || Object.keys(game.reforms).length > 0 || game.proposedReforms.length > 0) {
-      try { localStorage.setItem('chancellor_v8_save', JSON.stringify(game)); }
-      catch (e) { console.warn('chancellor_v8_save: autosave failed', e); }
+      try { localStorage.setItem('chancellor_v9_save', JSON.stringify(game)); }
+      catch (e) { console.warn('chancellor_v9_save: autosave failed', e); }
     }
   }, [game]);
 
@@ -201,8 +203,8 @@ export default function ChancellorSim() {
   }
 
   function reset() {
-    try { localStorage.removeItem('chancellor_v8_save'); }
-    catch (e) { console.warn('chancellor_v8_save: failed to clear on reset', e); }
+    try { localStorage.removeItem('chancellor_v9_save'); }
+    catch (e) { console.warn('chancellor_v9_save: failed to clear on reset', e); }
     setGame(INITIAL); setShowIntro(true); setShowFinal(false); setShowReelect(false); setTab('overview');
   }
 

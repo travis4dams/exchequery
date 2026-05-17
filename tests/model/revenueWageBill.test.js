@@ -47,13 +47,20 @@ describe('Q2 share identification: a wage-bill bump moves IT/NI by the cited sha
   // At Q1 wageScale = gdpScale, so the 70/30 IT and 95/5 NI shares are
   // unidentified by Q1 alone (any blend recovers the same result). A
   // perturbation that moves wageScale away from gdpScale pins the shares.
-  it('a +5% wage-bill bump scales income tax by ≈ 0.70 × 5%', () => {
+  it('a +5% wage-bill bump scales income tax by ≈ 0.70 × 5% × fiscal-drag factor', () => {
     const base = freshState();
     const bumped = { ...base, wageIndex: base.wageIndex * 1.05 };  // GDP unchanged
     const baseRev = calcRevenue(base);
     const bumpedRev = calcRevenue(bumped);
     const itLift = (bumpedRev.incomeTax - baseRev.incomeTax) / baseRev.incomeTax;
-    const expected = v(PARAMS.revenue.incomeTaxWageShare) * 0.05;
+    // With fiscal drag (R13, May 2026): the wage-bill portion scales
+    // by (1 + fiscalDragCoef × 0.05) when thresholds are frozen.
+    // Expected lift: 0.70 × 1.05 × 1.0125 + 0.30 - 1.0 = 0.0442
+    const wageShare = v(PARAMS.revenue.incomeTaxWageShare);
+    const dragFactor = v(PARAMS.revenue.thresholdsFrozen)
+      ? 1 + v(PARAMS.revenue.fiscalDragCoef) * 0.05
+      : 1;
+    const expected = wageShare * 1.05 * dragFactor + (1 - wageShare) - 1.0;
     expect(itLift).toBeCloseTo(expected, 3);
   });
 

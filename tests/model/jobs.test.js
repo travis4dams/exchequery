@@ -25,7 +25,7 @@ describe('labour-supply identity', () => {
     const s = freshState();
     const expected = s.population
       * v(PARAMS.population.workingAgeShare)
-      * v(PARAMS.population.participationRate);
+      * s.participationRate;
     expect(computeWorkforce(s)).toBeCloseTo(expected, 6);
   });
 
