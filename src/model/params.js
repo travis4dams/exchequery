@@ -770,6 +770,22 @@ export const PARAMS = {
   },
 
   // ===========================================================================
+  // Brexit handles — explicit parameters for the two structural assumptions
+  // the model already implicitly carries: OBR's standing 4% long-run
+  // productivity drag (currently absorbed in productivityTrend = 0.6%), and
+  // OMFIF's argument that Brexit has steepened the UK wage Phillips slope
+  // (currently absorbed in wages.phillipsCoef = 0.60). Defaults are neutral
+  // (zero extra drag, 1.0 slope multiplier) so current behaviour is bit-
+  // identical; the parameters exist for future reforms (e.g. re-join EU,
+  // further regulatory divergence) to toggle.
+  // Per Finding 7, R12 of the May 2026 realism audit.
+  // ===========================================================================
+  brexit: {
+    productivityDragPp:      cited(0.0, 'obr_brexit_productivity_2024'),  // additive drag on productivity trend (pp/yr above the implicit drag in 0.6%)
+    phillipsSlopeMultiplier: cited(1.0, 'omfif_brexit_phillips_2025'),    // multiplier on wages.phillipsCoef
+  },
+
+  // ===========================================================================
   // NAIRU dynamics — Phelps-Friedman hysteresis with band.
   // NAIRU drifts toward live unemployment at a slow rate when there's a
   // persistent gap, capturing the post-pandemic literature consensus

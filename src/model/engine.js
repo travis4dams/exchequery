@@ -513,7 +513,8 @@ export function computeLaborInput(s) {
 export function computeProductivityGrowthAnn(s = null) {
   const P = PARAMS.productivity;
   const I = PARAMS.initial;
-  const trend = v(PARAMS.gdpDecomposition.productivityTrend);
+  const brexitDrag = v(PARAMS.brexit.productivityDragPp);
+  const trend = v(PARAMS.gdpDecomposition.productivityTrend) - brexitDrag;
   if (!s) return trend;
   const rndDev   = (s.spendRnD ?? v(I.spendRnD)) - v(I.spendRnD);
   const eduDev   = (s.educationIndex ?? 60) - 60;
@@ -615,7 +616,7 @@ export function updateWageIndex(s) {
   // productivity passthrough term going negative if growth is weak.
   const nairu = s.naturalUnemployment ?? v(PARAMS.initial.naturalUnemployment);
   const hotGap = Math.max(0, nairu - (s.unemployment ?? nairu));
-  const phillipsTerm = v(W.phillipsCoef) * hotGap;
+  const phillipsTerm = v(W.phillipsCoef) * v(PARAMS.brexit.phillipsSlopeMultiplier) * hotGap;
 
   const productivityGrowth = computeProductivityGrowthAnn(s);
   const prodPassthrough = v(W.productivityPassthrough)
