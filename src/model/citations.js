@@ -2620,13 +2620,15 @@ export const CITATIONS = {
     note: 'Separate citationId for the QE-derived magnitude of the "Emergency BoE QE" choice in the LDI doom-loop event. Magnitude is computed as −(qeYieldEffectPerBn × qeSize / 100) — both factors are themselves cited (Joyce-Tong-Woods 2011 and BoE QE history). Splitting the citation lets the magnitude be tuned via the underlying PARAMS without hand-editing the event file. Debt impact is zero: BoE QE expands the central-bank balance sheet, not PSND.',
   },
   hmrc_frozen_thresholds_2025: {
-    parameter: 'HMRC fiscal-drag receipts path benchmark',
+    parameter: 'revenue.fiscalDragCoef + HMRC fiscal-drag receipts path benchmark',
+    value: 0.25,
+    unit: 'additive fractional yield on wage-bill IT per pp of wageIndex above 100 anchor',
     confidence: 'extrapolated',
     title: 'Frozen income-tax thresholds — fiscal-drag yield',
     publisher: 'HMRC / OBR',
     year: 2025,
     url: 'https://www.gov.uk/government/statistics/direct-effects-of-illustrative-tax-changes',
-    note: 'HMRC RR June 2025 + OBR Nov-2025 EFO costings imply that holding income-tax thresholds frozen while inflation runs near target lifts effective tax burden by ~£8-12bn pa cumulatively, narrowing the deficit toward 3.0-3.5% of GDP by year 5 with debt-to-GDP plateauing ~93-94%. Inflation and growth track close to OBR central path because no rate change is enacted. Used as benchmark for a strategy that holds all income-tax rates flat for the whole run.',
+    note: 'HMRC RR June 2025 + OBR Nov-2025 EFO costings imply that holding income-tax thresholds frozen while inflation runs near target lifts effective tax burden by ~£8-12bn pa cumulatively over 5 years (~2.4-3.6% of the £330bn IT baseline). With ~10% nominal wage growth over 5 years, fiscalDragCoef = 0.25 produces a Y5 factor of 1.025 — central of the HMRC range. Applies only when revenue.thresholdsFrozen = 1 (the UK 2022-28 default). Also used as the benchmark target for the hmrcFrozenThresholds playtest scenario.',
   },
 
   // ===========================================================================
@@ -2743,6 +2745,17 @@ export const CITATIONS = {
     year: 2023,
     url: 'https://www.gov.uk/government/organisations/migration-advisory-committee',
     note: 'Bell & Johnson (2023) MAC report and Hall & Manning (2024) CEP "Only Human?" show recent migrants earn 20-30% less than equivalent UK-born initially, narrowing to 5-10% after 5 years. Migration Observatory (2025) "Upward mobility? Earnings trajectories for recent immigrants" corroborates. Sim applies an effective productivity scalar of 0.85 (5-yr average over the 0.75→0.95 ramp) to the migration→GDP elasticity at the gameStep wiring site — the existing 20-quarter fiscal taper already provides the time spread, so no per-cohort tracking is needed.',
+  },
+  hmrc_threshold_freeze_2024: {
+    parameter: 'revenue.thresholdsFrozen (toggle 0/1)',
+    value: 1,
+    unit: 'boolean as number (1 = frozen per UK policy 2022-28)',
+    confidence: 'sourced',
+    title: 'Income Tax personal allowance and basic-rate threshold freeze',
+    publisher: 'HM Treasury / HMRC',
+    year: 2024,
+    url: 'https://www.gov.uk/government/publications/autumn-statement-2022-documents',
+    note: 'Spring 2021 Budget froze the income-tax personal allowance (£12,570) and basic-rate threshold (£50,270) at April-2021 levels through 2025-26; Autumn 2022 extended the freeze through 2027-28. Default = 1 reflects the UK reality a 2026 chancellor inherits. A future reform could set this to 0 to uprate thresholds with inflation, which would null the fiscal-drag yield.',
   },
   obr_brexit_productivity_2024: {
     parameter: 'brexit.productivityDragPp (additive)',

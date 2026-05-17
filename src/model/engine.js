@@ -103,9 +103,23 @@ export function calcRevenue(s) {
   const wageScale  = (employment != null && wageIndex != null)
     ? (wageIndex / 100) * employment / v(R.wageBillAnchor)
     : gdpScale;
+  // Fiscal drag — when thresholds are frozen and nominal wages grow,
+  // a larger share of income falls into higher tax bands. Modelled as
+  // a multiplicative kicker on the wage-bill portion of income tax,
+  // anchored to wageIndex deviation from the Q1 anchor (100). At Q1 the
+  // factor is exactly 1.0; over 5 years of ~10% nominal wage growth the
+  // factor is ~1.025, implying ~2.5% extra income-tax yield — consistent
+  // with HMRC's ~£8-12bn pa cumulative fiscal-drag estimate. Off when
+  // PARAMS.revenue.thresholdsFrozen = 0 (a reform could uprate).
   const itWageShare = v(R.incomeTaxWageShare);
   const itGdpShare  = 1 - itWageShare;
-  const itBlend     = itWageShare * wageScale + itGdpShare * gdpScale;
+  const fiscalDragFactor = v(R.thresholdsFrozen)
+    ? 1 + v(R.fiscalDragCoef) * Math.max(0, (wageIndex ?? 100) / 100 - 1)
+    : 1;
+  const itBlend     = itWageShare * wageScale * fiscalDragFactor + itGdpShare * gdpScale;
+  // NI has no equivalent threshold drag — the secondary / primary
+  // thresholds are uprated separately and NI is overwhelmingly a flat
+  // payroll levy at the worker level. Drag factor not applied here.
   const niWageShare = v(R.niWageShare);
   const niGdpShare  = 1 - niWageShare;
   const niBlend     = niWageShare * wageScale + niGdpShare * gdpScale;

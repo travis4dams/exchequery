@@ -146,6 +146,15 @@ export const PARAMS = {
     incomeTaxWageShare: cited(0.70, 'hmrc_wage_share_of_it'),
     niWageShare:        cited(0.95, 'hmrc_ni_wage_base'),
     wageBillAnchor:     cited(33.04, 'ons_compensation_employees'),
+
+    // Fiscal drag — frozen-thresholds policy multiplier on the wage-bill
+    // portion of income tax. UK income-tax personal allowance and basic-
+    // rate threshold have been frozen at their April-2021 nominal levels
+    // through 2027-28 per Spring 2021 / Autumn 2022 announcements; HMRC SPI
+    // 2023-24 documents the resulting bracket-creep yield.
+    // Per Finding 10, R13 of the May 2026 realism audit.
+    thresholdsFrozen:   cited(1, 'hmrc_threshold_freeze_2024'),       // 1 = frozen (UK policy 2022-28); 0 = uprated (would require a reform)
+    fiscalDragCoef:     cited(0.25, 'hmrc_frozen_thresholds_2025'),   // additive yield per pp of wageIndex above 100 anchor
   },
 
   // ===========================================================================
