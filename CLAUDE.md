@@ -203,6 +203,35 @@ effect leaf (`debt`, `growth`, `inflation`, `healthIndex`, `bondYield`, every
 `blocs.*`) via `cited()` pointing to that citation. The event modal walks
 the effect tree and renders a `<CitationLink>` per leaf.
 
+## Roadmap (deferred work)
+
+`ROADMAP.md` is the backlog of ideas that haven't started yet. It's a
+numbered list of self-contained tickets (each with Why / Touch points /
+Acceptance / Source) sorted into P0 / P1 / P2 buckets, so an agent can
+pick "item #N" and have enough context to start.
+
+Add a new item whenever a session produces a future-work hook and nobody
+is acting on it now. Typical triggers:
+
+- The user brainstorms an idea but says "not now" / "later" / "follow-up".
+- A reform, citation note, or code comment ends up referencing a planned
+  follow-up that doesn't exist yet (e.g. "Reserved for a future X reform").
+- A test ends up skipped with a "fix this in a later PR" rationale.
+- An audit / review surfaces a structural gap that won't be closed in
+  the current PR.
+- Mid-task you discover a tangential issue that's out of scope — append
+  it to ROADMAP rather than expanding the current change.
+
+How to add: append a bullet under the right priority bucket using the
+existing format. Keep new ideas in P2 unless they unblock downstream work
+(P0) or are clearly ready to spec (P1) — the user can re-bucket later.
+Don't renumber existing items; pick the next free integer.
+
+When an idea ships, delete its ROADMAP entry in the same PR and move
+the summary into the appropriate `## [Unreleased]` section of
+`PATCH_NOTES.md`. PATCH_NOTES is for shipped/in-flight work, ROADMAP is
+for not-yet-started.
+
 ## Things to avoid
 
 - Don't add calculation logic inside React components — put it in `src/model/`.
@@ -211,3 +240,6 @@ the effect tree and renders a `<CitationLink>` per leaf.
   notes — CI will block it, but it wastes review cycles.
 - Don't add comments that just restate what the code does (the repo's style
   is sparse and intentional).
+- Don't let deferred ideas evaporate — add them to `ROADMAP.md` as soon
+  as they come up, even if just a one-liner in P2. Future-you (or a
+  future agent) won't reconstruct them from chat history.
