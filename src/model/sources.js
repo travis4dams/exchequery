@@ -111,6 +111,15 @@ export const SOURCES = [
     ],
   },
   {
+    section: 'Constitutional & devolution',
+    items: [
+      { title: 'Government Expenditure and Revenue Scotland (GERS) 2024–25', sub: 'Scottish Government (August 2025)', note: 'Scotland\'s notional fiscal balance under current constitutional arrangements: revenue £88.5bn, total spending £108.5bn → net fiscal deficit ≈ £20bn (10.4% of Scottish GDP). Block grant component ≈ £41bn. Underpins independence-shock magnitudes for GDP base, debt-share, and devolved-transfer floor.', url: 'https://www.gov.scot/publications/government-expenditure-revenue-scotland-gers/' },
+      { title: 'The fiscal implications of Scottish independence', sub: 'Institute for Fiscal Studies — Scottish Fiscal Commission collaboration / Phillips et al. (2014, refreshed 2022)', note: 'IFS analysis of independence transition: ~5–6% of UK GDP base lost (Scotland share). Steady-state independent-Scotland deficit ~6–10% of GDP versus UK baseline; rUK fiscal position improves modestly post-transition but loses Scottish revenue base. Transition costs spread over 3–5 years.', url: 'https://ifs.org.uk/topics/scotland-and-independence-debate' },
+      { title: 'Scotland Act 2016 and the Smith Commission fiscal framework', sub: 'HM Treasury / Scottish Government (2016)', note: 'Post-2016 devolution settlement: Scotland retains ~£16bn of devolved tax revenue, block-grant adjustment formula via the Holtham-style indexed deduction. Provides the baseline against which independence-induced floor revisions are calibrated.', url: 'https://www.legislation.gov.uk/ukpga/2016/11/contents' },
+      { title: 'Sovereign credit and currency separation precedents', sub: 'OECD / IMF working papers on Czechoslovakia 1993, Ireland 2010, UK 2022 LDI crisis', note: 'Sovereign-spread evidence: constitutional uncertainty episodes raise 10-year yields by 30–80bp in the affected sovereign relative to baseline. Used to size the +0.4pp bondYield shock at independence completion.', url: 'https://www.oecd.org/sovereign-debt/' },
+    ],
+  },
+  {
     section: 'Fiscal/political philosophy',
     items: [
       { title: 'Just Giving', sub: 'Rob Reich (Princeton, 2018)', note: 'Foundational case against charity-as-tax-substitute.', url: 'https://press.princeton.edu/books/hardcover/9780691183497/just-giving' },

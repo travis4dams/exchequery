@@ -38,6 +38,12 @@
 //       growthBonus?: { value, citationId },
 //       gini?: { value, citationId },
 //       healthBoost?: { value, citationId },
+//       debt?: { value, citationId },        // one-shot £bn debt shock AT
+//                                            // completion (distinct from
+//                                            // upfront `cost`, paid at commit)
+//       bondYield?: { value, citationId },   // one-shot pp bondYield bump AT
+//                                            // completion; clamped by
+//                                            // PARAMS.bondYield.ceiling
 //       populationEffects?: { [blocId]: { value, citationId } },
 //       log: string,
 //     },
@@ -1172,6 +1178,36 @@ export const REFORMS = {
       workingClass: cited(2, 'bloc_methodology'),
       business: cited(-3, 'bloc_methodology'),
       professional: cited(-2, 'bloc_methodology'),
+    },
+  },
+  scottishIndependence: {
+    name: 'Scottish Independence Settlement', branch: 'state',
+    cost: cited(3, 'scottish_independence_referendum_costs'),
+    quarters: 6, prereq: [], capacityLoad: 6,
+    passReq: { coalition: cited(65, 'bloc_methodology') },
+    politicalCapitalCost: cited(50, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0.0, social: 0.6 },
+    blurb: 'Section 30 referendum and full independence transition. Permanent GDP loss on rUK base, debt-share settlement, sovereign yield jolt; the Barnett obligation shrinks to Wales + NI.',
+    citationId: 'scottish_independence_reform',
+    controversial: true,
+    growthBonusPermanent: true,
+    special: 'lowerDevolvedFloor',
+    onComplete: {
+      growthBonus: cited(-0.4, 'scottish_independence_gdp_shock'),
+      debt: cited(25, 'scottish_independence_debt_shock'),
+      bondYield: cited(0.4, 'scottish_independence_bond_yield'),
+      log: 'Scotland is now an independent state. Westminster\'s devolved obligation now covers Wales + NI only.',
+    },
+    blocEffects: {
+      northern: cited(-12, 'scottish_independence_bloc_effects'),
+      business: cited(-8, 'scottish_independence_bloc_effects'),
+      professional: cited(-6, 'scottish_independence_bloc_effects'),
+      publicSector: cited(-5, 'scottish_independence_bloc_effects'),
+      workingClass: cited(-3, 'scottish_independence_bloc_effects'),
+      ethnicMinority: cited(2, 'scottish_independence_bloc_effects'),
+    },
+    riskMods: {
+      independenceMovement: cited(-90, 'scottish_independence_risk_gate'),
     },
   },
   inflationTargetReview: {

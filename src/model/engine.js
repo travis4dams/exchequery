@@ -370,8 +370,11 @@ export function quarterlyBlocDelta(s) {
     }
   }
 
-  // Devolved transfers — cut only
-  const devolvedCut = Math.max(0, v(T.devolvedCutFloor) - s.spendDevolved);
+  // Devolved transfers — cut only. Reads s.devolvedCutFloor when set
+  // (scottishIndependence reform lowers it post-completion); otherwise falls
+  // back to the PARAMS constant for fresh-state and pre-reform behaviour.
+  const devolvedCutFloor = s.devolvedCutFloor ?? v(T.devolvedCutFloor);
+  const devolvedCut = Math.max(0, devolvedCutFloor - s.spendDevolved);
   if (devolvedCut > 0) {
     for (const [bloc, leaf] of Object.entries(B.devolvedCutBelowFloor)) {
       d[bloc] -= devolvedCut * v(leaf);
@@ -1160,7 +1163,7 @@ export function computeRiskMods(s) {
   if (s.spendFCDO < fcdoCutFloor) {
     m.diplomaticIsolation += (fcdoCutFloor - s.spendFCDO) * v(R.diplomaticIsolation.perBnFcdoUnderfunded);
   }
-  const devolvedCutFloor = v(T.devolvedCutFloor);
+  const devolvedCutFloor = s.devolvedCutFloor ?? v(T.devolvedCutFloor);
   if (s.spendDevolved < devolvedCutFloor) {
     m.independenceMovement += (devolvedCutFloor - s.spendDevolved) * v(R.independenceMovement.perBnDevolvedUnderfunded);
   }

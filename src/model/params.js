@@ -218,6 +218,16 @@ export const PARAMS = {
   },
 
   // ===========================================================================
+  // Scottish Independence reform — post-completion state mutations driven by
+  // the `lowerDevolvedFloor` special handler in gameStep.js. The GDP/debt/bondYield
+  // shocks are authored directly on the reform's onComplete entry in reforms.js;
+  // only the bespoke devolved-floor change lives here.
+  // ===========================================================================
+  scottishIndependence: {
+    devolvedFloorAfter: cited(30, 'scottish_independence_devolved_floor'), // £bn — Wales + NI obligation only, post-independence
+  },
+
+  // ===========================================================================
   // Phillips curve — inflation reaction to slack and demand.
   // Asymmetric slope per Bunn et al. (BoE WP 1107, 2025): hot-labour-market
   // slope ~3× the slack-side slope. Trend-inflation modifier amplifies the

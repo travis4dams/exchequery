@@ -74,28 +74,6 @@ permanently and remove the skip noise.
 
 ## P1 — Player-facing content (ready to spec)
 
-### 3. Scottish Independence reform
-
-State branch, controversial. −GDP / +debt / +bondYield shock; floors
-`spendDevolved` lower. The `independenceMovement` event already in
-v0.2.0+ is the groundwork; the citation note on `event_independence`
-explicitly flags this reform as the planned follow-up.
-
-- **Why:** Closes the loop on a live event that currently has no
-  policy-side counter-move; gives the player a one-shot constitutional
-  lever to argue over.
-- **Touch points:** `src/model/reforms.js` (new state-branch entry with
-  `controversial: true`), `src/model/citations.js` (per-leaf citations
-  for the GDP/debt/bondYield/spendDevolved effects), `src/model/events.js`
-  (consider gating the `independenceMovement` event probability once the
-  reform passes).
-- **Acceptance:** Reform appears in state branch; passes the
-  citation-drift test; `npm test` green; About-tab confidence breakdown
-  unchanged or improved.
-- **Source:** PR #21 body, `src/model/citations.js:852` note ("Lays the
-  groundwork for a Scottish Independence reform planned in a follow-up
-  branch").
-
 ### 4. Dedicated R&D reform
 
 Convert the current per-quarter R&D growth nudge into a permanent
