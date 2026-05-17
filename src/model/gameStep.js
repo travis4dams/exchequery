@@ -292,9 +292,29 @@ export function stepQuarter(game) {
   n.growth = n.growth + reformDeltaK * v(PARAMS.migration.gdpElasticityPer1k) * migrantProdScalar / migrationTaper;
 
   // Mean reversion toward potential + accumulated permanent shifts from
-  // supply-side reforms. Transient reform bonuses (and event shocks) fade
-  // back to anchor over ~4 quarters at rate 0.15.
-  const reversionAnchor = v(PARAMS.potentialGrowth) + (n.permanentGrowthShift || 0);
+  // supply-side reforms + the structural productivity delta. Transient
+  // reform bonuses (and event shocks) fade back to anchor over ~4 quarters
+  // at rate 0.15.
+  //
+  // The productivity delta wires policy-driven productivity gains (R&D,
+  // education, infrastructure — see computeProductivityGrowthAnn) into
+  // headline growth via the long-run anchor. We use the PRIOR quarter's
+  // lastProductivityGrowthAnn to avoid the circular dep on this quarter's
+  // unemployment (which Okun derives from this quarter's growth). At Q1
+  // game.lastProductivityGrowthAnn = trend, so productivityDelta = 0 and
+  // the anchor reduces to the legacy potentialGrowth + permanentGrowthShift
+  // — Q1 bit-identity preserved.
+  //
+  // Employment-driven growth is NOT routed here; it already flows via the
+  // migration→GDP elasticity channel above. Routing both would double-count.
+  // Per Finding 7 of the May 2026 realism audit (the "composedGrowth →
+  // headline growth" architectural fork).
+  const trendProd = v(PARAMS.gdpDecomposition.productivityTrend);
+  const prodGrowthLag = game.lastProductivityGrowthAnn ?? trendProd;
+  const productivityDelta = prodGrowthLag - trendProd;
+  const reversionAnchor = v(PARAMS.potentialGrowth)
+                        + (n.permanentGrowthShift || 0)
+                        + productivityDelta;
   n.growth = n.growth + v(PARAMS.growthReversion.rate) * (reversionAnchor - n.growth);
 
   // 6a. Housing & energy markets — update before inflation so contributions
