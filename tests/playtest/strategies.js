@@ -7,7 +7,7 @@
 //   resolveEvent(state, event)         → number  (choice index)
 //   allocateSurplus(state, surplus)    → { debt, services, taxCut }
 
-import { REFORMS, COALITION, effectivePcCost } from '../../src/model/index.js';
+import { REFORMS, COALITION, effectivePcCost, getExclusionBlocker } from '../../src/model/index.js';
 
 const v = (leaf) => (leaf && typeof leaf === 'object' && 'value' in leaf) ? leaf.value : leaf;
 
@@ -23,6 +23,7 @@ function availableNonControversialReforms(state, cohesion) {
     if (state.proposedReforms.includes(id)) continue; // already queued
     const prereqsOk = r.prereq.every(p => state.reforms[p]?.status === 'complete');
     if (!prereqsOk) continue;
+    if (getExclusionBlocker(r, state)) continue;      // mutually-exclusive track
     const passReq = v(r.passReq?.coalition) ?? 0;
     if (cohesion < passReq) continue;
     const pcCost = effectivePcCost(r, { ...state, coalitionCohesion: cohesion });

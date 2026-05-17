@@ -124,7 +124,7 @@ export function MarketsTab({ game, spending }) {
           title="Labour Market"
           metric={
             <Metric value={`${game.unemployment.toFixed(2)}%`} color={unempColor}
-                    sub={`NAIRU ${game.naturalUnemployment.toFixed(1)}% · Gap ${unempGap >= 0 ? '+' : ''}${unempGap.toFixed(1)}pp`} />
+                    sub={`NAIRU ${game.naturalUnemployment.toFixed(1)}% · Gap ${unempGap >= 0 ? '+' : ''}${unempGap.toFixed(1)}pp · Jobs ${game.employment != null ? game.employment.toFixed(2) + 'm' : '—'}`} />
           }
           secondary={<>
             <div className="text-stone-500 text-[9px] uppercase tracking-wider">Phillips</div>
@@ -139,6 +139,53 @@ export function MarketsTab({ game, spending }) {
             <CitationLink id="boe_phillips_slope" label="Phillips" />
           </>}
         />
+
+        {game.wageIndex != null && (
+          <Panel
+            icon={Banknote}
+            title="Wages &amp; Productivity"
+            metric={
+              <Metric value={(game.realWageIndex ?? 100).toFixed(0)}
+                      color={
+                        (game.realWageIndex ?? 100) > 105 ? 'text-signal-good'
+                        : (game.realWageIndex ?? 100) < 95 ? 'text-signal-bad'
+                        : 'text-stone-100'
+                      }
+                      sub={<>Real-wage index · Nominal {Math.round(game.wageIndex)} · Productivity {Math.round(game.productivityIndex ?? 100)}</>} />
+            }
+            sparklinePoints={game.realWageIndexPath || []}
+            sparklineColor="#fbbf24"
+            footer={<>
+              Wages respond to hot labour markets (asymmetric Phillips),
+              productivity passthrough, and an education premium. Real wages
+              deflate by cumulative CPI — when the spiral activates, the
+              nominal index pulls ahead while real stays put.{' '}
+              <CitationLink id="gali_wage_persistence" label="Galí" />{' · '}
+              <CitationLink id="oecd_productivity_passthrough" label="OECD" />
+            </>}
+          />
+        )}
+
+        {game.composedGrowth != null && (
+          <Panel
+            icon={TrendingUp}
+            title="Structural growth"
+            metric={
+              <Metric value={`${game.composedGrowth.toFixed(2)}%`}
+                      color={game.composedGrowth > game.growth ? 'text-signal-good' : 'text-stone-100'}
+                      sub={<>Productivity {(game.productivityGrowthAnn ?? 0).toFixed(2)}pp · Employment {(game.employmentGrowthAnn ?? 0).toFixed(2)}pp · Headline {game.growth.toFixed(2)}%</>} />
+            }
+            sparklinePoints={game.composedGrowthPath || []}
+            sparklineColor="#22d3ee"
+            footer={<>
+              Productivity trend + employment growth (annualised). The
+              structural line ignores cyclical drags / fiscal-multiplier
+              hooks / mean-reversion — it shows what trend growth would
+              be under just the labour-supply identity.{' '}
+              <CitationLink id="obr_productivity_trend" label="OBR" />
+            </>}
+          />
+        )}
 
         <Panel
           icon={Home}

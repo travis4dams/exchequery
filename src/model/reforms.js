@@ -14,6 +14,14 @@
 //                                    // pay settlements.
 //     quarters: number,              // time to complete
 //     prereq: string[],              // reform IDs that must be complete
+//     excludesComplete?: string[],   // reform IDs whose completion PERMANENTLY
+//                                    // blocks this one. Checked via
+//                                    // getExclusionBlocker(); a blocked proposal
+//                                    // is DISCARDED at the engine commit gate
+//                                    // (not deferred onto next quarter).
+//                                    // Symmetric by convention — if A excludes
+//                                    // B then B should exclude A; covered by
+//                                    // the symmetry test in reformExclusion.test.
 //     passReq: { coalition: { value, citationId } },
 //     capacityLoad: number,          // 1–8; how much reform-capacity this
 //                                    // reform occupies while in flight or
@@ -717,6 +725,7 @@ export const REFORMS = {
     onComplete: {
       ongoingCost: cited(6, 'resolution_childcare'),
       growthBonus: cited(0.4, 'resolution_childcare'),
+      educationIndexBump: cited(1.0, 'education_index_methodology'),
       populationEffects: {
         youth: cited(0.05, 'resolution_childcare'),
         workingClass: cited(0.05, 'resolution_childcare'),
@@ -740,6 +749,7 @@ export const REFORMS = {
     citationId: 'ifs_fe_funding',
     onComplete: {
       growthBonus: cited(0.15, 'ifs_fe_funding'),
+      educationIndexBump: cited(2.0, 'education_index_methodology'),
       log: 'FE colleges rebuilt.',
     },
     blocEffects: {
@@ -759,6 +769,7 @@ export const REFORMS = {
     citationId: 'obr_tuition_fees',
     onComplete: {
       ongoingCost: cited(3, 'obr_tuition_fees'),
+      educationIndexBump: cited(1.5, 'education_index_methodology'),
       log: 'Tuition fee debt replaced with graduate tax.',
     },
     blocEffects: {
@@ -782,6 +793,7 @@ export const REFORMS = {
     citationId: 'lpc_living_wage',
     onComplete: {
       gini: cited(-0.3, 'lpc_living_wage'),
+      wageIndexBump: cited(1.5, 'lpc_living_wage_wageindex'),
       log: 'Real Living Wage on statute.',
     },
     blocEffects: {
@@ -801,6 +813,7 @@ export const REFORMS = {
     citationId: 'oecd_sectoral_bargaining',
     onComplete: {
       gini: cited(-0.2, 'oecd_sectoral_bargaining'),
+      wageIndexBump: cited(1.2, 'oecd_sectoral_bargaining_wageindex'),
       log: 'Trade union law reformed.',
     },
     blocEffects: {
@@ -982,6 +995,7 @@ export const REFORMS = {
     citationId: 'obr_migration_cap',
     controversial: true,
     growthBonusPermanent: true,
+    excludesComplete: ['openMigration', 'integrationReform'],
     onComplete: {
       growthBonus: cited(-0.4, 'obr_migration_cap'),
       ongoingRev: cited(-3, 'obr_migration_cap'),
@@ -1013,6 +1027,7 @@ export const REFORMS = {
     blurb: 'Offshoring scheme. Symbolic; legally fraught.',
     citationId: 'pac_rwanda',
     controversial: true,
+    excludesComplete: ['openMigration', 'integrationReform'],
     onComplete: {
       log: 'Offshoring scheme operational. Legal challenges ongoing.',
     },
@@ -1022,6 +1037,105 @@ export const REFORMS = {
       ethnicMinority: cited(-12, 'bloc_methodology'),
       professional: cited(-10, 'bloc_methodology'),
       youth: cited(-8, 'bloc_methodology'),
+    },
+  },
+  openMigration: {
+    name: 'Open Migration Compact', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 4, prereq: [], capacityLoad: 4,
+    passReq: { coalition: cited(34, 'bloc_methodology') },
+    politicalCapitalCost: cited(22, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: -0.5, social: -0.7 },
+    blurb: 'Liberalise visa routes and dependent rules. Labour-supply boost; bitterly contested.',
+    citationId: 'obr_open_migration',
+    controversial: true,
+    growthBonusPermanent: true,
+    excludesComplete: ['immigrationCap', 'refugeeRestrict', 'integrationReform'],
+    onComplete: {
+      growthBonus: cited(0.35, 'obr_open_migration'),
+      ongoingRev: cited(4, 'obr_open_migration'),
+      populationEffects: {
+        professional: cited(0.4, 'obr_open_migration'),
+        ethnicMinority: cited(0.6, 'obr_open_migration'),
+        youth: cited(0.2, 'obr_open_migration'),
+      },
+      log: 'Open migration compact in force.',
+    },
+    blocEffects: {
+      ethnicMinority: cited(8, 'bloc_methodology'),
+      professional: cited(8, 'bloc_methodology'),
+      business: cited(8, 'bloc_methodology'),
+      workingClass: cited(-7, 'bloc_methodology'),
+      northern: cited(-9, 'bloc_methodology'),
+      pensioners: cited(-6, 'bloc_methodology'),
+    },
+  },
+  integrationReform: {
+    name: 'Integration Package', branch: 'state',
+    cost: cited(1, 'mac_integration_2024'), quarters: 5, prereq: [], capacityLoad: 3,
+    passReq: { coalition: cited(32, 'bloc_methodology') },
+    politicalCapitalCost: cited(16, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: -0.2, social: -0.3 },
+    blurb: 'Language tuition, qualifications recognition, employer fast-track. Migrant productivity up; integrationist.',
+    citationId: 'mac_integration_2024',
+    growthBonusPermanent: true,
+    excludesComplete: ['immigrationCap', 'refugeeRestrict', 'openMigration'],
+    onComplete: {
+      growthBonus: cited(0.12, 'mac_integration_2024'),
+      healthBoost: cited(2, 'mac_integration_2024'),
+      populationEffects: {
+        ethnicMinority: cited(0.15, 'mac_integration_2024'),
+        professional: cited(0.1, 'mac_integration_2024'),
+      },
+      log: 'Integration package delivering.',
+    },
+    blocEffects: {
+      ethnicMinority: cited(10, 'bloc_methodology'),
+      publicSector: cited(4, 'bloc_methodology'),
+      professional: cited(3, 'bloc_methodology'),
+      northern: cited(-2, 'bloc_methodology'),
+    },
+  },
+  socialMediaBan: {
+    name: 'Social Media Ban (Under-16s)', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 3, prereq: [], capacityLoad: 2,
+    passReq: { coalition: cited(30, 'bloc_methodology') },
+    politicalCapitalCost: cited(10, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: 0, social: 0.3 },
+    blurb: 'Australia-style statutory age gate. Lifts youth wellbeing; modest fertility recovery.',
+    citationId: 'twenge_haidt_smartphone',
+    onComplete: {
+      healthBoost: cited(2, 'twenge_haidt_smartphone'),
+      log: 'Social media age gate in force.',
+    },
+    blocEffects: {
+      pensioners: cited(6, 'bloc_methodology'),
+      middleClass: cited(4, 'bloc_methodology'),
+      youth: cited(-5, 'bloc_methodology'),
+    },
+  },
+  socialMediaAlgorithmBan: {
+    name: 'Algorithmic Recommendation Ban', branch: 'state',
+    cost: cited(0, 'statutory_no_upfront_judgement'), quarters: 5, prereq: ['socialMediaBan'], capacityLoad: 3,
+    passReq: { coalition: cited(34, 'bloc_methodology') },
+    politicalCapitalCost: cited(18, 'political_capital_authoring_methodology'),
+    ideologyStance: { econ: -0.2, social: 0.3 },
+    blurb: 'Ban personalised algorithmic feeds for minors and require opt-in for adults. Bigger demographic effect; harder on tech blocs.',
+    citationId: 'haidt_anxious_generation',
+    controversial: true,
+    onComplete: {
+      healthBoost: cited(3, 'haidt_anxious_generation'),
+      ongoingRev: cited(-2, 'haidt_anxious_generation'),
+      log: 'Algorithmic recommendation ban in force.',
+    },
+    blocEffects: {
+      pensioners: cited(8, 'bloc_methodology'),
+      middleClass: cited(5, 'bloc_methodology'),
+      business: cited(-10, 'bloc_methodology'),
+      youth: cited(-10, 'bloc_methodology'),
+      professional: cited(-4, 'bloc_methodology'),
+    },
+    riskMods: {
+      fintechIpo: cited(-3, 'haidt_anxious_generation'),
     },
   },
   triple_lock_plus: {

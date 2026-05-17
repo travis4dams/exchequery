@@ -98,7 +98,9 @@ export const PARAMS = {
     spendDevolved: cited(71, 'devolved_block_grant_baseline'),      // Scotland + Wales + NI
     bankRate: cited(4.5, 'boe_current_bank_rate'),                  // %
     inflationTarget: cited(2.0, 'boe_inflation_target_remit'),       // % (mandated)
-    naturalUnemployment: cited(4.25, 'boe_nairu_estimate'),          // % (NAIRU — Carney TSC 2017, ResFound 2024)
+    naturalUnemployment: cited(4.7, 'boe_nairu_estimate'),           // % (NAIRU — BoE MPR Box F Nov 2025; ResFound Q4 2025 LMO)
+    participationRate: cited(0.80, 'ons_inactivity_2025'),           // fraction of working-age (state var; drifts on health + reforms)
+    hoursPerWorker: cited(32.0, 'ons_lfs_hours_2024'),               // average weekly hours per worker (UK LFS Q4 2024)
     politicalCapitalStart: cited(60, 'pc_regen_methodology'),       // honeymoon-but-not-full
     pmRelationshipStart: cited(60, 'pm_relationship_methodology'),  // honeymoon
     pmRelationshipReelectReset: cited(60, 'pm_relationship_methodology'),
@@ -133,6 +135,26 @@ export const PARAMS = {
     ni: cited(205, 'hmrc_baseline_ni'),
     other: cited(423, 'hmrc_other_baseline'),
     gdpScaleAnchor: cited(3100, 'initial_nominal_gdp'),             // revenue scales with GDP/anchor
+
+    // Income tax + NI partial scaling against the wage bill (wageIndex/100
+    // × employment). VAT, corp tax, and "other" continue to scale entirely
+    // with GDP. wageBillAnchor is the Q1 wageIndex/100 × employment product
+    // (= 1.0 × population × workingAgeShare × participationRate × (1 −
+    // unemployment/100) ≈ 33.04); pinning it here keeps wageScale=1 at
+    // game start so Q1 revenue matches the prior pure-GDP scaling to
+    // within ~0.002% (fp slack vs the rounded anchor).
+    incomeTaxWageShare: cited(0.70, 'hmrc_wage_share_of_it'),
+    niWageShare:        cited(0.95, 'hmrc_ni_wage_base'),
+    wageBillAnchor:     cited(33.04, 'ons_compensation_employees'),
+
+    // Fiscal drag — frozen-thresholds policy multiplier on the wage-bill
+    // portion of income tax. UK income-tax personal allowance and basic-
+    // rate threshold have been frozen at their April-2021 nominal levels
+    // through 2027-28 per Spring 2021 / Autumn 2022 announcements; HMRC SPI
+    // 2023-24 documents the resulting bracket-creep yield.
+    // Per Finding 10, R13 of the May 2026 realism audit.
+    thresholdsFrozen:   cited(1, 'hmrc_threshold_freeze_2024'),       // 1 = frozen (UK policy 2022-28); 0 = uprated (would require a reform)
+    fiscalDragCoef:     cited(0.25, 'hmrc_frozen_thresholds_2025'),   // additive yield per pp of wageIndex above 100 anchor
   },
 
   // ===========================================================================
@@ -701,20 +723,183 @@ export const PARAMS = {
   // Population dynamics
   // ===========================================================================
   population: {
+    // Legacy aggregate growth — retained for backward compatibility while the
+    // births/deaths/migration decomposition is the active path. Removed once
+    // nothing reads quarterlyPopulationGrowth().
     quarterlyBaseline: cited(0.15, 'ons_baseline_quarterly_pop'),   // % per quarter
-    immigrationCapDelta: cited(-0.4, 'obr_migration_cap'),          // per quarter when capped
-    childcareDelta: cited(0.05, 'resolution_childcare'),            // per quarter when free childcare
+    immigrationCapDelta: cited(-0.4, 'obr_migration_cap'),          // per quarter when capped (legacy)
+    childcareDelta: cited(0.05, 'resolution_childcare'),            // per quarter when free childcare (legacy)
+
+    // Decomposition baselines. Rebased per the May 2026 realism audit: the
+    // legacy 17 k/q (≈68 k/yr) net-migration baseline was preserved at
+    // Phase-1 for bit-identity; Phase-4 anchors it to the OBR March 2025 EFO
+    // central medium-term assumption (340 k/yr) tapered for the OBR November
+    // 2025 downward revision — midpoint 320 k/yr = 80 k/q.
+    birthsBaselineQ:         cited(148, 'ons_births_2024'),         // thousand / quarter
+    deathsBaselineQ:         cited(140, 'ons_deaths_2024'),         // thousand / quarter
+    netMigrationBaselineQ:   cited(80,  'ons_lts_migration_2024'),  // thousand / quarter (rebased May 2026)
+
+    // Driver coefficients.
+    birthsHealthCoef:        cited(0.5,  'wellings_birth_drivers'),         // k/q per healthIndex pp above 50
+    deathsHealthCoef:        cited(-1.2, 'marmot_austerity_mortality'),     // k/q per healthIndex pp above 50 (Watkins BMJ Open 2017 supports magnitude)
+    deathsNHSCoef:           cited(-0.4, 'marmot_austerity_mortality'),     // k/q per £bn NHS above baseline (Watkins BMJ Open 2017 supports magnitude)
+    migrationUnempCoef:      cited(-30.0, 'mac_unemployment_push'),         // k/q per pp unemployment above NAIRU (rebased with baseline; 2pp gap ≈ 75% of baseline)
+
+    // Per-reform deltas wired through the new channels (rather than the
+    // legacy aggregate). Magnitudes preserve the legacy headline net.
+    childcareBirthsBoostQ:              cited(8.5,  'childcare_births_judgement'),
+    immigrationCapMigrationDeltaQ:      cited(-68,  'immigration_cap_migration_judgement'),
+    openMigrationMigrationDeltaQ:       cited(60,   'obr_open_migration'),
+    integrationMigrationDeltaQ:         cited(8,    'mac_integration_2024'),
+    // Social-media-ban birth channels retired May 2026 per realism audit:
+    // Twenge/Haidt support a long-run cohort-fertility hypothesis (10-15yr
+    // delay), not a current-quarter response. The reforms themselves keep
+    // their bloc/health effects; only the births channel is removed.
+
+    // Labour-supply identity: workforce = pop × workingAgeShare × s.participationRate.
+    // participationRate moved to PARAMS.initial in Phase-4 (state variable
+    // with health-driven and reform-driven drift); only workingAgeShare remains
+    // a fixed PARAMS leaf.
+    workingAgeShare:    cited(0.640, 'ons_working_age_pop_2024'),    // fraction
+  },
+
+  // ===========================================================================
+  // Hours-worked margin — second labour-supply dimension alongside
+  // headcount × participation. Average weekly hours per worker is sticky
+  // (cultural + contractual norms) but moves on policy: a statutory
+  // four-day-week reform would shift it ~10% down, statutory-leave
+  // expansions a few percent. Effective labour input scales as
+  // hoursPerWorker / hoursPerWorkerBaseline, so baseline = initial keeps
+  // the labour-input identity at 1.0 in Q1.
+  // Per Finding 10 of the May 2026 realism audit: hours-margin reforms
+  // (four-day-week, statutory leave) operate on this margin, not headcount.
+  // ===========================================================================
+  labour: {
+    hoursPerWorkerBaseline: cited(32.0, 'ons_lfs_hours_2024'),       // anchor for the labour-input ratio
+  },
+
+  // ===========================================================================
+  // Brexit handles — explicit parameters for the two structural assumptions
+  // the model already implicitly carries: OBR's standing 4% long-run
+  // productivity drag (currently absorbed in productivityTrend = 0.6%), and
+  // OMFIF's argument that Brexit has steepened the UK wage Phillips slope
+  // (currently absorbed in wages.phillipsCoef = 0.60). Defaults are neutral
+  // (zero extra drag, 1.0 slope multiplier) so current behaviour is bit-
+  // identical; the parameters exist for future reforms (e.g. re-join EU,
+  // further regulatory divergence) to toggle.
+  // Per Finding 7, R12 of the May 2026 realism audit.
+  // ===========================================================================
+  brexit: {
+    productivityDragPp:      cited(0.0, 'obr_brexit_productivity_2024'),  // additive drag on productivity trend (pp/yr above the implicit drag in 0.6%)
+    phillipsSlopeMultiplier: cited(1.0, 'omfif_brexit_phillips_2025'),    // multiplier on wages.phillipsCoef
+  },
+
+  // ===========================================================================
+  // NAIRU dynamics — Phelps-Friedman hysteresis with band.
+  // NAIRU drifts toward live unemployment at a slow rate when there's a
+  // persistent gap, capturing the post-pandemic literature consensus
+  // (BoE MPR Box F Nov 2025; Pill 2025 speeches; OMFIF Dec 2025) that
+  // labour-market matching efficiency / Brexit / health inactivity have
+  // shifted the equilibrium. Bounded by [floor, cap] to prevent runaway.
+  // ===========================================================================
+  nairu: {
+    hysteresisRate: cited(0.015, 'ball_hysteresis_2009'),            // per-quarter fraction of (unemp − NAIRU) gap absorbed into NAIRU
+    floor:          cited(3.5,   'nairu_band_judgement'),            // lower bound
+    cap:            cited(6.5,   'nairu_band_judgement'),            // upper bound
+  },
+
+  // ===========================================================================
+  // Participation dynamics — state variable replacing the fixed PARAMS leaf.
+  // Persistence-blended forcing on healthIndex (LCWRA caseload channel) and
+  // freeChildcare completion (mothers' LF re-entry), with explicit mean
+  // reversion toward an OECD long-run anchor. Q1 initial = 0.80 (unchanged),
+  // so the wageBillAnchor bit-identity holds.
+  // ===========================================================================
+  participation: {
+    persistence:                  cited(0.92,   'participation_dynamics_judgement'),  // AR(1) weight (~8q half-life)
+    healthCoef:                   cited(0.0015, 'dwp_lcwra_caseload_2024_25'),        // fraction change per healthIndex pp above 50
+    freeChildcareCompletionBump:  cited(0.008,  'oecd_family_database_2024'),         // additive fraction when freeChildcare complete
+    meanReversionTo:              cited(0.80,   'oecd_lf_participation_uk'),          // OECD UK long-run anchor
+    meanReversionRate:            cited(0.04,   'participation_dynamics_judgement'),  // per-quarter pull toward anchor
+  },
+
+  // ===========================================================================
+  // Wages — index dynamics, asymmetric Phillips, productivity passthrough,
+  // education premium, mean reversion. Updated each quarter in stepQuarter
+  // AFTER unemployment but BEFORE inflation (so the spiral contribution can
+  // feed into the CPI forcing term).
+  // ===========================================================================
+  wages: {
+    initial:                 cited(100,  'ons_ashe_wage_anchor'),
+    persistence:             cited(0.85, 'gali_wage_persistence'),
+    phillipsCoef:            cited(0.60, 'haldane_wages_phillips'),
+    productivityPassthrough: cited(0.6,  'oecd_productivity_passthrough'),
+    educationCoef:           cited(0.02, 'devereux_uk_skill_premium'),
+    livingWageBump:          cited(1.5,  'lpc_living_wage_wageindex'),
+    unionRightsBump:         cited(1.2,  'oecd_sectoral_bargaining_wageindex'),
+    meanReversionToNominal:  cited(0.10, 'wage_mean_reversion_judgement'),
+    // Wage-price spiral fires only at sustained overheating (wage growth
+    // > nominalTrend + 4pp ≈ above 6.6%/yr). Calibrated so routine UK
+    // Phillips firings stay quiet but 1970s-style spirals bite. Each pp
+    // above the trigger adds 0.10pp to inflation that quarter.
+    spiralCoef:              cited(0.10, 'wage_spiral_judgement'),
+    spiralTriggerGap:        cited(4.0,  'wage_spiral_judgement'),
+  },
+
+  // ===========================================================================
+  // Education — 0-100 attainment / skill index. Lifted by schools spending
+  // above baseline; mean reverts toward 60. Feeds the wage update via an
+  // education premium term. Reform-completion bumps applied through the
+  // engine's onComplete handler (educationIndexBump leaf).
+  // ===========================================================================
+  education: {
+    initial:                 cited(62,   'oecd_pisa_uk_2022'),
+    persistence:             cited(0.90, 'education_index_methodology'),
+    spendCoef:               cited(0.20, 'ifs_education_spend_attainment'),
+    skillsBumpOnComplete:    cited(2.0,  'education_index_methodology'),
+    uniReformBumpOnComplete: cited(1.5,  'education_index_methodology'),
+    childcareBumpOnComplete: cited(1.0,  'education_index_methodology'),
+    meanReversionTo:         cited(60,   'education_index_methodology'),
+    meanReversionRate:       cited(0.05, 'education_index_methodology'),
+  },
+
+  // ===========================================================================
+  // GDP decomposition — feeds composedGrowth = productivityGrowth +
+  // employmentGrowth, exposed on the Markets tab. Does NOT rewrite
+  // headline GDP; the structural line shows what trend growth would be
+  // under just the labour-supply identity.
+  // ===========================================================================
+  gdpDecomposition: {
+    productivityTrend:         cited(0.6,  'obr_productivity_trend'),       // pp/yr
+  },
+
+  // ===========================================================================
+  // Productivity dynamics — wires R&D, education, and infrastructure into
+  // updateProductivityIndex via deviation-from-baseline drivers, with a
+  // lagged-weight blend so productivity is sticky but responsive. Replaces
+  // the prior fixed-trend stub (Finding 7 of the May 2026 realism audit).
+  // ===========================================================================
+  productivity: {
+    laggedWeight:      cited(0.5,   'gdp_decomposition_methodology'),  // weight on prior-quarter annual growth
+    rndCoefPerBn:      cited(0.04,  'bloom_van_reenen_2010'),           // pp/yr per £bn R&D above baseline
+    eduCoefPerPoint:   cited(0.03,  'resfound_productivity_commission_2023'), // pp/yr per educationIndex pp above 60 anchor
+    infraCoefPerBn:    cited(0.015, 'ifg_obr_supply_forecasting_2024'), // pp/yr per £bn infra above baseline
   },
 
   // ===========================================================================
   // Migration → GDP elasticity.
   // Consumed by gameStep.js growth block: labour-supply impulse =
-  // popDeltaThousands × gdpElasticityPer1k. Replaces the prior implicit channel
-  // (population scaling fixed-cost spending only, no growth response) with an
-  // explicit elastic channel per OBR EFO March 2024.
+  // popDeltaThousands × gdpElasticityPer1k × immigrantProductivityScalar.
+  // Replaces the prior implicit channel (population scaling fixed-cost
+  // spending only, no growth response) with an explicit elastic channel
+  // per OBR EFO March 2024. immigrantProductivityScalar applies the
+  // Bell-Johnson (2023 MAC) / Hall-Manning (2024 CEP) finding that recent
+  // migrants earn ~20-30% less than equivalent UK-born initially, narrowing
+  // to ~5-10% after 5 years — 0.85 is the 5-year average over that ramp.
   // ===========================================================================
   migration: {
-    gdpElasticityPer1k: cited(0.0075, 'obr_efo_march_2024_migration'),  // pp GDP per 1k net migrants
+    gdpElasticityPer1k:          cited(0.0075, 'obr_efo_march_2024_migration'),  // pp GDP per 1k net migrants
+    immigrantProductivityScalar: cited(0.85,   'bell_johnson_2023_mac'),         // 5-yr-avg productivity gradient
   },
 
   // ===========================================================================

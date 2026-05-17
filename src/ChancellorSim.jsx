@@ -18,6 +18,7 @@ import {
   reformCapacityLoad,
   calcReformCapacity,
   calcReformLoadInFlight,
+  getExclusionBlocker,
   pcCostBreakdown,
   stepQuarter,
   resolveEvent as modelResolveEvent,
@@ -75,14 +76,18 @@ export default function ChancellorSim() {
 
   useEffect(() => {
     try {
-      // v7 is the current save shape. v6 saves predate BoE + Parliament state
-      // and would NaN-cascade on the first quarter; drop them rather than
-      // attempt migration.
+      // v9 is the current save shape (May 2026 realism-audit follow-up).
+      // v8 predates the audit's state-variable expansion (naturalUnemployment
+      // hysteresis, participationRate state, lastProductivityGrowthAnn) and
+      // its absence cascades into the wage / Phillips / migration paths via
+      // ?? fallbacks. v6/v7 already dropped at the v8 boundary. Cheaper to
+      // drop v8 than to migrate field-by-field.
       localStorage.removeItem('chancellor_v6_save');
-      const saved = localStorage.getItem('chancellor_v7_save');
+      localStorage.removeItem('chancellor_v7_save');
+      localStorage.removeItem('chancellor_v8_save');
+      const saved = localStorage.getItem('chancellor_v9_save');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Migrate legacy saves: pendingEvent (object) → pendingEvents (queue).
         if (!Array.isArray(parsed.pendingEvents)) {
           parsed.pendingEvents = parsed.pendingEvent?.id ? [parsed.pendingEvent.id] : [];
         }
@@ -90,12 +95,15 @@ export default function ChancellorSim() {
         setGame(parsed);
         setShowIntro(false);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('chancellor_v9_save: failed to load, starting fresh', e);
+    }
   }, []);
 
   useEffect(() => {
     if (game.quarter > 1 || Object.keys(game.reforms).length > 0 || game.proposedReforms.length > 0) {
-      try { localStorage.setItem('chancellor_v7_save', JSON.stringify(game)); } catch (e) {}
+      try { localStorage.setItem('chancellor_v9_save', JSON.stringify(game)); }
+      catch (e) { console.warn('chancellor_v9_save: autosave failed', e); }
     }
   }, [game]);
 
@@ -195,7 +203,8 @@ export default function ChancellorSim() {
   }
 
   function reset() {
-    try { localStorage.removeItem('chancellor_v7_save'); } catch (e) {}
+    try { localStorage.removeItem('chancellor_v9_save'); }
+    catch (e) { console.warn('chancellor_v9_save: failed to clear on reset', e); }
     setGame(INITIAL); setShowIntro(true); setShowFinal(false); setShowReelect(false); setTab('overview');
   }
 
@@ -204,6 +213,7 @@ export default function ChancellorSim() {
     if (game.reforms[id]) return false;
     if (game.proposedReforms.includes(id)) return false;
     if (!reform.prereq.every(p => game.reforms[p]?.status === 'complete')) return false;
+    if (getExclusionBlocker(reform, game)) return false;
     return reformLoadInFlight + reformCapacityLoad(reform) <= reformCapacity;
   }
 
