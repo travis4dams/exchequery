@@ -21,6 +21,7 @@ export {
   computeNetMigration,
   computeWorkforce,
   computeEmployment,
+  computeLaborInput,
   computeProductivityGrowthAnn,
   updateEducationIndex,
   updateNAIRU,

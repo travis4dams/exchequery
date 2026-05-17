@@ -492,6 +492,18 @@ export function computeEmployment(s) {
   return wf * (1 - (s.unemployment ?? 0) / 100);
 }
 
+// Effective labour input scales employment by the hours-per-worker ratio.
+// At hoursPerWorker = baseline this returns employment unchanged (Q1 bit-
+// identity). Future hours-margin reforms (four-day-week, statutory leave)
+// move s.hoursPerWorker — the labour-input metric then captures the
+// employment-equivalent change without touching headcount.
+export function computeLaborInput(s) {
+  const I = PARAMS.initial;
+  const baseline = v(PARAMS.labour.hoursPerWorkerBaseline);
+  const hours = s.hoursPerWorker ?? v(I.hoursPerWorker);
+  return computeEmployment(s) * (hours / baseline);
+}
+
 // Annualised productivity growth in pp/yr. Blends a lagged AR(1) term on
 // the prior quarter's annual growth with the OBR trend plus state-driven
 // contributions from R&D, education, and infrastructure deviations
@@ -1299,6 +1311,8 @@ export function makeInitialState({ initialBlocSupport, initialBlocWeights }) {
     naturalUnemploymentPath: [v(I.naturalUnemployment)],
     participationRate: v(I.participationRate),
     participationRatePath: [v(I.participationRate)],
+    hoursPerWorker: v(I.hoursPerWorker),
+    hoursPerWorkerPath: [v(I.hoursPerWorker)],
     boeMandate: 'inflation_only',
     bankRatePath: [],
     // Parallel to bankRatePath; used by LDI doom-loop gate and projection.js.

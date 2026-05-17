@@ -2744,6 +2744,17 @@ export const CITATIONS = {
     url: 'https://www.gov.uk/government/organisations/migration-advisory-committee',
     note: 'Bell & Johnson (2023) MAC report and Hall & Manning (2024) CEP "Only Human?" show recent migrants earn 20-30% less than equivalent UK-born initially, narrowing to 5-10% after 5 years. Migration Observatory (2025) "Upward mobility? Earnings trajectories for recent immigrants" corroborates. Sim applies an effective productivity scalar of 0.85 (5-yr average over the 0.75→0.95 ramp) to the migration→GDP elasticity at the gameStep wiring site — the existing 20-quarter fiscal taper already provides the time spread, so no per-cohort tracking is needed.',
   },
+  ons_lfs_hours_2024: {
+    parameter: 'initial.hoursPerWorker (32.0) / labour.hoursPerWorkerBaseline',
+    value: 32.0,
+    unit: 'hours per worker per week',
+    confidence: 'sourced',
+    title: 'EMP01 SA: Full-time, part-time and temporary workers — average weekly hours',
+    publisher: 'ONS Labour Force Survey',
+    year: 2024,
+    url: 'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/datasets/fulltimeparttimeandtemporaryworkersseasonallyadjustedemp01sa',
+    note: 'UK total actual weekly hours / total in employment ≈ 32.0 hours/week (LFS Q4 2024). Average reflects the part-time-heavy UK workforce (~24% PT). Hours-margin is a designer-set state variable (May 2026 audit Finding 10, R11): future four-day-week reform would multiplicatively shift it; statutory-leave expansions add a smaller drag. Baseline = initial so the labour-input ratio is 1.0 at Q1, preserving wage-bill bit-identity.',
+  },
   watkins_excess_deaths_2017: {
     parameter: 'population.deathsHealthCoef / deathsNHSCoef supplementary anchor',
     confidence: 'sourced',

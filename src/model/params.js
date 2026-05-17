@@ -100,6 +100,7 @@ export const PARAMS = {
     inflationTarget: cited(2.0, 'boe_inflation_target_remit'),       // % (mandated)
     naturalUnemployment: cited(4.7, 'boe_nairu_estimate'),           // % (NAIRU — BoE MPR Box F Nov 2025; ResFound Q4 2025 LMO)
     participationRate: cited(0.80, 'ons_inactivity_2025'),           // fraction of working-age (state var; drifts on health + reforms)
+    hoursPerWorker: cited(32.0, 'ons_lfs_hours_2024'),               // average weekly hours per worker (UK LFS Q4 2024)
     politicalCapitalStart: cited(60, 'pc_regen_methodology'),       // honeymoon-but-not-full
     pmRelationshipStart: cited(60, 'pm_relationship_methodology'),  // honeymoon
     pmRelationshipReelectReset: cited(60, 'pm_relationship_methodology'),
@@ -751,6 +752,21 @@ export const PARAMS = {
     // with health-driven and reform-driven drift); only workingAgeShare remains
     // a fixed PARAMS leaf.
     workingAgeShare:    cited(0.640, 'ons_working_age_pop_2024'),    // fraction
+  },
+
+  // ===========================================================================
+  // Hours-worked margin — second labour-supply dimension alongside
+  // headcount × participation. Average weekly hours per worker is sticky
+  // (cultural + contractual norms) but moves on policy: a statutory
+  // four-day-week reform would shift it ~10% down, statutory-leave
+  // expansions a few percent. Effective labour input scales as
+  // hoursPerWorker / hoursPerWorkerBaseline, so baseline = initial keeps
+  // the labour-input identity at 1.0 in Q1.
+  // Per Finding 10 of the May 2026 realism audit: hours-margin reforms
+  // (four-day-week, statutory leave) operate on this margin, not headcount.
+  // ===========================================================================
+  labour: {
+    hoursPerWorkerBaseline: cited(32.0, 'ons_lfs_hours_2024'),       // anchor for the labour-input ratio
   },
 
   // ===========================================================================

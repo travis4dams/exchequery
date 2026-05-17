@@ -472,6 +472,7 @@ export function stepQuarter(game) {
   n.unemploymentPath = [...((n.unemploymentPath || []).slice(-19)), n.unemployment];
   n.naturalUnemploymentPath = [...((n.naturalUnemploymentPath || []).slice(-19)), n.naturalUnemployment];
   n.participationRatePath = [...((n.participationRatePath || []).slice(-19)), n.participationRate];
+  n.hoursPerWorkerPath = [...((n.hoursPerWorkerPath || []).slice(-19)), n.hoursPerWorker];
   n.healthIndexPath = [...((n.healthIndexPath || []).slice(-19)), n.healthIndex];
   n.populationPath = [...((n.populationPath || []).slice(-19)), n.population];
   n.birthsPath = [...((n.birthsPath || []).slice(-19)), n.births];
