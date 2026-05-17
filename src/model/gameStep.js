@@ -431,6 +431,17 @@ export function stepQuarter(game) {
         }
       }
       if (actual.gini) n.gini = n.gini + actual.gini;
+      // One-shot debt and bondYield shocks delivered at completion. Distinct
+      // from the upfront `reform.cost` (which is paid at commit). Used by
+      // reforms whose macro effects only materialise once the policy is
+      // fully implemented (constitutional reforms with settlement debt;
+      // reforms that re-price sovereign risk on delivery). Presence-checked
+      // (not truthiness-checked) so a reform may legitimately author a
+      // negative or zero shock without silent drops.
+      if (actual.debt != null) n.debt = n.debt + actual.debt;
+      if (actual.bondYield != null) {
+        n.bondYield = Math.min(v(PARAMS.bondYield.ceiling), n.bondYield + actual.bondYield);
+      }
       // One-shot wage/education bumps land directly on the index. The
       // wage bump is applied AFTER updateWageIndex has run this step, so
       // it shows up as a clean step-change on next quarter's path.
@@ -474,6 +485,9 @@ export function stepQuarter(game) {
       }
       if (reform.special === 'enablePandemicDamperSocialCare') {
         n.pandemicDamper = (n.pandemicDamper ?? 1) * v(PARAMS.health.pandemicDamperSocialCare);
+      }
+      if (reform.special === 'lowerDevolvedFloor') {
+        n.devolvedCutFloor = v(PARAMS.scottishIndependence.devolvedFloorAfter);
       }
 
       completedReforms.push(reform.name);
